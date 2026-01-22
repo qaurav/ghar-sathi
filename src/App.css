@@ -1,38 +1,577 @@
-.App {
+/* ===== Global ===== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter",
+    -segoe-ui, sans-serif;
+  background: #020617;
+  color: #0f172a;
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* Utility layout */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 32px 16px;
+  background: radial-gradient(circle at top left, #0f172a 0, #020617 40%, #0b1120 100%);
+}
+
+.app-card {
+  width: 100%;
+  max-width: 1040px;
+  background: radial-gradient(circle at top, #020617, #020617);
+  border-radius: 24px;
+  padding: 24px 28px 32px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.9),
+    0 0 0 1px rgba(148, 163, 184, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: #e5e7eb;
+}
+/* Header */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.app-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #38bdf8;
+  margin: 0;
+}
+
+.app-subtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+   color: #9ca3af;
+}
+
+.app-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Typography */
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin: 6px 0 14px;
+}
+
+/* Grid helpers */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.col {
+  flex: 1 1 160px;
+}
+
+/* ===== Buttons ===== */
+
+.btn {
+  border-radius: 999px;
+  font-size: 13px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 0.14s ease, color 0.14s ease,
+    box-shadow 0.14s ease, transform 0.08s ease, border-color 0.14s ease;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0ea5e9, #0369a1);
+  color: #f9fafb;
+  box-shadow: 0 10px 30px rgba(14, 165, 233, 0.4);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #0284c7, #0f766e);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5f5;
+}
+
+.btn-outline:hover {
+  background: #eff6ff;
+}
+
+.btn-whatsapp {
+  border-radius: 999px;
+  font-size: 13px;
+  padding: 8px 16px;
+  background: #22c55e;
+  color: #ecfdf3;
+  text-decoration: none;
+  border: 1px solid #16a34a;
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* Link-style button */
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: #38bdf8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.link-button:hover {
+  text-decoration: underline;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+/* ===== Forms & Inputs ===== */
+
+.form {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.form input,
+.form textarea,
+.form select,
+.search-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #020617;
+  border-color: #1f2937;
+  color: #e5e7eb;
+  font-size: 13px;
+
+  outline: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.form input:focus,
+.form textarea:focus,
+.form select:focus,
+.search-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.5);
+  background: #020617;
+}
+
+label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #cbd5f5;
+}
+
+/* ===== Generic cards ===== */
+
+.card {
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  margin-bottom: 14px;
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out,
+    border-color 0.12s ease-out, background-color 0.12s ease-out;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 1);
+  border-color: #38bdf8;
+  background: rgba(15, 23, 42, 0.98);
+}
+
+/* Badges */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.badge-accepted {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* ===== Breadcrumb & empty state ===== */
+
+.breadcrumb {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.empty-state {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #e5e7eb;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.empty-state-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.empty-state-text {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
+/* ===== Choice buttons (user filter pills) ===== */
+
+.choice-group {
+  margin-bottom: 12px;
+}
+
+.choice-group h3,
+.choice-group h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e5e7eb; 
+  margin-bottom: 6px;
+}
+
+.choice-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice-btn {
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #0f172a;
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease,
+    border-color 0.14s ease, box-shadow 0.14s ease, transform 0.08s ease;
+}
+
+.choice-btn.active {
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  color: #f9fafb;
+  border-color: transparent;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.45);
+}
+
+.choice-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* ===== Caregiver cards ===== */
+
+.caregiver-card-header {
+  display: flex;
+  gap: 12px;
+}
+
+.caregiver-avatar,
+.avatar-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  color: #eff6ff;
+  display: flex;
   align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  font-weight: 600;
+  font-size: 18px;
 }
 
-.App-link {
-  color: #61dafb;
+.caregiver-card-info {
+  flex: 1;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+.card p {
+  color: #e5e7eb;              /* light text */
+}
+
+/* Small meta text like location line */
+.caregiver-card-info p {
+  color: #9ca3af;              /* softer gray */
+}
+
+.rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.rating-stars {
+  font-size: 13px;
+  color: #f59e0b;
+}
+
+.rating-count {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.caregiver-stats {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 6px 0;
+  border-radius: 12px;
+  background: #f9fafb;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.verification-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.verification-badge {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0369a1;
+}
+
+.certification-badge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pricing-info {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+/* Caregiver list – meta labels (Category, Work type, etc.) */
+.caregiver-meta-line {
+  font-size: 13px;
+  color: #e5e7eb;        /* light text on dark card */
+}
+
+.caregiver-meta-label {
+  font-weight: 600;
+  color: #cbd5f5;        /* slightly brighter for the label word */
+}
+
+/* ===== Featured banner ===== */
+
+.featured-banner {
+  margin: 10px 0 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fef3c7, #fffbeb);
+  font-size: 13px;
+  color: #92400e;
+}
+
+.featured-banner-subtitle {
+  font-size: 11px;
+  color: #b45309;
+}
+
+/* ===== Auth / landing page ===== */
+
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 32px 16px;
+  background: radial-gradient(circle at top left, #0f172a 0, #020617 40%, #0b1120 100%);
+  color: #e5e7eb;
+  gap: 24px;
+}
+
+.auth-hero {
+  flex: 1.3;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px 20px 24px 6px;
+}
+
+.auth-title {
+  font-size: 40px;
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #38bdf8;
+  margin: 0 0 10px;
+}
+
+.auth-tagline {
+  font-size: 15px;
+  color: #cbd5f5;
+  max-width: 420px;
+  margin: 0 0 16px;
+}
+
+.auth-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.auth-points li {
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.auth-card {
+  flex: 1;
+  max-width: 420px;
+  background: radial-gradient(circle at top, #0f172a, #020617);
+  border-radius: 24px;
+  padding: 24px 22px 26px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.9),
+    0 0 0 1px rgba(148, 163, 184, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.auth-card h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin: 0 0 4px;
+}
+
+.auth-card p {
+  font-size: 12px;
+  color: #e5e7eb;
+  margin: 0 0 16px;
+}
+
+.auth-card .form input,
+.auth-card .form select,
+.auth-card .form textarea {
+  background: #020617;
+  border-color: #1f2937;
+  color: #e5e7eb;
+}
+
+.auth-card .form input:focus,
+.auth-card .form select:focus,
+.auth-card .form textarea:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.5);
+  background: #020617;
+}
+
+.auth-card .btn-primary {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ===== Responsive ===== */
+
+@media (max-width: 900px) {
+  .app-shell {
+    padding: 18px 10px;
   }
-  to {
-    transform: rotate(360deg);
+
+  .app-card {
+    padding: 18px 16px 24px;
+  }
+
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .auth-shell {
+    flex-direction: column;
+    padding: 20px 14px;
+  }
+
+  .auth-hero {
+    text-align: center;
+    align-items: center;
+    padding: 10px 0 0;
+  }
+
+  .auth-title {
+    font-size: 32px;
   }
 }

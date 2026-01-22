@@ -1,0 +1,250 @@
+// src/BookingFormPage.js
+import React, { useState } from "react";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "./firebaseConfig";
+import { useAuth } from "./AuthContext";
+import { FONEPAY_CONFIG, generateRefId } from "./fonepayConfig";
+
+export default function BookingFormPage({ caregiver, onBooked }) {
+  const { user } = useAuth();
+
+  const [fullName, setFullName] = useState(user?.displayName || "");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [durationHours, setDurationHours] = useState(4);
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Payment state
+  const [paymentMethod, setPaymentMethod] = useState("fonepay"); // fonepay | cash
+  const [processingPayment, setProcessingPayment] = useState(false);
+
+  if (!caregiver) return <p>No caregiver selected.</p>;
+
+  // Calculate total amount (example: ₹500 per hour)
+  const hourlyRate = caregiver.hourlyRate || 500;
+  const totalAmount = durationHours * hourlyRate;
+
+  const handlePaymentWithFonepay = async (bookingData) => {
+    try {
+      setProcessingPayment(true);
+
+      const refId = generateRefId();
+
+      // Store booking data in sessionStorage temporarily
+      sessionStorage.setItem("pendingBookingData", JSON.stringify({
+        ...bookingData,
+        paymentRefId: refId,
+        amount: totalAmount,
+      }));
+
+      // Create Fonepay payment form
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = FONEPAY_CONFIG.PAYMENT_GATEWAY_URL;
+
+      const fields = {
+        merchantCode: FONEPAY_CONFIG.MERCHANT_CODE,
+        amount: totalAmount,
+        refId: refId,
+        remarks: `Caregiver booking - ${caregiver.name}`,
+        returnUrl: `${window.location.origin}/payment-callback`,
+      };
+
+      Object.keys(fields).forEach((key) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = fields[key];
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      console.error("Payment initiation error:", err);
+      alert("Could not initiate payment. Please try again.");
+      setProcessingPayment(false);
+    }
+  };
+
+  const handleCashPayment = async (bookingData) => {
+    try {
+      setSubmitting(true);
+
+      // Create booking with cash payment status
+      await addDoc(collection(db, "bookings"), {
+        ...bookingData,
+        paymentMethod: "cash",
+        paymentStatus: "pending", // Admin will mark as paid after receiving cash
+        amountDue: totalAmount,
+        createdAt: serverTimestamp(),
+      });
+
+      alert("Booking confirmed! Please pay ₹" + totalAmount + " in cash to the caregiver.");
+      onBooked && onBooked();
+    } catch (err) {
+      console.error("Booking error:", err);
+      alert("Could not create booking. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!fullName || !phone || !address || !date || !time) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
+    const bookingData = {
+      userId: user.uid,
+      userName: fullName,
+      userPhone: phone,
+      address,
+      date,
+      time,
+      durationHours,
+      notes,
+      caregiverId: caregiver.id,
+      caregiverName: caregiver.name || "",
+      caregiverLocation: caregiver.location || "",
+      caregiverWorkType: caregiver.workType || "",
+      caregiverShifts: caregiver.shifts || [],
+      status: "pending",
+      hourlyRate: hourlyRate,
+      totalAmount: totalAmount,
+    };
+
+    if (paymentMethod === "fonepay") {
+      await handlePaymentWithFonepay(bookingData);
+    } else {
+      await handleCashPayment(bookingData);
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="section-title">User detail form</h2>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <strong>{caregiver.name || "Caregiver"}</strong>
+        <p>Location: {caregiver.location}</p>
+        <p>Work type: {caregiver.workType}</p>
+        <p>Shifts: {(caregiver.shifts || []).join(", ")}</p>
+        <p>Services: {(caregiver.servicesOffered || []).join(", ")}</p>
+        <p style={{ marginTop: 12, fontSize: 14, color: "#0ea5e9" }}>
+          <strong>Rate: ₹{hourlyRate}/hour</strong>
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="form">
+        <label>Full name</label>
+        <input
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+          placeholder="Your name"
+        />
+
+        <label>Phone number</label>
+        <input
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          required
+          placeholder="98XXXXXXXX"
+        />
+
+        <label>Service address</label>
+        <input
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          required
+          placeholder="House, street, area, city"
+        />
+
+        <div className="row">
+          <div className="col">
+            <label>Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+          </div>
+          <div className="col">
+            <label>Start time</label>
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+
+        <label>Duration (hours)</label>
+        <input
+          type="number"
+          min={1}
+          max={24}
+          value={durationHours}
+          onChange={(e) => setDurationHours(Number(e.target.value))}
+          required
+        />
+
+        <label>Notes / special instructions</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Medical conditions, preferences, gate instructions, etc."
+        />
+
+        {/* Price summary */}
+        <div className="card" style={{ marginTop: 12, marginBottom: 12, background: "#020617" }}>
+          <p style={{ fontSize: 13, color: "#9ca3af" }}>
+            {durationHours} hours × ₹{hourlyRate}/hour = <strong style={{ color: "#e5e7eb", fontSize: 16 }}>₹{totalAmount}</strong>
+          </p>
+        </div>
+
+        {/* Payment method selection */}
+        <label style={{ marginTop: 12 }}>Payment method</label>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <button
+            type="button"
+            className={"btn btn-outline" + (paymentMethod === "fonepay" ? " btn-primary" : "")}
+            onClick={() => setPaymentMethod("fonepay")}
+          >
+            💳 Fonepay
+          </button>
+          <button
+            type="button"
+            className={"btn btn-outline" + (paymentMethod === "cash" ? " btn-primary" : "")}
+            onClick={() => setPaymentMethod("cash")}
+          >
+            💵 Cash on delivery
+          </button>
+        </div>
+
+        <button
+          className="btn btn-primary"
+          type="submit"
+          disabled={submitting || processingPayment}
+        >
+          {processingPayment
+            ? "Redirecting to payment..."
+            : submitting
+            ? "Booking..."
+            : paymentMethod === "fonepay"
+            ? "Proceed to payment"
+            : "Confirm booking"}
+        </button>
+      </form>
+    </div>
+  );
+}
