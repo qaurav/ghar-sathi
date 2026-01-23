@@ -111,24 +111,25 @@ export default function CaregiverDashboardPage() {
   };
 
   const handleReportUser = (b) => {
-  const confirmed = window.confirm(
-    "Do you really want to report this user to admin? Use this only for serious issues like abuse, non‑payment, or safety concerns."
-  );
-  if (!confirmed) return;
+    const confirmed = window.confirm(
+      "Do you really want to report this user to admin? Use this only for serious issues like abuse, non‑payment, or safety concerns.",
+    );
+    if (!confirmed) return;
 
-  const bookingId = b.id;
-  const userId = b.userId || "";
-  const employeeId = user?.uid || "";
+    const bookingId = b.id;
+    const userId = b.userId || "";
+    const employeeId = user?.uid || "";
 
-  navigate(
-    `/caregiver/reportuser?bookingId=${encodeURIComponent(
-      bookingId
-    )}&userId=${encodeURIComponent(userId)}&employeeId=${encodeURIComponent(
-      employeeId
-    )}`
-  );
-};
+    console.log("Report user booking:", b.userName, b); // debug
 
+    navigate(
+      `/caregiver/reportuser?bookingId=${encodeURIComponent(
+        bookingId,
+      )}&userId=${encodeURIComponent(userId)}&userName=${encodeURIComponent(
+        b.userName || "",
+      )}&employeeId=${encodeURIComponent(employeeId)}`,
+    );
+  };
 
   const isBookingReported = (bookingId) => {
     return myReports.some((r) => r.bookingId === bookingId);

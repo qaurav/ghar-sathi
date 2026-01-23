@@ -57,7 +57,6 @@ export default function AdminDashboardPage() {
 
   const [tab, setTab] = useState("caregivers");
 
-  // ---- Loaders ----
   const loadCaregivers = async () => {
     try {
       setLoadingCaregivers(true);
@@ -164,7 +163,6 @@ export default function AdminDashboardPage() {
     loadBlacklist();
   }, []);
 
-  // ---- Caregiver actions ----
   const handleUpdateStatus = async (id, verified, status) => {
     try {
       await updateDoc(doc(db, "caregiverProfiles", id), {
@@ -290,16 +288,21 @@ export default function AdminDashboardPage() {
     try {
       const report = blacklistReports.find((r) => r.id === reportId);
       if (!report) return;
+
       await setDoc(doc(db, "blacklist", userId), {
+        userName: report.userName, // from report
+        reportedByName: report.reportedByName, // caregiver name
         reason: report.reason,
         reportedBy: report.reportedBy,
         reportedAt: report.createdAt,
         description: report.description,
         blacklistedAt: new Date().toISOString(),
       });
+
       await updateDoc(doc(db, "blacklistReports", reportId), {
         status: "blacklisted",
       });
+
       alert("User blacklisted successfully!");
       await loadBlacklistReports();
       await loadBlacklist();
@@ -322,7 +325,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // ---- Helpers ----
   const toggleShift = (shift, isEdit = true) => {
     if (isEdit) {
       if (editShifts.includes(shift)) {
@@ -395,6 +397,27 @@ export default function AdminDashboardPage() {
     transition: "all 0.14s ease",
   });
 
+  const handleRemoveFromBlacklist = async (userId) => {
+    const confirmRemove = window.confirm(
+      "Remove this user from blacklist? They will be able to use the system again.",
+    );
+    if (!confirmRemove) return;
+    try {
+      await deleteDoc(doc(db, "blacklist", userId));
+      await loadBlacklist();
+    } catch (err) {
+      console.error("Error removing from blacklist:", err);
+      alert("Could not remove from blacklist.");
+    }
+  };
+
+  const getCategoryServices = (servicesList, caregiverCategory) => {
+    if (!caregiverCategory || caregiverCategory === "both") {
+      return servicesList;
+    }
+    return servicesList.filter((s) => s.category === caregiverCategory);
+  };
+
   // ---- Services actions ----
   const handleAddService = async (e) => {
     e.preventDefault();
@@ -407,7 +430,7 @@ export default function AdminDashboardPage() {
 
       await setDoc(doc(db, "services", id), {
         label: newServiceLabel.trim(),
-        category: newServiceCategory, // caregiver / household
+        category: newServiceCategory, // caregiver / household / both mapped via category
         createdAt: new Date().toISOString(),
       });
 
@@ -417,20 +440,6 @@ export default function AdminDashboardPage() {
     } catch (err) {
       console.error("Error adding service:", err);
       alert("Could not add service.");
-    }
-  };
-
-  const handleDeleteService = async (id, label) => {
-    const confirmDelete = window.confirm(
-      `Delete service "${label}"? This cannot be undone.`,
-    );
-    if (!confirmDelete) return;
-    try {
-      await deleteDoc(doc(db, "services", id));
-      await loadServices();
-    } catch (err) {
-      console.error("Error deleting service:", err);
-      alert("Could not delete service.");
     }
   };
 
@@ -468,28 +477,19 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleRemoveFromBlacklist = async (userId) => {
-    const confirmRemove = window.confirm(
-      "Remove this user from blacklist? They will be able to use the system again.",
+  const handleDeleteService = async (id, label) => {
+    const confirmDelete = window.confirm(
+      `Delete service "${label}"? This cannot be undone.`,
     );
-    if (!confirmRemove) return;
+    if (!confirmDelete) return;
     try {
-      await deleteDoc(doc(db, "blacklist", userId));
-      await loadBlacklist();
+      await deleteDoc(doc(db, "services", id));
+      await loadServices();
     } catch (err) {
-      console.error("Error removing from blacklist:", err);
-      alert("Could not remove from blacklist.");
+      console.error("Error deleting service:", err);
+      alert("Could not delete service.");
     }
   };
-
-  // Helper to filter services by caregiver category
-  const getCategoryServices = (servicesList, caregiverCategory) => {
-    if (!caregiverCategory || caregiverCategory === "both") {
-      return servicesList;
-    }
-    return servicesList.filter((s) => s.category === caregiverCategory);
-  };
-
   return (
     <div>
       <h2 className="section-title">Admin dashboard</h2>
@@ -505,7 +505,6 @@ export default function AdminDashboardPage() {
         settings.
       </p>
 
-      {/* Tabs */}
       <div className="choice-buttons" style={{ marginBottom: 16 }}>
         <button
           type="button"
@@ -1700,6 +1699,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
+          {/* Reports */}
           <div
             style={{
               marginBottom: 24,
@@ -1729,9 +1729,9 @@ export default function AdminDashboardPage() {
                           marginBottom: 4,
                         }}
                       >
-                        User ID {r.userId}
+                        User:{" "}
+                        <strong>{r.userName || r.userId || "Unknown"}</strong>
                       </p>
-                      <p>{r.bookingId}</p>
                       <p
                         style={{
                           fontSize: 13,
@@ -1749,7 +1749,11 @@ export default function AdminDashboardPage() {
                         }}
                       >
                         Reported by{" "}
-                        {r.reportedByName || r.reportedBy || "Unknown"}
+                        <strong>
+                          {r.reportedByName ||
+                            r.reportedBy ||
+                            "Unknown caregiver"}
+                        </strong>
                       </p>
                       <p
                         style={{
@@ -1758,7 +1762,7 @@ export default function AdminDashboardPage() {
                           margin: 0,
                         }}
                       >
-                        Reason {r.reason || "NA"}
+                        Reason: {r.reason || "NA"}
                       </p>
                       {r.description && (
                         <p
@@ -1828,6 +1832,7 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
+          {/* Blacklisted users */}
           <div>
             <h4 style={{ color: "#e5e7eb" }}>
               Blacklisted users ({blacklist.length})
@@ -1851,7 +1856,7 @@ export default function AdminDashboardPage() {
                           marginBottom: 4,
                         }}
                       >
-                        User ID {u.id}
+                        <strong>{u.userName || "Unknown user"}</strong>
                       </p>
                       <p
                         style={{
@@ -1860,7 +1865,7 @@ export default function AdminDashboardPage() {
                           margin: 0,
                         }}
                       >
-                        Reason {u.reason || "NA"}
+                        Reason: {u.reason || "NA"}
                       </p>
                       <p
                         style={{
@@ -1869,7 +1874,10 @@ export default function AdminDashboardPage() {
                           margin: 0,
                         }}
                       >
-                        Reported by {u.reportedBy || "Unknown"}
+                        Reported by{" "}
+                        <strong>
+                          {u.reportedByName || "Unknown caregiver"}
+                        </strong>
                       </p>
                       <p
                         style={{

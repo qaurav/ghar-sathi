@@ -1,6 +1,12 @@
 // src/BookingFormPage.js
 import React, { useState } from "react";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { useAuth } from "./AuthContext";
 import { FONEPAY_CONFIG, generateRefId } from "./fonepayConfig";
@@ -17,13 +23,14 @@ export default function BookingFormPage({ caregiver, onBooked }) {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Payment state
-  const [paymentMethod, setPaymentMethod] = useState("fonepay"); // fonepay | cash
+  const [paymentMethod, setPaymentMethod] = useState("fonepay");
   const [processingPayment, setProcessingPayment] = useState(false);
+
+  const [isBlacklistedModalOpen, setIsBlacklistedModalOpen] =
+    useState(false); // NEW
 
   if (!caregiver) return <p>No caregiver selected.</p>;
 
-  // Calculate total amount (example: ₹500 per hour)
   const hourlyRate = caregiver.hourlyRate || 500;
   const totalAmount = durationHours * hourlyRate;
 
@@ -33,14 +40,15 @@ export default function BookingFormPage({ caregiver, onBooked }) {
 
       const refId = generateRefId();
 
-      // Store booking data in sessionStorage temporarily
-      sessionStorage.setItem("pendingBookingData", JSON.stringify({
-        ...bookingData,
-        paymentRefId: refId,
-        amount: totalAmount,
-      }));
+      sessionStorage.setItem(
+        "pendingBookingData",
+        JSON.stringify({
+          ...bookingData,
+          paymentRefId: refId,
+          amount: totalAmount,
+        })
+      );
 
-      // Create Fonepay payment form
       const form = document.createElement("form");
       form.method = "POST";
       form.action = FONEPAY_CONFIG.PAYMENT_GATEWAY_URL;
@@ -74,16 +82,19 @@ export default function BookingFormPage({ caregiver, onBooked }) {
     try {
       setSubmitting(true);
 
-      // Create booking with cash payment status
       await addDoc(collection(db, "bookings"), {
         ...bookingData,
         paymentMethod: "cash",
-        paymentStatus: "pending", // Admin will mark as paid after receiving cash
+        paymentStatus: "pending",
         amountDue: totalAmount,
         createdAt: serverTimestamp(),
       });
 
-      alert("Booking confirmed! Please pay ₹" + totalAmount + " in cash to the caregiver.");
+      alert(
+        "Booking confirmed! Please pay ₹" +
+          totalAmount +
+          " in cash to the caregiver."
+      );
       onBooked && onBooked();
     } catch (err) {
       console.error("Booking error:", err);
@@ -96,34 +107,54 @@ export default function BookingFormPage({ caregiver, onBooked }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!user) {
+      alert("Please sign in to book.");
+      return;
+    }
+
     if (!fullName || !phone || !address || !date || !time) {
       alert("Please fill all required fields.");
       return;
     }
 
-    const bookingData = {
-      userId: user.uid,
-      userName: fullName,
-      userPhone: phone,
-      address,
-      date,
-      time,
-      durationHours,
-      notes,
-      caregiverId: caregiver.id,
-      caregiverName: caregiver.name || "",
-      caregiverLocation: caregiver.location || "",
-      caregiverWorkType: caregiver.workType || "",
-      caregiverShifts: caregiver.shifts || [],
-      status: "pending",
-      hourlyRate: hourlyRate,
-      totalAmount: totalAmount,
-    };
+    try {
+      // === BLACKLIST CHECK ===
+      const blRef = doc(db, "blacklist", user.uid);
+      const blSnap = await getDoc(blRef);
 
-    if (paymentMethod === "fonepay") {
-      await handlePaymentWithFonepay(bookingData);
-    } else {
-      await handleCashPayment(bookingData);
+      if (blSnap.exists()) {
+        // open popup and stop
+        setIsBlacklistedModalOpen(true);
+        return;
+      }
+
+      const bookingData = {
+        userId: user.uid,
+        userName: fullName,
+        userPhone: phone,
+        address,
+        date,
+        time,
+        durationHours,
+        notes,
+        caregiverId: caregiver.id,
+        caregiverName: caregiver.name || "",
+        caregiverLocation: caregiver.location || "",
+        caregiverWorkType: caregiver.workType || "",
+        caregiverShifts: caregiver.shifts || [],
+        status: "pending",
+        hourlyRate: hourlyRate,
+        totalAmount: totalAmount,
+      };
+
+      if (paymentMethod === "fonepay") {
+        await handlePaymentWithFonepay(bookingData);
+      } else {
+        await handleCashPayment(bookingData);
+      }
+    } catch (err) {
+      console.error("Error checking blacklist / booking:", err);
+      alert("Could not create booking. Please try again.");
     }
   };
 
@@ -137,7 +168,9 @@ export default function BookingFormPage({ caregiver, onBooked }) {
         <p>Work type: {caregiver.workType}</p>
         <p>Shifts: {(caregiver.shifts || []).join(", ")}</p>
         <p>Services: {(caregiver.servicesOffered || []).join(", ")}</p>
-        <p style={{ marginTop: 12, fontSize: 14, color: "#0ea5e9" }}>
+        <p
+          style={{ marginTop: 12, fontSize: 14, color: "#0ea5e9" }}
+        >
           <strong>Rate: ₹{hourlyRate}/hour</strong>
         </p>
       </div>
@@ -205,26 +238,44 @@ export default function BookingFormPage({ caregiver, onBooked }) {
           placeholder="Medical conditions, preferences, gate instructions, etc."
         />
 
-        {/* Price summary */}
-        <div className="card" style={{ marginTop: 12, marginBottom: 12, background: "#020617" }}>
+        <div
+          className="card"
+          style={{
+            marginTop: 12,
+            marginBottom: 12,
+            background: "#020617",
+          }}
+        >
           <p style={{ fontSize: 13, color: "#9ca3af" }}>
-            {durationHours} hours × ₹{hourlyRate}/hour = <strong style={{ color: "#e5e7eb", fontSize: 16 }}>₹{totalAmount}</strong>
+            {durationHours} hours × ₹{hourlyRate}/hour ={" "}
+            <strong
+              style={{ color: "#e5e7eb", fontSize: 16 }}
+            >
+              ₹{totalAmount}
+            </strong>
           </p>
         </div>
 
-        {/* Payment method selection */}
         <label style={{ marginTop: 12 }}>Payment method</label>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <div
+          style={{ display: "flex", gap: 8, marginBottom: 12 }}
+        >
           <button
             type="button"
-            className={"btn btn-outline" + (paymentMethod === "fonepay" ? " btn-primary" : "")}
+            className={
+              "btn btn-outline" +
+              (paymentMethod === "fonepay" ? " btn-primary" : "")
+            }
             onClick={() => setPaymentMethod("fonepay")}
           >
             💳 Fonepay
           </button>
           <button
             type="button"
-            className={"btn btn-outline" + (paymentMethod === "cash" ? " btn-primary" : "")}
+            className={
+              "btn btn-outline" +
+              (paymentMethod === "cash" ? " btn-primary" : "")
+            }
             onClick={() => setPaymentMethod("cash")}
           >
             💵 Cash on delivery
@@ -245,6 +296,61 @@ export default function BookingFormPage({ caregiver, onBooked }) {
             : "Confirm booking"}
         </button>
       </form>
+
+      {/* Blacklist popup */}
+      {isBlacklistedModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              background: "#020617",
+              borderRadius: 8,
+              padding: 24,
+              maxWidth: 420,
+              width: "90%",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+            }}
+          >
+            <h3
+              style={{
+                marginTop: 0,
+                marginBottom: 8,
+                color: "#fecaca",
+              }}
+            >
+              Account restricted
+            </h3>
+            <p
+              style={{
+                fontSize: 14,
+                color: "#e5e7eb",
+                marginBottom: 16,
+              }}
+            >
+              Your account has been blacklisted due to previous
+              reports. You cannot create new bookings at the
+              moment. Please contact support if you believe this is
+              a mistake.
+            </p>
+            <button
+              className="btn btn-primary"
+              onClick={() => setIsBlacklistedModalOpen(false)}
+              style={{ width: "100%" }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

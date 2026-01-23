@@ -27,6 +27,7 @@ export default function CaregiverReportUserPage() {
   const navigate = useNavigate();
 
   const [userId, setUserId] = useState("");
+  const [userName, setUserName] = useState("");       // NEW
   const [bookingId, setBookingId] = useState("");
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
@@ -35,9 +36,12 @@ export default function CaregiverReportUserPage() {
 
   useEffect(() => {
     const qUserId = query.get("userId") || "";
+    const qUserName = query.get("userName") || "";    // NEW
     const qBookingId = query.get("bookingId") || "";
     const qEmployeeId = query.get("employeeId") || "";
+
     setUserId(qUserId);
+    setUserName(qUserName);                           // NEW
     setBookingId(qBookingId);
     setEmployeeId(qEmployeeId);
   }, [query]);
@@ -53,21 +57,26 @@ export default function CaregiverReportUserPage() {
     try {
       setSubmitting(true);
 
+      const caregiverName =
+        user?.displayName ||
+        user?.email ||
+        user?.phoneNumber ||
+        "Caregiver";
+
       await addDoc(collection(db, "blacklistReports"), {
         userId,
+        userName: userName || userId,                 // store name; fallback to uid
         bookingId: bookingId || null,
         reason,
         description,
         reportedBy: employeeId || user?.uid || "caregiver",
-        reportedByName: user?.displayName || "Caregiver",
+        reportedByName: caregiverName,
         status: "pending",
         createdAt: serverTimestamp(),
       });
 
       alert("Report submitted successfully! Admin will review it shortly.");
-
-      // Go back to caregiver job dashboard so the button can show “Reported”
-      navigate("/caregiver/dashboard"); // make sure this matches your route
+      navigate("/caregiver/dashboard");
     } catch (err) {
       console.error("Error submitting report:", err);
       alert("Could not submit report. Please try again.");
@@ -89,12 +98,21 @@ export default function CaregiverReportUserPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="form">
+          {/* Show user name instead of UID */}
+          <label>User</label>
+          <input
+            value={userName || userId}
+            onChange={(e) => setUserName(e.target.value)}
+            placeholder="User name"
+          />
+
+          {/* If you still want to keep UID, hide or make read-only */}
           <label>User ID (UID)</label>
           <input
             value={userId}
             onChange={(e) => setUserId(e.target.value)}
-            required
             placeholder="Firebase user ID"
+            readOnly
           />
 
           <label>Booking ID</label>
