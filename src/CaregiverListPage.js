@@ -3,13 +3,6 @@ import React, { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
-const SERVICES = [
-  "elderly_care",
-  "child_care",
-  "cooking",
-  "cleaning",
-  "washing",
-];
 const SHIFTS = ["morning", "day", "night"];
 
 // Caregiver card component
@@ -28,14 +21,12 @@ function CaregiverCard({ caregiver, onSelect, requireLogin }) {
 
   const handleBookClick = () => {
     if (requireLogin) {
-      // Store caregiver data in localStorage before redirecting
       localStorage.setItem(
         "pendingBookingCaregiver",
         JSON.stringify(caregiver)
       );
       window.location.href = "/auth";
     } else {
-      // Proceed with booking
       onSelect && onSelect(caregiver);
     }
   };
@@ -200,18 +191,21 @@ export default function CaregiverListPage({
   onSelectCaregiver,
   preselectedWorkType = "",
   preselectedShift = "",
-  userCategory,
+  userCategory, // "caregiver", "household", or "both"
   requireLogin = false,
 }) {
   const [caregivers, setCaregivers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [serviceFilter, setServiceFilter] = useState("");
+  const [serviceFilter, setServiceFilter] = useState(""); // service id
   const [workTypeFilter, setWorkTypeFilter] = useState(preselectedWorkType);
   const [shiftFilter, setShiftFilter] = useState(preselectedShift);
   const [locationFilter, setLocationFilter] = useState("");
 
+  const [services, setServices] = useState([]); // from Firestore
+
+  // Load caregivers
   useEffect(() => {
     const load = async () => {
       try {
@@ -228,6 +222,20 @@ export default function CaregiverListPage({
     load();
   }, []);
 
+  // Load services
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        const snap = await getDocs(collection(db, "services"));
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setServices(list);
+      } catch (err) {
+        console.error("Error loading services:", err);
+      }
+    };
+    loadServices();
+  }, []);
+
   useEffect(() => {
     if (preselectedWorkType) setWorkTypeFilter(preselectedWorkType);
   }, [preselectedWorkType]);
@@ -236,7 +244,22 @@ export default function CaregiverListPage({
     if (preselectedShift) setShiftFilter(preselectedShift);
   }, [preselectedShift]);
 
+  // Filter services shown in dropdown based on userCategory
+  const visibleServices = services.filter((s) => {
+    if (!userCategory || userCategory === "both") return true;
+    if (s.category === "both") return true;
+    return s.category === userCategory;
+  });
+
   const filtered = caregivers.filter((c) => {
+    // Enforce category so caregiver vs household do not mix
+    if (userCategory === "caregiver" && c.category !== "caregiver") {
+      return false;
+    }
+    if (userCategory === "household" && c.category !== "household") {
+      return false;
+    }
+
     // Search by name or location
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
@@ -248,15 +271,10 @@ export default function CaregiverListPage({
       }
     }
 
-    // Filter by category - handle "both" option
-    if (userCategory && userCategory !== "both") {
-      if (c.category && c.category !== userCategory) return false;
-    }
-
     // Filter by availability
     if (c.isAvailable === false) return false;
 
-    // Filter by service
+    // Filter by service (servicesOffered contains service IDs)
     if (serviceFilter && !(c.servicesOffered || []).includes(serviceFilter))
       return false;
 
@@ -267,12 +285,15 @@ export default function CaregiverListPage({
     if (shiftFilter && !(c.shifts || []).includes(shiftFilter)) return false;
 
     // Filter by location
-    if (locationFilter && c.location !== locationFilter) return false;
+    if (
+      locationFilter &&
+      (c.location || "").toLowerCase() !== locationFilter.toLowerCase()
+    )
+      return false;
 
     return true;
   });
 
-  // Separate featured caregivers (rating > 4.5)
   const featured = filtered.filter((c) => (c.rating || 0) >= 4.5);
   const regular = filtered.filter((c) => (c.rating || 0) < 4.5);
 
@@ -284,19 +305,24 @@ export default function CaregiverListPage({
     );
   }
 
+  const categoryLabel =
+    userCategory === "caregiver"
+      ? "Care giver"
+      : userCategory === "household"
+      ? "Household"
+      : "All";
+
   return (
     <div>
       {/* Breadcrumb */}
       <div className="breadcrumb">
-        <span>Home</span> &gt;{" "}
-        <span>{userCategory === "caregiver" ? "Care giver" : "Household"}</span>{" "}
-        &gt;{" "}
+        <span>Home</span> &gt; <span>{categoryLabel}</span> &gt;{" "}
         <span>
           {workTypeFilter === "full_time"
             ? "Full time"
             : workTypeFilter === "part_time"
-              ? "Part time"
-              : "Any"}
+            ? "Part time"
+            : "Any"}
         </span>{" "}
         &gt; <span>Caregivers</span>
       </div>
@@ -325,13 +351,9 @@ export default function CaregiverListPage({
             onChange={(e) => setServiceFilter(e.target.value)}
           >
             <option value="">Any service</option>
-            {SERVICES.map((s) => (
-              <option key={s} value={s}>
-                {s
-                  .replace("_", " ")
-                  .split(" ")
-                  .map((word) => word[0].toUpperCase() + word.slice(1))
-                  .join(" ")}
+            {visibleServices.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
               </option>
             ))}
           </select>
@@ -349,7 +371,6 @@ export default function CaregiverListPage({
           </select>
         </div>
 
-        {/* ONLY show shift filter for part-time */}
         {workTypeFilter === "part_time" && (
           <div className="col">
             <label>Shift</label>
@@ -376,6 +397,7 @@ export default function CaregiverListPage({
           />
         </div>
       </div>
+
       {/* Featured section */}
       {featured.length > 0 && (
         <div className="featured-banner">
@@ -386,7 +408,6 @@ export default function CaregiverListPage({
         </div>
       )}
 
-      {/* Featured caregivers */}
       {featured.map((c) => (
         <CaregiverCard
           key={c.id}
@@ -396,7 +417,6 @@ export default function CaregiverListPage({
         />
       ))}
 
-      {/* Regular caregivers */}
       {regular.map((c) => (
         <CaregiverCard
           key={c.id}
@@ -406,7 +426,6 @@ export default function CaregiverListPage({
         />
       ))}
 
-      {/* No results */}
       {filtered.length === 0 && (
         <div className="empty-state">
           <div className="empty-state-icon">🔍</div>

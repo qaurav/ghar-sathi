@@ -25,14 +25,17 @@ export default function AdminDashboardPage() {
 
   const [services, setServices] = useState([]);
   const [newServiceLabel, setNewServiceLabel] = useState("");
+  const [newServiceCategory, setNewServiceCategory] = useState("caregiver");
   const [servicesKey, setServicesKey] = useState(0);
+
+  const [editingService, setEditingService] = useState(null);
+  const [editServiceLabel, setEditServiceLabel] = useState("");
+  const [editServiceCategory, setEditServiceCategory] = useState("caregiver");
 
   const [blacklistReports, setBlacklistReports] = useState([]);
   const [blacklistFilter, setBlacklistFilter] = useState("pending");
-
   const [blacklist, setBlacklist] = useState([]);
 
-  // caregiver edit/add state
   const [editingCaregiver, setEditingCaregiver] = useState(null);
   const [editName, setEditName] = useState("");
   const [editLocation, setEditLocation] = useState("");
@@ -42,6 +45,7 @@ export default function AdminDashboardPage() {
   const [editServices, setEditServices] = useState([]);
   const [editAvailable, setEditAvailable] = useState(true);
   const [editVerified, setEditVerified] = useState(false);
+
   const [searchCaregiverName, setSearchCaregiverName] = useState("");
 
   const [addName, setAddName] = useState("");
@@ -81,7 +85,6 @@ export default function AdminDashboardPage() {
         acc[s] = (acc[s] || 0) + 1;
         return acc;
       }, {});
-
       const byDayOfMonth = {};
       docs.forEach((b) => {
         if (b.date) {
@@ -89,13 +92,11 @@ export default function AdminDashboardPage() {
           byDayOfMonth[day] = (byDayOfMonth[day] || 0) + 1;
         }
       });
-
       const byLocation = {};
       docs.forEach((b) => {
         const loc = b.caregiverLocation || "Unknown";
         byLocation[loc] = (byLocation[loc] || 0) + 1;
       });
-
       const byService = {};
       docs.forEach((b) => {
         const servicesArr = b.caregiverShifts || [];
@@ -103,7 +104,6 @@ export default function AdminDashboardPage() {
           byService[s] = (byService[s] || 0) + 1;
         });
       });
-
       const byTime = {};
       docs.forEach((b) => {
         if (b.time) {
@@ -131,7 +131,6 @@ export default function AdminDashboardPage() {
     try {
       const snap = await getDocs(collection(db, "services"));
       const servicesList = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      console.log("Loaded services:", servicesList);
       setServices(servicesList);
       setServicesKey((prev) => prev + 1);
     } catch (err) {
@@ -168,7 +167,10 @@ export default function AdminDashboardPage() {
   // ---- Caregiver actions ----
   const handleUpdateStatus = async (id, verified, status) => {
     try {
-      await updateDoc(doc(db, "caregiverProfiles", id), { verified, status });
+      await updateDoc(doc(db, "caregiverProfiles", id), {
+        verified,
+        status,
+      });
     } catch (err) {
       console.error("Error updating caregiver:", err);
       alert("Could not update caregiver status.");
@@ -206,9 +208,9 @@ export default function AdminDashboardPage() {
       alert("Please fill all required fields.");
       return;
     }
-
     try {
       const finalShifts = editWorkType === "part_time" ? editShifts : [];
+
       await updateDoc(doc(db, "caregiverProfiles", editingCaregiver.id), {
         name: editName,
         location: editLocation,
@@ -219,6 +221,7 @@ export default function AdminDashboardPage() {
         isAvailable: editAvailable,
         verified: editVerified,
       });
+
       alert("Caregiver updated successfully!");
       await loadCaregivers();
       resetEditForm();
@@ -234,10 +237,10 @@ export default function AdminDashboardPage() {
       alert("Please fill all required fields.");
       return;
     }
-
     try {
       const newId = "manual-" + Date.now();
       const finalShifts = addWorkType === "part_time" ? addShifts : [];
+
       await setDoc(doc(db, "caregiverProfiles", newId), {
         uid: newId,
         name: addName,
@@ -252,6 +255,7 @@ export default function AdminDashboardPage() {
         createdAt: new Date().toISOString(),
         createdByAdmin: true,
       });
+
       alert("Caregiver added successfully!");
       setAddName("");
       setAddLocation("");
@@ -268,10 +272,9 @@ export default function AdminDashboardPage() {
 
   const handleDeleteCaregiver = async (id, name) => {
     const confirmDelete = window.confirm(
-      `Are you sure you want to delete ${name}? This action cannot be undone.`
+      `Are you sure you want to delete ${name}? This action cannot be undone.`,
     );
     if (!confirmDelete) return;
-
     try {
       await deleteDoc(doc(db, "caregiverProfiles", id));
       alert("Caregiver deleted successfully!");
@@ -282,24 +285,21 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // ---- Blacklist actions (admin) ----
+  // ---- Blacklist actions ----
   const handleBlacklistUser = async (reportId, userId) => {
     try {
       const report = blacklistReports.find((r) => r.id === reportId);
       if (!report) return;
-
       await setDoc(doc(db, "blacklist", userId), {
         reason: report.reason,
         reportedBy: report.reportedBy,
         reportedAt: report.createdAt,
-        description: report.description || "",
+        description: report.description,
         blacklistedAt: new Date().toISOString(),
       });
-
       await updateDoc(doc(db, "blacklistReports", reportId), {
         status: "blacklisted",
       });
-
       alert("User blacklisted successfully!");
       await loadBlacklistReports();
       await loadBlacklist();
@@ -366,9 +366,8 @@ export default function AdminDashboardPage() {
       statusFilter === "all"
         ? true
         : statusFilter === "pending"
-        ? !c.verified && !c.status
-        : c.status === statusFilter;
-
+          ? !c.verified || !c.status
+          : c.status === statusFilter;
     return matchName && matchLocation && matchStatus;
   });
 
@@ -380,19 +379,19 @@ export default function AdminDashboardPage() {
   });
 
   const filteredReports = blacklistReports.filter(
-    (r) => r.status === blacklistFilter
+    (r) => r.status === blacklistFilter,
   );
 
   const getTabButtonStyle = (tabName) => ({
     padding: "8px 16px",
     borderRadius: "999px",
-    border: "1px solid " + (tab === tabName ? "transparent" : "#1f2937"),
+    border: `1px solid ${tab === tabName ? "#0ea5e9" : "#1f2937"}`,
     background:
-      tab === tabName ? "linear-gradient(135deg, #0ea5e9, #6366f1)" : "#020617",
+      tab === tabName ? "linear-gradient(135deg,#0ea5e9,#6366f1)" : "#020617",
     color: tab === tabName ? "#f9fafb" : "#e5e7eb",
     cursor: "pointer",
-    fontWeight: tab === tabName ? "600" : "500",
-    fontSize: "13px",
+    fontWeight: tab === tabName ? 600 : 500,
+    fontSize: 13,
     transition: "all 0.14s ease",
   });
 
@@ -404,12 +403,16 @@ export default function AdminDashboardPage() {
       return;
     }
     try {
-      const id = newServiceLabel.trim().toLowerCase().replace(/\s+/g, "-");
+      const id = newServiceLabel.trim().toLowerCase().replace(/\s+/g, "_");
+
       await setDoc(doc(db, "services", id), {
         label: newServiceLabel.trim(),
+        category: newServiceCategory, // caregiver / household
         createdAt: new Date().toISOString(),
       });
+
       setNewServiceLabel("");
+      setNewServiceCategory("caregiver");
       await loadServices();
     } catch (err) {
       console.error("Error adding service:", err);
@@ -419,7 +422,7 @@ export default function AdminDashboardPage() {
 
   const handleDeleteService = async (id, label) => {
     const confirmDelete = window.confirm(
-      `Delete service "${label}"? This cannot be undone.`
+      `Delete service "${label}"? This cannot be undone.`,
     );
     if (!confirmDelete) return;
     try {
@@ -431,9 +434,43 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleStartEditService = (service) => {
+    setEditingService(service);
+    setEditServiceLabel(service.label || "");
+    setEditServiceCategory(service.category || "caregiver");
+  };
+
+  const handleCancelEditService = () => {
+    setEditingService(null);
+    setEditServiceLabel("");
+    setEditServiceCategory("caregiver");
+  };
+
+  const handleSaveService = async () => {
+    if (!editingService) return;
+    if (!editServiceLabel.trim()) {
+      alert("Please enter a service name.");
+      return;
+    }
+    try {
+      await updateDoc(doc(db, "services", editingService.id), {
+        label: editServiceLabel.trim(),
+        category: editServiceCategory,
+      });
+      alert("Service updated successfully!");
+      setEditingService(null);
+      setEditServiceLabel("");
+      setEditServiceCategory("caregiver");
+      await loadServices();
+    } catch (err) {
+      console.error("Error updating service:", err);
+      alert("Could not update service.");
+    }
+  };
+
   const handleRemoveFromBlacklist = async (userId) => {
     const confirmRemove = window.confirm(
-      "Remove this user from blacklist? They will be able to use the system again."
+      "Remove this user from blacklist? They will be able to use the system again.",
     );
     if (!confirmRemove) return;
     try {
@@ -443,6 +480,14 @@ export default function AdminDashboardPage() {
       console.error("Error removing from blacklist:", err);
       alert("Could not remove from blacklist.");
     }
+  };
+
+  // Helper to filter services by caregiver category
+  const getCategoryServices = (servicesList, caregiverCategory) => {
+    if (!caregiverCategory || caregiverCategory === "both") {
+      return servicesList;
+    }
+    return servicesList.filter((s) => s.category === caregiverCategory);
   };
 
   return (
@@ -467,28 +512,28 @@ export default function AdminDashboardPage() {
           style={getTabButtonStyle("caregivers")}
           onClick={() => setTab("caregivers")}
         >
-          👥 Caregivers
+          Caregivers
         </button>
         <button
           type="button"
           style={getTabButtonStyle("bookings")}
           onClick={() => setTab("bookings")}
         >
-          📊 Bookings & analytics
+          Bookings & analytics
         </button>
         <button
           type="button"
           style={getTabButtonStyle("services")}
           onClick={() => setTab("services")}
         >
-          🛠 Services
+          Services
         </button>
         <button
           type="button"
           style={getTabButtonStyle("blacklist")}
           onClick={() => setTab("blacklist")}
         >
-          🚫 Blacklist
+          Blacklist
         </button>
       </div>
 
@@ -531,12 +576,13 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
+              {/* Add caregiver */}
               <div
                 className="card"
                 style={{ marginBottom: 16, background: "#0b1120" }}
               >
                 <h4 style={{ color: "#e5e7eb", marginTop: 0 }}>
-                  ➕ Add new caregiver manually
+                  Add new caregiver manually
                 </h4>
                 <form className="form" onSubmit={handleAddCaregiver}>
                   <label>Name</label>
@@ -546,34 +592,43 @@ export default function AdminDashboardPage() {
                     placeholder="Full name"
                     required
                   />
+
                   <label>Location</label>
                   <input
                     value={addLocation}
                     onChange={(e) => setAddLocation(e.target.value)}
-                    placeholder="City/Area"
+                    placeholder="City/Area..."
                     required
                   />
+
                   <label>Category</label>
                   <select
                     value={addCategory}
-                    onChange={(e) => setAddCategory(e.target.value)}
+                    onChange={(e) => {
+                      setAddCategory(e.target.value);
+                      setAddServices([]);
+                    }}
                   >
-                    <option value="caregiver">🏥 Care giver</option>
-                    <option value="household">🏠 Household</option>
-                    <option value="both">👥 Both</option>
+                    <option value="caregiver">Care giver</option>
+                    <option value="household">Household</option>
+                    <option value="both">Both</option>
                   </select>
+
                   <label>Work type</label>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                    }}
+                  >
                     <button
                       type="button"
                       style={{
                         padding: "8px 16px",
                         borderRadius: "999px",
-                        border:
-                          "1px solid " +
-                          (addWorkType === "full_time"
-                            ? "#0ea5e9"
-                            : "#1f2937"),
+                        border: `1px solid ${
+                          addWorkType === "full_time" ? "#0ea5e9" : "#1f2937"
+                        }`,
                         background:
                           addWorkType === "full_time" ? "#0ea5e9" : "#020617",
                         color:
@@ -585,18 +640,16 @@ export default function AdminDashboardPage() {
                         setAddShifts([]);
                       }}
                     >
-                      💼 Full time
+                      Full time
                     </button>
                     <button
                       type="button"
                       style={{
                         padding: "8px 16px",
                         borderRadius: "999px",
-                        border:
-                          "1px solid " +
-                          (addWorkType === "part_time"
-                            ? "#fbbf24"
-                            : "#1f2937"),
+                        border: `1px solid ${
+                          addWorkType === "part_time" ? "#fbbf24" : "#1f2937"
+                        }`,
                         background:
                           addWorkType === "part_time" ? "#fbbf24" : "#020617",
                         color:
@@ -605,9 +658,10 @@ export default function AdminDashboardPage() {
                       }}
                       onClick={() => setAddWorkType("part_time")}
                     >
-                      ⏰ Part time
+                      Part time
                     </button>
                   </div>
+
                   {addWorkType === "part_time" && (
                     <>
                       <label style={{ marginTop: 12 }}>Shifts</label>
@@ -625,11 +679,9 @@ export default function AdminDashboardPage() {
                             style={{
                               padding: "6px 12px",
                               borderRadius: "999px",
-                              border:
-                                "1px solid " +
-                                (addShifts.includes(s)
-                                  ? "#0ea5e9"
-                                  : "#1f2937"),
+                              border: `1px solid ${
+                                addShifts.includes(s) ? "#0ea5e9" : "#1f2937"
+                              }`,
                               background: addShifts.includes(s)
                                 ? "#0ea5e9"
                                 : "#020617",
@@ -642,79 +694,95 @@ export default function AdminDashboardPage() {
                             onClick={() => toggleShift(s, false)}
                           >
                             {s === "morning"
-                              ? "🌅 Morning"
+                              ? "Morning"
                               : s === "day"
-                              ? "☀️ Day"
-                              : "🌙 Night"}
+                                ? "Day"
+                                : "Night"}
                           </button>
                         ))}
                       </div>
                     </>
                   )}
+
                   <label style={{ marginTop: 12 }}>
                     Services offered (checklist)
                   </label>
                   <div
-                    style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
-                    key={servicesKey}
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
                   >
-                    {services.length === 0 ? (
-                      <p style={{ fontSize: 12, color: "#9ca3af" }}>
+                    {servicesKey && services.length === 0 && (
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#9ca3af",
+                        }}
+                      >
                         No services available. Add services first.
                       </p>
-                    ) : (
-                      services.map((s) => (
-                        <label
-                          key={s.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            fontSize: 12,
-                            cursor: "pointer",
-                            padding: "6px 12px",
-                            borderRadius: "999px",
-                            background: addServices.includes(s.id)
-                              ? "#10b981"
-                              : "#020617",
-                            border:
-                              "1px solid " +
-                              (addServices.includes(s.id)
-                                ? "#10b981"
-                                : "#1f2937"),
-                            color: addServices.includes(s.id)
-                              ? "#f9fafb"
-                              : "#e5e7eb",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={addServices.includes(s.id)}
-                            onChange={() => toggleService(s.id, false)}
-                            style={{ cursor: "pointer" }}
-                          />
-                          {s.label}
-                        </label>
-                      ))
                     )}
+                    {getCategoryServices(services, addCategory).map((s) => (
+                      <label
+                        key={s.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          padding: "6px 12px",
+                          borderRadius: "999px",
+                          background: addServices.includes(s.id)
+                            ? "#10b981"
+                            : "#020617",
+                          border: `1px solid ${
+                            addServices.includes(s.id) ? "#10b981" : "#1f2937"
+                          }`,
+                          color: addServices.includes(s.id)
+                            ? "#f9fafb"
+                            : "#e5e7eb",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={addServices.includes(s.id)}
+                          onChange={() => toggleService(s.id, false)}
+                          style={{ cursor: "pointer" }}
+                        />
+                        {s.label}
+                      </label>
+                    ))}
                   </div>
+
                   <button
                     className="btn btn-primary"
                     type="submit"
                     style={{ marginTop: 16 }}
                   >
-                    ➕ Add caregiver
+                    Add caregiver
                   </button>
                 </form>
               </div>
 
+              {/* Edit caregiver */}
               {editingCaregiver && (
                 <div
                   className="card"
-                  style={{ marginBottom: 16, background: "#0b1120" }}
+                  style={{
+                    marginBottom: 16,
+                    background: "#0b1120",
+                  }}
                 >
-                  <h4 style={{ color: "#e5e7eb", marginTop: 0 }}>
-                    ✎ Edit: {editingCaregiver.name}
+                  <h4
+                    style={{
+                      color: "#e5e7eb",
+                      marginTop: 0,
+                    }}
+                  >
+                    Edit {editingCaregiver.name}
                   </h4>
                   <div className="form">
                     <label>Name</label>
@@ -722,102 +790,123 @@ export default function AdminDashboardPage() {
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                     />
+
                     <label>Location</label>
                     <input
                       value={editLocation}
                       onChange={(e) => setEditLocation(e.target.value)}
                     />
+
                     <label>Category</label>
                     <select
                       value={editCategory}
-                      onChange={(e) => setEditCategory(e.target.value)}
+                      onChange={(e) => {
+                        setEditCategory(e.target.value);
+                        setEditServices([]);
+                      }}
                     >
-                      <option value="caregiver">🏥 Care giver</option>
-                      <option value="household">🏠 Household</option>
-                      <option value="both">👥 Both</option>
+                      <option value="caregiver">Care giver</option>
+                      <option value="household">Household</option>
+                      <option value="both">Both</option>
                     </select>
+
                     <label style={{ marginTop: 12 }}>Availability</label>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                      }}
+                    >
                       <button
                         type="button"
                         style={{
                           padding: "8px 16px",
                           borderRadius: "999px",
-                          border:
-                            "1px solid " +
-                            (editAvailable ? "#22c55e" : "#e5e7eb"),
+                          border: `1px solid ${
+                            editAvailable ? "#22c55e" : "#e5e7eb"
+                          }`,
                           background: editAvailable ? "#22c55e" : "#020617",
                           color: editAvailable ? "#f9fafb" : "#e5e7eb",
                           cursor: "pointer",
                         }}
                         onClick={() => setEditAvailable(true)}
                       >
-                        ✓ Available
+                        Available
                       </button>
                       <button
                         type="button"
                         style={{
                           padding: "8px 16px",
                           borderRadius: "999px",
-                          border:
-                            "1px solid " +
-                            (!editAvailable ? "#ef4444" : "#e5e7eb"),
+                          border: `1px solid ${
+                            !editAvailable ? "#ef4444" : "#e5e7eb"
+                          }`,
                           background: !editAvailable ? "#ef4444" : "#020617",
                           color: !editAvailable ? "#f9fafb" : "#e5e7eb",
                           cursor: "pointer",
                         }}
                         onClick={() => setEditAvailable(false)}
                       >
-                        ✗ Not available
+                        Not available
                       </button>
                     </div>
+
                     <label style={{ marginTop: 12 }}>Verification status</label>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                      }}
+                    >
                       <button
                         type="button"
                         style={{
                           padding: "8px 16px",
                           borderRadius: "999px",
-                          border:
-                            "1px solid " +
-                            (editVerified ? "#10b981" : "#e5e7eb"),
+                          border: `1px solid ${
+                            editVerified ? "#10b981" : "#e5e7eb"
+                          }`,
                           background: editVerified ? "#10b981" : "#020617",
                           color: editVerified ? "#f9fafb" : "#e5e7eb",
                           cursor: "pointer",
                         }}
                         onClick={() => setEditVerified(true)}
                       >
-                        ✓ Verified
+                        Verified
                       </button>
                       <button
                         type="button"
                         style={{
                           padding: "8px 16px",
                           borderRadius: "999px",
-                          border:
-                            "1px solid " +
-                            (!editVerified ? "#fbbf24" : "#e5e7eb"),
+                          border: `1px solid ${
+                            !editVerified ? "#fbbf24" : "#e5e7eb"
+                          }`,
                           background: !editVerified ? "#fbbf24" : "#020617",
                           color: !editVerified ? "#000000" : "#e5e7eb",
                           cursor: "pointer",
                         }}
                         onClick={() => setEditVerified(false)}
                       >
-                        ⏳ Not verified
+                        Not verified
                       </button>
                     </div>
+
                     <label style={{ marginTop: 12 }}>Work type</label>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                      }}
+                    >
                       <button
                         type="button"
                         style={{
                           padding: "8px 16px",
                           borderRadius: "999px",
-                          border:
-                            "1px solid " +
-                            (editWorkType === "full_time"
-                              ? "#0ea5e9"
-                              : "#1f2937"),
+                          border: `1px solid ${
+                            editWorkType === "full_time" ? "#0ea5e9" : "#1f2937"
+                          }`,
                           background:
                             editWorkType === "full_time"
                               ? "#0ea5e9"
@@ -833,18 +922,16 @@ export default function AdminDashboardPage() {
                           setEditShifts([]);
                         }}
                       >
-                        💼 Full time
+                        Full time
                       </button>
                       <button
                         type="button"
                         style={{
                           padding: "8px 16px",
                           borderRadius: "999px",
-                          border:
-                            "1px solid " +
-                            (editWorkType === "part_time"
-                              ? "#fbbf24"
-                              : "#1f2937"),
+                          border: `1px solid ${
+                            editWorkType === "part_time" ? "#fbbf24" : "#1f2937"
+                          }`,
                           background:
                             editWorkType === "part_time"
                               ? "#fbbf24"
@@ -857,9 +944,10 @@ export default function AdminDashboardPage() {
                         }}
                         onClick={() => setEditWorkType("part_time")}
                       >
-                        ⏰ Part time
+                        Part time
                       </button>
                     </div>
+
                     {editWorkType === "part_time" && (
                       <>
                         <label style={{ marginTop: 12 }}>Shifts</label>
@@ -877,11 +965,9 @@ export default function AdminDashboardPage() {
                               style={{
                                 padding: "6px 12px",
                                 borderRadius: "999px",
-                                border:
-                                  "1px solid " +
-                                  (editShifts.includes(s)
-                                    ? "#0ea5e9"
-                                    : "#1f2937"),
+                                border: `1px solid ${
+                                  editShifts.includes(s) ? "#0ea5e9" : "#1f2937"
+                                }`,
                                 background: editShifts.includes(s)
                                   ? "#0ea5e9"
                                   : "#020617",
@@ -894,68 +980,85 @@ export default function AdminDashboardPage() {
                               onClick={() => toggleShift(s, true)}
                             >
                               {s === "morning"
-                                ? "🌅 Morning"
+                                ? "Morning"
                                 : s === "day"
-                                ? "☀️ Day"
-                                : "🌙 Night"}
+                                  ? "Day"
+                                  : "Night"}
                             </button>
                           ))}
                         </div>
                       </>
                     )}
+
                     <label style={{ marginTop: 12 }}>
                       Services offered (checklist)
                     </label>
                     <div
-                      style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
-                      key={servicesKey + 1}
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
                     >
-                      {services.length === 0 ? (
-                        <p style={{ fontSize: 12, color: "#9ca3af" }}>
+                      {servicesKey && services.length === 0 && (
+                        <p
+                          style={{
+                            fontSize: 12,
+                            color: "#9ca3af",
+                          }}
+                        >
                           No services available.
                         </p>
-                      ) : (
-                        services.map((s) => (
-                          <label
-                            key={s.id}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 6,
-                              fontSize: 12,
-                              cursor: "pointer",
-                              padding: "6px 12px",
-                              borderRadius: "999px",
-                              background: editServices.includes(s.id)
-                                ? "#10b981"
-                                : "#020617",
-                              border:
-                                "1px solid " +
-                                (editServices.includes(s.id)
-                                  ? "#10b981"
-                                  : "#1f2937"),
-                              color: editServices.includes(s.id)
-                                ? "#f9fafb"
-                                : "#e5e7eb",
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={editServices.includes(s.id)}
-                              onChange={() => toggleService(s.id, true)}
-                              style={{ cursor: "pointer" }}
-                            />
-                            {s.label}
-                          </label>
-                        ))
                       )}
+                      {getCategoryServices(services, editCategory).map((s) => (
+                        <label
+                          key={s.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 12,
+                            cursor: "pointer",
+                            padding: "6px 12px",
+                            borderRadius: "999px",
+                            background: editServices.includes(s.id)
+                              ? "#10b981"
+                              : "#020617",
+                            border: `1px solid ${
+                              editServices.includes(s.id)
+                                ? "#10b981"
+                                : "#1f2937"
+                            }`,
+                            color: editServices.includes(s.id)
+                              ? "#f9fafb"
+                              : "#e5e7eb",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editServices.includes(s.id)}
+                            onChange={() => toggleService(s.id, true)}
+                            style={{
+                              cursor: "pointer",
+                            }}
+                          />
+                          {s.label}
+                        </label>
+                      ))}
                     </div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        marginTop: 16,
+                      }}
+                    >
                       <button
                         className="btn btn-primary"
                         onClick={handleSaveCaregiver}
                       >
-                        💾 Save
+                        Save
                       </button>
                       <button
                         className="btn btn-outline"
@@ -968,15 +1071,20 @@ export default function AdminDashboardPage() {
                 </div>
               )}
 
+              {/* Caregiver list */}
               {filteredCaregivers.length === 0 ? (
                 <p style={{ color: "#9ca3af" }}>No caregivers found.</p>
               ) : (
                 <div>
                   <h4 style={{ color: "#e5e7eb" }}>
-                    {filteredCaregivers.length} caregiver(s) found
+                    {filteredCaregivers.length} caregivers found
                   </h4>
                   {filteredCaregivers.map((c) => (
-                    <div key={c.id} className="card">
+                    <div
+                      key={c.id}
+                      className="card"
+                      style={{ marginBottom: 8 }}
+                    >
                       <div
                         style={{
                           display: "flex",
@@ -985,9 +1093,7 @@ export default function AdminDashboardPage() {
                         }}
                       >
                         <div>
-                          <strong style={{ color: "#e5e7eb" }}>
-                            {c.name}
-                          </strong>
+                          <strong style={{ color: "#e5e7eb" }}>{c.name}</strong>
                           <span
                             className="badge"
                             style={{
@@ -995,36 +1101,26 @@ export default function AdminDashboardPage() {
                               background:
                                 c.category === "household"
                                   ? "#dbeafe"
-                                  : c.category === "both"
-                                  ? "#e9d5ff"
                                   : "#dcfce7",
                               color:
                                 c.category === "household"
                                   ? "#0369a1"
-                                  : c.category === "both"
-                                  ? "#6b21a8"
                                   : "#15803d",
                             }}
                           >
                             {c.category === "household"
-                              ? "🏠 Household"
-                              : c.category === "both"
-                              ? "👥 Both"
-                              : "🏥 Caregiver"}
+                              ? "Household"
+                              : "Caregiver"}
                           </span>
                           <span
                             className="badge"
                             style={{
                               marginLeft: 8,
-                              background: c.isAvailable
-                                ? "#dcfce7"
-                                : "#fecaca",
+                              background: c.isAvailable ? "#dcfce7" : "#fecaca",
                               color: c.isAvailable ? "#15803d" : "#991b1b",
                             }}
                           >
-                            {c.isAvailable
-                              ? "✓ Available"
-                              : "✗ Not available"}
+                            {c.isAvailable ? "Available" : "Not available"}
                           </span>
                           <span
                             className="badge"
@@ -1034,7 +1130,7 @@ export default function AdminDashboardPage() {
                               color: c.verified ? "#f9fafb" : "#000000",
                             }}
                           >
-                            {c.verified ? "✓ Verified" : "⏳ Not verified"}
+                            {c.verified ? "Verified" : "Not verified"}
                           </span>
                           <div
                             style={{
@@ -1043,12 +1139,14 @@ export default function AdminDashboardPage() {
                               marginTop: 6,
                             }}
                           >
-                            📍 {c.location}
+                            {c.location}
                           </div>
                           <div
-                            style={{ fontSize: 12, color: "#9ca3af" }}
+                            style={{
+                              fontSize: 12,
+                              color: "#9ca3af",
+                            }}
                           >
-                            💼{" "}
                             {c.workType === "full_time"
                               ? "Full time"
                               : "Part time"}
@@ -1060,12 +1158,10 @@ export default function AdminDashboardPage() {
                               marginTop: 4,
                             }}
                           >
-                            ID: {c.uid || c.id}
+                            ID {c.uid || c.id}
                           </div>
                         </div>
-                        <div
-                          style={{ display: "flex", gap: 6, flexWrap: "wrap" }}
-                        >
+                        <div>
                           {c.status && (
                             <span
                               className="badge"
@@ -1080,23 +1176,30 @@ export default function AdminDashboardPage() {
                           )}
                         </div>
                       </div>
-                      <p
-                        style={{
-                          fontSize: 13,
-                          color: "#cbd5f5",
-                          marginTop: 10,
-                        }}
-                      >
-                        Services:{" "}
-                        {(c.servicesOffered || []).length > 0
-                          ? (c.servicesOffered || []).join(", ")
-                          : "None"}
-                      </p>
-                      {c.shifts && c.shifts.length > 0 && (
-                        <p style={{ fontSize: 13, color: "#cbd5f5" }}>
-                          Shifts: {c.shifts.join(", ")}
+                      <div>
+                        <p
+                          style={{
+                            fontSize: 13,
+                            color: "#cbd5f5",
+                            marginTop: 10,
+                          }}
+                        >
+                          Services:{" "}
+                          {c.servicesOffered && c.servicesOffered.length
+                            ? c.servicesOffered.join(", ")
+                            : "None"}
                         </p>
-                      )}
+                        {c.shifts && c.shifts.length > 0 && (
+                          <p
+                            style={{
+                              fontSize: 13,
+                              color: "#cbd5f5",
+                            }}
+                          >
+                            Shifts: {c.shifts.join(", ")}
+                          </p>
+                        )}
+                      </div>
                       <div
                         style={{
                           display: "flex",
@@ -1110,31 +1213,23 @@ export default function AdminDashboardPage() {
                             <button
                               className="btn btn-primary"
                               onClick={() =>
-                                handleUpdateStatus(
-                                  c.id,
-                                  true,
-                                  "approved"
-                                )
+                                handleUpdateStatus(c.id, true, "approved")
                               }
                             >
-                              ✓ Approve
+                              Approve
                             </button>
                             <button
                               className="btn btn-outline"
-                              onClick={() =>
-                                handleUpdateStatus(
-                                  c.id,
-                                  false,
-                                  "unapproved"
-                                )
-                              }
                               style={{
                                 background: "#7f1d1d",
                                 color: "#fecaca",
                                 borderColor: "#991b1b",
                               }}
+                              onClick={() =>
+                                handleUpdateStatus(c.id, false, "unapproved")
+                              }
                             >
-                              ✗ Reject
+                              Reject
                             </button>
                           </>
                         )}
@@ -1142,7 +1237,7 @@ export default function AdminDashboardPage() {
                           className="btn btn-outline"
                           onClick={() => startEditCaregiver(c)}
                         >
-                          ✎ Edit
+                          Edit
                         </button>
                         <button
                           className="btn btn-outline"
@@ -1151,11 +1246,9 @@ export default function AdminDashboardPage() {
                             color: "#e5e7eb",
                             borderColor: "#4b5563",
                           }}
-                          onClick={() =>
-                            handleDeleteCaregiver(c.id, c.name)
-                          }
+                          onClick={() => handleDeleteCaregiver(c.id, c.name)}
                         >
-                          🗑 Delete
+                          Delete
                         </button>
                       </div>
                     </div>
@@ -1167,7 +1260,7 @@ export default function AdminDashboardPage() {
         </>
       )}
 
-      {/* ---- Bookings & analytics tab ---- */}
+      {/* ---- Bookings tab ---- */}
       {tab === "bookings" && (
         <div>
           {loadingBookings ? (
@@ -1214,25 +1307,35 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="col card">
                     <h4>By status</h4>
-                    <ul style={{ fontSize: 13, color: "#e5e7eb" }}>
+                    <ul
+                      style={{
+                        fontSize: 13,
+                        color: "#e5e7eb",
+                      }}
+                    >
                       {Object.entries(analytics.byStatus).map(
                         ([status, count]) => (
                           <li key={status}>
                             {status}: {count}
                           </li>
-                        )
+                        ),
                       )}
                     </ul>
                   </div>
                   <div className="col card">
                     <h4>By location</h4>
-                    <ul style={{ fontSize: 13, color: "#e5e7eb" }}>
+                    <ul
+                      style={{
+                        fontSize: 13,
+                        color: "#e5e7eb",
+                      }}
+                    >
                       {Object.entries(analytics.byLocation).map(
                         ([loc, count]) => (
                           <li key={loc}>
                             {loc}: {count}
                           </li>
-                        )
+                        ),
                       )}
                     </ul>
                   </div>
@@ -1244,10 +1347,14 @@ export default function AdminDashboardPage() {
               ) : (
                 <div>
                   <h4 style={{ color: "#e5e7eb" }}>
-                    {filteredBookings.length} booking(s) found
+                    {filteredBookings.length} bookings found
                   </h4>
                   {filteredBookings.map((b) => (
-                    <div key={b.id} className="card">
+                    <div
+                      key={b.id}
+                      className="card"
+                      style={{ marginBottom: 8 }}
+                    >
                       <div
                         style={{
                           display: "flex",
@@ -1262,7 +1369,7 @@ export default function AdminDashboardPage() {
                               marginBottom: 4,
                             }}
                           >
-                            Booking ID: {b.id}
+                            Booking ID {b.id}
                           </p>
                           <p
                             style={{
@@ -1272,7 +1379,7 @@ export default function AdminDashboardPage() {
                             }}
                           >
                             User: {b.userName || "Unknown"} (
-                            {b.userPhone || "N/A"})
+                            {b.userPhone || "NA"})
                           </p>
                           <p
                             style={{
@@ -1281,9 +1388,8 @@ export default function AdminDashboardPage() {
                               margin: 0,
                             }}
                           >
-                            Caregiver:{" "}
-                            {b.caregiverName || "Not assigned"} (
-                            {b.caregiverLocation || "Location N/A"})
+                            Caregiver: {b.caregiverName || "Not assigned"} (
+                            {b.caregiverLocation || "Location NA"})
                           </p>
                           <p
                             style={{
@@ -1292,8 +1398,7 @@ export default function AdminDashboardPage() {
                               margin: 0,
                             }}
                           >
-                            Date: {b.date || "N/A"} at{" "}
-                            {b.time || "N/A"}
+                            Date: {b.date || "NA"} at {b.time || "NA"}
                           </p>
                           <p
                             style={{
@@ -1303,8 +1408,7 @@ export default function AdminDashboardPage() {
                             }}
                           >
                             Service:{" "}
-                            {(b.caregiverShifts || []).join(", ") ||
-                              "N/A"}
+                            {(b.caregiverShifts || []).join(", ") || "NA"}
                           </p>
                           <p
                             style={{
@@ -1314,9 +1418,7 @@ export default function AdminDashboardPage() {
                             }}
                           >
                             Payment:{" "}
-                            {b.paymentMethod === "fonepay"
-                              ? "💳 Fonepay"
-                              : "💵 Cash"}
+                            {b.paymentMethod === "fonepay" ? "Fonepay" : "Cash"}
                           </p>
                         </div>
                         <div style={{ textAlign: "right" }}>
@@ -1338,10 +1440,7 @@ export default function AdminDashboardPage() {
                                 marginTop: 8,
                               }}
                             >
-                              Created:{" "}
-                              {new Date(
-                                b.createdAt
-                              ).toLocaleString()}
+                              Created {new Date(b.createdAt).toLocaleString()}
                             </p>
                           )}
                         </div>
@@ -1376,11 +1475,18 @@ export default function AdminDashboardPage() {
               <input
                 value={newServiceLabel}
                 onChange={(e) => setNewServiceLabel(e.target.value)}
-                placeholder="Service name (e.g. Elderly care, House cleaning)"
+                placeholder="Service name e.g. Elderly care"
                 style={{ flex: 1, minWidth: 200 }}
               />
+              <select
+                value={newServiceCategory}
+                onChange={(e) => setNewServiceCategory(e.target.value)}
+              >
+                <option value="caregiver">Care giver</option>
+                <option value="household">Household</option>
+              </select>
               <button className="btn btn-primary" type="submit">
-                ➕ Add service
+                Add service
               </button>
             </form>
             <p
@@ -1405,60 +1511,172 @@ export default function AdminDashboardPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(220px, 1fr))",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                   gap: 12,
                   marginTop: 8,
                 }}
-                key={servicesKey}
               >
-                {services.map((s) => (
-                  <div
-                    key={s.id}
-                    className="card"
-                    style={{ background: "#020617" }}
-                  >
-                    <p
-                      style={{
-                        color: "#e5e7eb",
-                        marginBottom: 4,
-                      }}
+                {services.map((s) => {
+                  const isEditing = editingService?.id === s.id;
+                  return (
+                    <div
+                      key={s.id}
+                      className="card"
+                      style={{ background: "#020617" }}
                     >
-                      <strong>{s.label}</strong>
-                    </p>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "#9ca3af",
-                        margin: 0,
-                        marginBottom: 8,
-                      }}
-                    >
-                      ID:{" "}
-                      <code
-                        style={{
-                          background: "#0b1120",
-                          padding: "2px 4px",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        {s.id}
-                      </code>
-                    </p>
-                    <button
-                      className="btn btn-outline"
-                      onClick={() => handleDeleteService(s.id, s.label)}
-                      style={{
-                        background: "#7f1d1d",
-                        color: "#fecaca",
-                        borderColor: "#991b1b",
-                        width: "100%",
-                      }}
-                    >
-                      🗑 Delete
-                    </button>
-                  </div>
-                ))}
+                      {isEditing ? (
+                        <>
+                          <p
+                            style={{
+                              color: "#e5e7eb",
+                              marginBottom: 4,
+                            }}
+                          >
+                            <strong>Edit service</strong>
+                          </p>
+                          <input
+                            value={editServiceLabel}
+                            onChange={(e) =>
+                              setEditServiceLabel(e.target.value)
+                            }
+                            placeholder="Service name"
+                            style={{
+                              width: "100%",
+                              marginBottom: 8,
+                            }}
+                          />
+                          <select
+                            value={editServiceCategory}
+                            onChange={(e) =>
+                              setEditServiceCategory(e.target.value)
+                            }
+                            style={{
+                              width: "100%",
+                              marginBottom: 8,
+                            }}
+                          >
+                            <option value="caregiver">Care giver</option>
+                            <option value="household">Household</option>
+                          </select>
+                          <p
+                            style={{
+                              fontSize: 12,
+                              color: "#9ca3af",
+                              margin: 0,
+                              marginBottom: 8,
+                            }}
+                          >
+                            ID{" "}
+                            <code
+                              style={{
+                                background: "#0b1120",
+                                padding: "2px 4px",
+                                borderRadius: 4,
+                              }}
+                            >
+                              {s.id}
+                            </code>
+                          </p>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              marginTop: 4,
+                            }}
+                          >
+                            <button
+                              className="btn btn-primary"
+                              type="button"
+                              onClick={handleSaveService}
+                              style={{ flex: 1 }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              className="btn btn-outline"
+                              type="button"
+                              onClick={handleCancelEditService}
+                              style={{ flex: 1 }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p
+                            style={{
+                              color: "#e5e7eb",
+                              marginBottom: 4,
+                            }}
+                          >
+                            <strong>{s.label}</strong>
+                          </p>
+                          <p
+                            style={{
+                              fontSize: 12,
+                              color: "#9ca3af",
+                              margin: 0,
+                            }}
+                          >
+                            Category:{" "}
+                            {s.category === "household"
+                              ? "Household"
+                              : "Care giver"}
+                          </p>
+                          <p
+                            style={{
+                              fontSize: 12,
+                              color: "#9ca3af",
+                              margin: 0,
+                              marginBottom: 8,
+                            }}
+                          >
+                            ID{" "}
+                            <code
+                              style={{
+                                background: "#0b1120",
+                                padding: "2px 4px",
+                                borderRadius: 4,
+                              }}
+                            >
+                              {s.id}
+                            </code>
+                          </p>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              marginTop: 4,
+                            }}
+                          >
+                            <button
+                              className="btn btn-outline"
+                              type="button"
+                              onClick={() => handleStartEditService(s)}
+                              style={{ flex: 1 }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn btn-outline"
+                              type="button"
+                              onClick={() => handleDeleteService(s.id, s.label)}
+                              style={{
+                                flex: 1,
+                                background: "#7f1d1d",
+                                color: "#fecaca",
+                                borderColor: "#991b1b",
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1496,7 +1714,7 @@ export default function AdminDashboardPage() {
               <p style={{ color: "#9ca3af" }}>No reports found.</p>
             ) : (
               filteredReports.map((r) => (
-                <div key={r.id} className="card">
+                <div key={r.id} className="card" style={{ marginBottom: 8 }}>
                   <div
                     style={{
                       display: "flex",
@@ -1511,19 +1729,9 @@ export default function AdminDashboardPage() {
                           marginBottom: 4,
                         }}
                       >
-                        User ID: {r.userId}
+                        User ID {r.userId}
                       </p>
-                      {r.bookingId && (
-                        <p
-                          style={{
-                            fontSize: 13,
-                            color: "#cbd5f5",
-                            margin: 0,
-                          }}
-                        >
-                          Booking ID: {r.bookingId}
-                        </p>
-                      )}
+                      <p>{r.bookingId}</p>
                       <p
                         style={{
                           fontSize: 13,
@@ -1531,7 +1739,7 @@ export default function AdminDashboardPage() {
                           margin: 0,
                         }}
                       >
-                        Reported by: {r.reportedByName || r.reportedBy || "Unknown"}
+                        Booking ID {r.bookingId}
                       </p>
                       <p
                         style={{
@@ -1540,7 +1748,17 @@ export default function AdminDashboardPage() {
                           margin: 0,
                         }}
                       >
-                        Reason: {r.reason || "N/A"}
+                        Reported by{" "}
+                        {r.reportedByName || r.reportedBy || "Unknown"}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          color: "#cbd5f5",
+                          margin: 0,
+                        }}
+                      >
+                        Reason {r.reason || "NA"}
                       </p>
                       {r.description && (
                         <p
@@ -1553,19 +1771,16 @@ export default function AdminDashboardPage() {
                           {r.description}
                         </p>
                       )}
-                      {r.createdAt && (
-                        <p
-                          style={{
-                            fontSize: 11,
-                            color: "#6b7280",
-                            marginTop: 4,
-                          }}
-                        >
-                          Created:{" "}
-                          {r.createdAt?.toDate?.().toLocaleString?.() ||
-                            "N/A"}
-                        </p>
-                      )}
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: "#6b7280",
+                          marginTop: 4,
+                        }}
+                      >
+                        Created{" "}
+                        {r.createdAt?.toDate?.()?.toLocaleString?.() || "NA"}
+                      </p>
                     </div>
                     <div>
                       <span
@@ -1578,37 +1793,36 @@ export default function AdminDashboardPage() {
                       >
                         {r.status || "pending"}
                       </span>
+                      {r.status === "pending" && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            marginTop: 12,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => handleBlacklistUser(r.id, r.userId)}
+                          >
+                            Blacklist user
+                          </button>
+                          <button
+                            className="btn btn-outline"
+                            onClick={() => handleRejectReport(r.id)}
+                            style={{
+                              background: "#111827",
+                              color: "#e5e7eb",
+                              borderColor: "#4b5563",
+                            }}
+                          >
+                            Reject report
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {r.status === "pending" && (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        marginTop: 12,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => handleBlacklistUser(r.id, r.userId)}
-                      >
-                        🚫 Blacklist user
-                      </button>
-                      <button
-                        className="btn btn-outline"
-                        onClick={() => handleRejectReport(r.id)}
-                        style={{
-                          background: "#111827",
-                          color: "#e5e7eb",
-                          borderColor: "#4b5563",
-                        }}
-                      >
-                        ✗ Reject report
-                      </button>
-                    </div>
-                  )}
                 </div>
               ))
             )}
@@ -1622,7 +1836,7 @@ export default function AdminDashboardPage() {
               <p style={{ color: "#9ca3af" }}>No users blacklisted.</p>
             ) : (
               blacklist.map((u) => (
-                <div key={u.id} className="card">
+                <div key={u.id} className="card" style={{ marginBottom: 8 }}>
                   <div
                     style={{
                       display: "flex",
@@ -1637,7 +1851,7 @@ export default function AdminDashboardPage() {
                           marginBottom: 4,
                         }}
                       >
-                        User ID: {u.id}
+                        User ID {u.id}
                       </p>
                       <p
                         style={{
@@ -1646,37 +1860,33 @@ export default function AdminDashboardPage() {
                           margin: 0,
                         }}
                       >
-                        Reason: {u.reason || "N/A"}
+                        Reason {u.reason || "NA"}
                       </p>
-                      {u.reportedBy && (
-                        <p
-                          style={{
-                            fontSize: 13,
-                            color: "#cbd5f5",
-                            margin: 0,
-                          }}
-                        >
-                          Reported by: {u.reportedBy}
-                        </p>
-                      )}
-                      {u.blacklistedAt && (
-                        <p
-                          style={{
-                            fontSize: 11,
-                            color: "#6b7280",
-                            marginTop: 4,
-                          }}
-                        >
-                          📅 Blacklisted:{" "}
-                          {new Date(
-                            u.blacklistedAt
-                          ).toLocaleDateString()}{" "}
-                          at{" "}
-                          {new Date(
-                            u.blacklistedAt
-                          ).toLocaleTimeString()}
-                        </p>
-                      )}
+                      <p
+                        style={{
+                          fontSize: 13,
+                          color: "#cbd5f5",
+                          margin: 0,
+                        }}
+                      >
+                        Reported by {u.reportedBy || "Unknown"}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: "#6b7280",
+                          marginTop: 4,
+                        }}
+                      >
+                        Blacklisted{" "}
+                        {u.blacklistedAt
+                          ? `${new Date(
+                              u.blacklistedAt,
+                            ).toLocaleDateString()} at ${new Date(
+                              u.blacklistedAt,
+                            ).toLocaleTimeString()}`
+                          : "NA"}
+                      </p>
                     </div>
                     <div>
                       <button
