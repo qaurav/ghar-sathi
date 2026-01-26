@@ -1,13 +1,15 @@
-// src/fonepayConfig.js
-// Get these credentials from Fonepay dashboard
 export const FONEPAY_CONFIG = {
-  MERCHANT_CODE: "YOUR_MERCHANT_CODE", // Get from Fonepay
-  MERCHANT_PASSWORD: "YOUR_MERCHANT_PASSWORD", // Get from Fonepay
-  PAYMENT_GATEWAY_URL: "https://api.fonepay.com/api/v1/merchant/payment/initiate",
-  VERIFY_URL: "https://api.fonepay.com/api/v1/merchant/payment/verify",
+  MERCHANT_CODE: process.env.REACT_APP_FONEPAY_MERCHANT_CODE || "GHAR_SATHI_001",
+  PAYMENT_GATEWAY_URL: process.env.REACT_APP_FONEPAY_GATEWAY_URL || "https://fonepay.com/",
 };
 
-// Generate unique reference ID
 export const generateRefId = () => {
-  return "GHARSATHI-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
+  return `GHAR_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+export const validatePaymentResponse = (response) => {
+  if (!response.refId || !response.amount) {
+    return false;
+  }
+  return true;
 };

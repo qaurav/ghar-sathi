@@ -1,54 +1,34 @@
-// src/App.js
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import AuthPage from "./AuthPage";
+import UserProfilePage from "./UserProfilePage";
 import CaregiverProfilePage from "./CaregiverProfilePage";
 import CaregiverDashboardPage from "./CaregiverDashboardPage";
 import CaregiverListPage from "./CaregiverListPage";
 import BookingFormPage from "./BookingFormPage";
 import MyBookingsPage from "./MyBookingsPage";
 import AdminDashboardPage from "./AdminDashboardPage";
+import OrganizationDashboard from "./OrganizationDashboard";
 import CaregiverReportUserPage from "./CaregiverReportUserPage";
-import { doc, getDoc } from "firebase/firestore";
-import { db, auth } from "./firebaseConfig";
+import Header from "./components/Header";
 import { signOut } from "firebase/auth";
+import { auth } from "./firebaseConfig";
 import "./App.css";
 
 function App() {
-  const { user, loading } = useAuth();
-  const [role, setRole] = useState(null);
+  const { user, loading, userRole, userDoc } = useAuth();
   const [selectedCaregiver, setSelectedCaregiver] = useState(null);
   const [showMyBookings, setShowMyBookings] = useState(false);
-  const [caregiverView, setCaregiverView] = useState("dashboard");
-
-  // User-side flow choices
   const [userCategory, setUserCategory] = useState("both");
   const [userWorkType, setUserWorkType] = useState("");
   const [userShift, setUserShift] = useState("");
-
-  useEffect(() => {
-    const loadRole = async () => {
-      if (!user) {
-        setRole(null);
-        return;
-      }
-      try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        setRole(snap.exists() ? snap.data().role : null);
-      } catch (err) {
-        console.error("Error loading role:", err);
-      }
-    };
-    loadRole();
-  }, [user]);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
       setSelectedCaregiver(null);
       setShowMyBookings(false);
-      setRole(null);
     } catch (err) {
       console.error("Logout error:", err);
     }
@@ -56,16 +36,15 @@ function App() {
 
   if (loading)
     return (
-      <div style={{ textAlign: "center", paddingTop: 50 }}>
+      <div style={{ textAlign: "center", paddingTop: 50, color: "#9ca3af" }}>
         <p>Loading...</p>
       </div>
     );
 
-  // Not logged in: show browse or auth page
+  // NOT LOGGED IN - PUBLIC ROUTES
   if (!user) {
     return (
       <Routes>
-        {/* Public browse route – see caregivers without login */}
         <Route
           path="/browse"
           element={
@@ -88,33 +67,26 @@ function App() {
                   </div>
                 </div>
 
-                {/* User category choice */}
                 <div className="choice-group">
                   <h3>What do you need help with?</h3>
                   <div className="choice-buttons">
                     <button
                       type="button"
-                      className={`choice-btn ${
-                        userCategory === "both" ? "active" : ""
-                      }`}
+                      className={`choice-btn ${userCategory === "both" ? "active" : ""}`}
                       onClick={() => setUserCategory("both")}
                     >
                       👥 Both
                     </button>
                     <button
                       type="button"
-                      className={`choice-btn ${
-                        userCategory === "caregiver" ? "active" : ""
-                      }`}
+                      className={`choice-btn ${userCategory === "caregiver" ? "active" : ""}`}
                       onClick={() => setUserCategory("caregiver")}
                     >
-                      🏥 Care giver
+                      🏥 Care Giver
                     </button>
                     <button
                       type="button"
-                      className={`choice-btn ${
-                        userCategory === "household" ? "active" : ""
-                      }`}
+                      className={`choice-btn ${userCategory === "household" ? "active" : ""}`}
                       onClick={() => setUserCategory("household")}
                     >
                       🏠 Household
@@ -122,15 +94,12 @@ function App() {
                   </div>
                 </div>
 
-                {/* Work type choice */}
                 <div className="choice-group">
                   <h4>Work type</h4>
                   <div className="choice-buttons">
                     <button
                       type="button"
-                      className={`choice-btn ${
-                        userWorkType === "full_time" ? "active" : ""
-                      }`}
+                      className={`choice-btn ${userWorkType === "full_time" ? "active" : ""}`}
                       onClick={() => {
                         setUserWorkType("full_time");
                         setUserShift("");
@@ -140,9 +109,7 @@ function App() {
                     </button>
                     <button
                       type="button"
-                      className={`choice-btn ${
-                        userWorkType === "part_time" ? "active" : ""
-                      }`}
+                      className={`choice-btn ${userWorkType === "part_time" ? "active" : ""}`}
                       onClick={() => setUserWorkType("part_time")}
                     >
                       ⏰ Part time
@@ -150,7 +117,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* Shift choice (only for part-time) */}
                 {userWorkType === "part_time" && (
                   <div className="choice-group">
                     <h4>Preferred shift</h4>
@@ -159,27 +125,18 @@ function App() {
                         <button
                           key={s}
                           type="button"
-                          className={`choice-btn ${
-                            userShift === s ? "active" : ""
-                          }`}
+                          className={`choice-btn ${userShift === s ? "active" : ""}`}
                           onClick={() => setUserShift(s)}
                         >
-                          {s === "morning"
-                            ? "🌅 Morning"
-                            : s === "day"
-                              ? "☀️ Day"
-                              : "🌙 Night"}
+                          {s === "morning" ? "🌅 Morning" : s === "day" ? "☀️ Day" : "🌙 Night"}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Caregiver list – requires login to book */}
                 <CaregiverListPage
-                  onSelectCaregiver={() => {
-                    window.location.href = "/auth";
-                  }}
+                  onSelectCaregiver={() => (window.location.href = "/auth")}
                   preselectedWorkType={userWorkType}
                   preselectedShift={userShift}
                   userCategory={userCategory}
@@ -189,312 +146,256 @@ function App() {
             </div>
           }
         />
-
-        {/* Auth page at /auth */}
         <Route path="/auth" element={<AuthPage />} />
-
-        {/* Report user page */}
         <Route path="/caregiver/reportuser" element={<CaregiverReportUserPage />} />
-
-        {/* Fallback: redirect to browse */}
         <Route path="*" element={<Navigate to="/browse" replace />} />
       </Routes>
     );
   }
 
-  // Logged in: define role-based routes
+  // LOGGED IN - CHECK PROFILE COMPLETION FOR USERS
+  if (userRole === "user" && !userDoc?.profileComplete) {
+    return (
+      <>
+        <Header user={user} userRole={userRole} userDoc={userDoc} onLogout={handleLogout} />
+        <Routes>
+          <Route path="/user/profile" element={<UserProfilePage />} />
+          <Route path="*" element={<Navigate to="/user/profile" replace />} />
+        </Routes>
+      </>
+    );
+  }
+
+  // LOGGED IN - ROLE-BASED ROUTES
   return (
-    <Routes>
-      {/* USER ROUTE */}
-      {role === "user" && (
-        <Route
-          path="/user/*"
-          element={
-            selectedCaregiver ? (
-              // Booking screen
-              <div className="app-shell">
-                <div className="app-card">
-                  <div className="app-header">
-                    <div>
-                      <h1 className="app-title">Ghar Sathi – Booking</h1>
-                      <p className="app-subtitle">
-                        Confirm service details for your caregiver
-                      </p>
-                    </div>
-                    <div className="app-header-actions">
-                      <button
-                        className="btn btn-outline"
-                        onClick={() => setSelectedCaregiver(null)}
-                      >
-                        Back to caregivers
-                      </button>
-                      <button
-                        className="btn btn-outline"
-                        onClick={handleLogout}
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-
-                  <BookingFormPage
-                    caregiver={selectedCaregiver}
-                    onBooked={() => {
-                      setSelectedCaregiver(null);
-                      setShowMyBookings(true);
-                    }}
-                  />
-                </div>
-              </div>
-            ) : showMyBookings ? (
-              // My bookings (Inbox)
-              <div className="app-shell">
-                <div className="app-card">
-                  <div className="app-header">
-                    <div>
-                      <h1 className="app-title">Ghar Sathi – My bookings</h1>
-                      <p className="app-subtitle">
-                        Track caregiver status and timings
-                      </p>
-                    </div>
-                    <div className="app-header-actions">
-                      <button
-                        className="btn btn-outline"
-                        onClick={() => setShowMyBookings(false)}
-                      >
-                        Back to caregivers
-                      </button>
-                      <button
-                        className="btn btn-outline"
-                        onClick={handleLogout}
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-                  <MyBookingsPage />
-                </div>
-              </div>
-            ) : (
-              // Default user caregiver list
-              <div className="app-shell">
-                <div className="app-card">
-                  <div className="app-header">
-                    <div>
-                      <h1 className="app-title">Ghar Sathi – User</h1>
-                      <p className="app-subtitle">
-                        Find trusted caregivers for your family
-                      </p>
-                    </div>
-                    <div className="app-header-actions">
-                      <button
-                        className="btn btn-outline"
-                        onClick={() => setShowMyBookings(true)}
-                      >
-                        My bookings
-                      </button>
-                      <button
-                        className="btn btn-outline"
-                        onClick={handleLogout}
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* User category choice */}
-                  <div className="choice-group">
-                    <h3>What do you need help with?</h3>
-                    <div className="choice-buttons">
-                      <button
-                        type="button"
-                        className={`choice-btn ${
-                          userCategory === "both" ? "active" : ""
-                        }`}
-                        onClick={() => setUserCategory("both")}
-                      >
-                        👥 Both
-                      </button>
-                      <button
-                        type="button"
-                        className={`choice-btn ${
-                          userCategory === "caregiver" ? "active" : ""
-                        }`}
-                        onClick={() => setUserCategory("caregiver")}
-                      >
-                        🏥 Care giver
-                      </button>
-                      <button
-                        type="button"
-                        className={`choice-btn ${
-                          userCategory === "household" ? "active" : ""
-                        }`}
-                        onClick={() => setUserCategory("household")}
-                      >
-                        🏠 Household
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Work type choice */}
-                  <div className="choice-group">
-                    <h4>Work type</h4>
-                    <div className="choice-buttons">
-                      <button
-                        type="button"
-                        className={`choice-btn ${
-                          userWorkType === "full_time" ? "active" : ""
-                        }`}
-                        onClick={() => {
-                          setUserWorkType("full_time");
-                          setUserShift("");
-                        }}
-                      >
-                        💼 Full time
-                      </button>
-                      <button
-                        type="button"
-                        className={`choice-btn ${
-                          userWorkType === "part_time" ? "active" : ""
-                        }`}
-                        onClick={() => setUserWorkType("part_time")}
-                      >
-                        ⏰ Part time
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Shift choice (only for part-time) */}
-                  {userWorkType === "part_time" && (
-                    <div className="choice-group">
-                      <h4>Preferred shift</h4>
-                      <div className="choice-buttons">
-                        {["morning", "day", "night"].map((s) => (
+    <>
+      <Header user={user} userRole={userRole} userDoc={userDoc} onLogout={handleLogout} />
+      <Routes>
+        {/* USER/CUSTOMER ROUTES */}
+        {userRole === "user" && (
+          <>
+            <Route path="/user/profile" element={<UserProfilePage />} />
+            <Route
+              path="/user/*"
+              element={
+                selectedCaregiver ? (
+                  <div className="app-shell">
+                    <div className="app-card">
+                      <div className="app-header">
+                        <div>
+                          <h1 className="app-title">Ghar Sathi – Booking</h1>
+                          <p className="app-subtitle">
+                            Confirm service details
+                          </p>
+                        </div>
+                        <div className="app-header-actions">
                           <button
-                            key={s}
-                            type="button"
-                            className={`choice-btn ${
-                              userShift === s ? "active" : ""
-                            }`}
-                            onClick={() => setUserShift(s)}
+                            className="btn btn-outline"
+                            onClick={() => setSelectedCaregiver(null)}
                           >
-                            {s === "morning"
-                              ? "🌅 Morning"
-                              : s === "day"
-                                ? "☀️ Day"
-                                : "🌙 Night"}
+                            Back
                           </button>
-                        ))}
+                        </div>
                       </div>
+                      <BookingFormPage
+                        caregiver={selectedCaregiver}
+                        onBooked={() => {
+                          setSelectedCaregiver(null);
+                          setShowMyBookings(true);
+                        }}
+                      />
                     </div>
-                  )}
+                  </div>
+                ) : showMyBookings ? (
+                  <div className="app-shell">
+                    <div className="app-card">
+                      <div className="app-header">
+                        <div>
+                          <h1 className="app-title">My Bookings</h1>
+                        </div>
+                        <div className="app-header-actions">
+                          <button
+                            className="btn btn-outline"
+                            onClick={() => setShowMyBookings(false)}
+                          >
+                            Browse Caregivers
+                          </button>
+                        </div>
+                      </div>
+                      <MyBookingsPage />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="app-shell">
+                    <div className="app-card">
+                      <div className="app-header">
+                        <div>
+                          <h1 className="app-title">Ghar Sathi</h1>
+                          <p className="app-subtitle">
+                            Find trusted caregivers
+                          </p>
+                        </div>
+                        <div className="app-header-actions">
+                          <button
+                            className="btn btn-outline"
+                            onClick={() => setShowMyBookings(true)}
+                          >
+                            My Bookings
+                          </button>
+                        </div>
+                      </div>
 
-                  {/* Caregiver list */}
-                  <CaregiverListPage
-                    onSelectCaregiver={setSelectedCaregiver}
-                    preselectedWorkType={userWorkType}
-                    preselectedShift={userShift}
-                    userCategory={userCategory}
-                    requireLogin={false}
-                  />
+                      <div className="choice-group">
+                        <h3>What do you need help with?</h3>
+                        <div className="choice-buttons">
+                          <button
+                            type="button"
+                            className={`choice-btn ${userCategory === "both" ? "active" : ""}`}
+                            onClick={() => setUserCategory("both")}
+                          >
+                            👥 Both
+                          </button>
+                          <button
+                            type="button"
+                            className={`choice-btn ${userCategory === "caregiver" ? "active" : ""}`}
+                            onClick={() => setUserCategory("caregiver")}
+                          >
+                            🏥 Care Giver
+                          </button>
+                          <button
+                            type="button"
+                            className={`choice-btn ${userCategory === "household" ? "active" : ""}`}
+                            onClick={() => setUserCategory("household")}
+                          >
+                            🏠 Household
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="choice-group">
+                        <h4>Work type</h4>
+                        <div className="choice-buttons">
+                          <button
+                            type="button"
+                            className={`choice-btn ${userWorkType === "full_time" ? "active" : ""}`}
+                            onClick={() => {
+                              setUserWorkType("full_time");
+                              setUserShift("");
+                            }}
+                          >
+                            💼 Full time
+                          </button>
+                          <button
+                            type="button"
+                            className={`choice-btn ${userWorkType === "part_time" ? "active" : ""}`}
+                            onClick={() => setUserWorkType("part_time")}
+                          >
+                            ⏰ Part time
+                          </button>
+                        </div>
+                      </div>
+
+                      {userWorkType === "part_time" && (
+                        <div className="choice-group">
+                          <h4>Preferred shift</h4>
+                          <div className="choice-buttons">
+                            {["morning", "day", "night"].map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                className={`choice-btn ${userShift === s ? "active" : ""}`}
+                                onClick={() => setUserShift(s)}
+                              >
+                                {s === "morning" ? "🌅 Morning" : s === "day" ? "☀️ Day" : "🌙 Night"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <CaregiverListPage
+                        onSelectCaregiver={setSelectedCaregiver}
+                        preselectedWorkType={userWorkType}
+                        preselectedShift={userShift}
+                        userCategory={userCategory}
+                        requireLogin={false}
+                      />
+                    </div>
+                  </div>
+                )
+              }
+            />
+          </>
+        )}
+
+        {/* ORGANIZATION ADMIN ROUTES */}
+        {userRole === "org_admin" && (
+          <Route
+            path="/organization/*"
+            element={
+              <div className="app-shell">
+                <div className="app-card">
+                  <OrganizationDashboard />
                 </div>
               </div>
+            }
+          />
+        )}
+
+        {/* CAREGIVER ROUTES */}
+        {userRole === "caregiver" && (
+          <Route
+            path="/caregiver/*"
+            element={
+              <div className="app-shell">
+                <div className="app-card">
+                  <CaregiverDashboardPage />
+                </div>
+              </div>
+            }
+          />
+        )}
+
+        {/* SUPERADMIN ROUTES */}
+        {userRole === "superadmin" && (
+          <Route
+            path="/superadmin/*"
+            element={
+              <div className="app-shell">
+                <div className="app-card">
+                  <AdminDashboardPage />
+                </div>
+              </div>
+            }
+          />
+        )}
+
+        {/* Report user page */}
+        <Route path="/caregiver/reportuser" element={<CaregiverReportUserPage />} />
+
+        {/* Fallback redirects */}
+        <Route
+          path="*"
+          element={
+            userRole === "superadmin" ? (
+              <Navigate to="/superadmin" replace />
+            ) : userRole === "org_admin" ? (
+              <Navigate to="/organization" replace />
+            ) : userRole === "caregiver" ? (
+              <Navigate to="/caregiver" replace />
+            ) : userRole === "user" ? (
+              userDoc?.profileComplete ? (
+                <Navigate to="/user" replace />
+              ) : (
+                <Navigate to="/user/profile" replace />
+              )
+            ) : (
+              <Navigate to="/browse" replace />
             )
           }
         />
-      )}
-
-      {/* CAREGIVER ROUTE */}
-      {role === "caregiver" && (
-        <Route
-          path="/caregiver/*"
-          element={
-            <div className="app-shell">
-              <div className="app-card">
-                <div className="app-header">
-                  <div>
-                    <h1 className="app-title">Ghar Sathi – Caregiver</h1>
-                    <p className="app-subtitle">
-                      Manage your profile and assigned jobs
-                    </p>
-                  </div>
-                  <div className="app-header-actions">
-                    <button
-                      className="btn btn-outline"
-                      onClick={() => setCaregiverView("profile")}
-                    >
-                      Profile
-                    </button>
-                    <button
-                      className="btn btn-outline"
-                      onClick={() => setCaregiverView("dashboard")}
-                    >
-                      Job dashboard
-                    </button>
-                    <button className="btn btn-outline" onClick={handleLogout}>
-                      Logout
-                    </button>
-                  </div>
-                </div>
-
-                {caregiverView === "profile" ? (
-                  <CaregiverProfilePage />
-                ) : (
-                  <CaregiverDashboardPage />
-                )}
-              </div>
-            </div>
-          }
-        />
-      )}
-
-      {/* ADMIN ROUTE */}
-      {role === "admin" && (
-        <Route
-          path="/admin/*"
-          element={
-            <div className="app-shell">
-              <div className="app-card">
-                <div className="app-header">
-                  <div>
-                    <h1 className="app-title">Ghar Sathi – Admin</h1>
-                    <p className="app-subtitle">
-                      Review and verify caregiver profiles
-                    </p>
-                  </div>
-                  <div className="app-header-actions">
-                    <button className="btn btn-outline" onClick={handleLogout}>
-                      Logout
-                    </button>
-                  </div>
-                </div>
-
-                <AdminDashboardPage />
-              </div>
-            </div>
-          }
-        />
-      )}
-
-      {/* Report user page - accessible to caregivers */}
-      <Route path="/caregiver/reportuser" element={<CaregiverReportUserPage />} />
-
-      {/* Fallback: redirect to role-based path or browse */}
-      <Route
-        path="*"
-        element={
-          role === "admin" ? (
-            <Navigate to="/admin" replace />
-          ) : role === "caregiver" ? (
-            <Navigate to="/caregiver" replace />
-          ) : role === "user" ? (
-            <Navigate to="/user" replace />
-          ) : (
-            <Navigate to="/browse" replace />
-          )
-        }
-      />
-    </Routes>
+      </Routes>
+    </>
   );
 }
 

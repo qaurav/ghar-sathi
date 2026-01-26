@@ -1,270 +1,137 @@
-// src/BookingFormPage.js
-import React, { useState } from "react";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import React, { useEffect, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { addDoc, collection, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebaseConfig";
-import { useAuth } from "./AuthContext";
-import { generateRefId } from "./fonepayConfig";
+import { validatePaymentResponse } from "./fonepayConfig";
 
-export default function BookingFormPage({ caregiver, onBooked }) {
-  const { user } = useAuth();
+export default function PaymentCallbackPage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [status, setStatus] = useState("processing");
+  const [message, setMessage] = useState("Processing your payment...");
 
-  const [fullName, setFullName] = useState(user?.displayName || "");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [durationHours, setDurationHours] = useState(4);
-  const [notes, setNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    const processPayment = async () => {
+      try {
+        // Get payment response from URL params
+        const refId = searchParams.get("refId");
+        const amount = searchParams.get("amount");
+        const status = searchParams.get("status");
+        const transactionId = searchParams.get("transactionId");
 
-  // Payment state
-  const [paymentMethod, setPaymentMethod] = useState("fonepay");
-  const [processingPayment, setProcessingPayment] = useState(false);
+        // Validate response
+        if (!validatePaymentResponse({ refId, amount })) {
+          setStatus("error");
+          setMessage("Invalid payment response. Please contact support.");
+          return;
+        }
 
-  if (!caregiver) return <p>No caregiver selected.</p>;
+        // Get pending booking data from session storage
+        const pendingBookingData = sessionStorage.getItem("pendingBookingData");
+        if (!pendingBookingData) {
+          setStatus("error");
+          setMessage("Booking data not found. Please try again.");
+          return;
+        }
 
-  const hourlyRate = caregiver.hourlyRate || 500;
-  const totalAmount = durationHours * hourlyRate;
+        const bookingData = JSON.parse(pendingBookingData);
 
-  const handlePaymentWithFonepay = async (bookingData) => {
-    try {
-      setProcessingPayment(true);
+        // Check if payment was successful
+        if (status === "success" || status === "COMPLETED") {
+          // Create booking with payment info
+          const docRef = await addDoc(collection(db, "bookings"), {
+            ...bookingData,
+            paymentMethod: "fonepay",
+            paymentStatus: "paid",
+            transactionId: transactionId || refId,
+            amountPaid: Number(amount),
+            paymentDate: serverTimestamp(),
+            createdAt: serverTimestamp(),
+          });
 
-      const refId = generateRefId();
+          // Update vendor earnings
+          if (bookingData.vendorId) {
+            const vendorRef = doc(db, "vendors", bookingData.vendorId);
+            await updateDoc(vendorRef, {
+              totalEarnings: (bookingData.vendorEarnings || 0),
+              jobsCompleted: 1,
+            });
+          }
 
-      sessionStorage.setItem("pendingBookingData", JSON.stringify({
-        ...bookingData,
-        paymentRefId: refId,
-        amount: totalAmount,
-      }));
+          // Clear session storage
+          sessionStorage.removeItem("pendingBookingData");
 
-      // Create Fonepay payment form
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = "https://fonepay.com/"; // Update with actual Fonepay URL
+          setStatus("success");
+          setMessage("Payment successful! Your booking has been confirmed.");
 
-      const fields = {
-        merchantCode: process.env.REACT_APP_FONEPAY_MERCHANT_CODE,
-        amount: totalAmount,
-        refId: refId,
-        remarks: `Caregiver booking - ${caregiver.name}`,
-        returnUrl: `${window.location.origin}/payment-callback`,
-      };
-
-      Object.keys(fields).forEach((key) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = fields[key];
-        form.appendChild(input);
-      });
-
-      document.body.appendChild(form);
-      form.submit();
-    } catch (err) {
-      console.error("Payment initiation error:", err);
-      alert("Could not initiate payment. Please try again.");
-      setProcessingPayment(false);
-    }
-  };
-
-  const handleCashPayment = async (bookingData) => {
-    try {
-      setSubmitting(true);
-
-      await addDoc(collection(db, "bookings"), {
-        ...bookingData,
-        paymentMethod: "cash",
-        paymentStatus: "pending",
-        amountDue: totalAmount,
-        createdAt: serverTimestamp(),
-      });
-
-      alert("Booking confirmed! Please pay ₹" + totalAmount + " in cash to the caregiver.");
-      onBooked && onBooked();
-    } catch (err) {
-      console.error("Booking error:", err);
-      alert("Could not create booking. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!fullName || !phone || !address || !date || !time) {
-      alert("Please fill all required fields.");
-      return;
-    }
-
-    const bookingData = {
-      userId: user.uid,
-      userName: fullName,
-      userPhone: phone,
-      address,
-      date,
-      time,
-      durationHours,
-      notes,
-      caregiverId: caregiver.id,
-      caregiverName: caregiver.name || "",
-      caregiverLocation: caregiver.location || "",
-      caregiverWorkType: caregiver.workType || "",
-      caregiverShifts: caregiver.shifts || [],
-      status: "pending",
-      hourlyRate: hourlyRate,
-      totalAmount: totalAmount,
+          // Redirect after 3 seconds
+          setTimeout(() => {
+            navigate("/user");
+          }, 3000);
+        } else {
+          setStatus("error");
+          setMessage("Payment failed. Please try again.");
+          
+          // Redirect after 5 seconds
+          setTimeout(() => {
+            navigate("/user");
+          }, 5000);
+        }
+      } catch (err) {
+        console.error("Payment processing error:", err);
+        setStatus("error");
+        setMessage("Error processing payment. Please contact support.");
+      }
     };
 
-    if (paymentMethod === "fonepay") {
-      await handlePaymentWithFonepay(bookingData);
-    } else {
-      await handleCashPayment(bookingData);
-    }
-  };
+    processPayment();
+  }, [searchParams, navigate]);
 
   return (
-    <div>
-      <h2 className="section-title">Confirm booking</h2>
+    <div className="app-shell">
+      <div className="app-card" style={{ maxWidth: 500, textAlign: "center" }}>
+        {status === "processing" && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+            <h2 style={{ color: "#e5e7eb", marginBottom: 8 }}>Processing Payment</h2>
+            <p style={{ color: "#9ca3af", fontSize: 14 }}>{message}</p>
+          </>
+        )}
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <strong style={{ fontSize: 16, color: "#e5e7eb" }}>
-          {caregiver.name || "Caregiver"}
-        </strong>
-        <p style={{ color: "#9ca3af", marginTop: 4 }}>
-          📍 {caregiver.location}
-        </p>
-        <p style={{ color: "#9ca3af" }}>
-          💼 {caregiver.workType === "full_time" ? "Full time" : "Part time"}
-        </p>
-        <p style={{ color: "#9ca3af" }}>
-          Services: {(caregiver.servicesOffered || []).join(", ")}
-        </p>
-        <p style={{ marginTop: 12, fontSize: 14, color: "#0ea5e9" }}>
-          <strong>Rate: ₹{hourlyRate}/hour</strong>
-        </p>
+        {status === "success" && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+            <h2 style={{ color: "#22c55e", marginBottom: 8 }}>Payment Successful!</h2>
+            <p style={{ color: "#e5e7eb", fontSize: 14, marginBottom: 16 }}>{message}</p>
+            <div
+              style={{
+                background: "#dcfce7",
+                padding: 12,
+                borderRadius: 8,
+                fontSize: 13,
+                color: "#15803d",
+              }}
+            >
+              You will be redirected to your bookings...
+            </div>
+          </>
+        )}
+
+        {status === "error" && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
+            <h2 style={{ color: "#ef4444", marginBottom: 8 }}>Payment Failed</h2>
+            <p style={{ color: "#e5e7eb", fontSize: 14, marginBottom: 16 }}>{message}</p>
+            <button
+              className="btn btn-primary"
+              onClick={() => navigate("/user")}
+              style={{ marginTop: 12 }}
+            >
+              Back to Home
+            </button>
+          </>
+        )}
       </div>
-
-      <form onSubmit={handleSubmit} className="form">
-        <label>Full name</label>
-        <input
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          required
-          placeholder="Your name"
-        />
-
-        <label>Phone number</label>
-        <input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
-          placeholder="98XXXXXXXX"
-        />
-
-        <label>Service address</label>
-        <input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          required
-          placeholder="House, street, area, city"
-        />
-
-        <div className="row">
-          <div className="col">
-            <label>Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
-          </div>
-          <div className="col">
-            <label>Start time</label>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-
-        <label>Duration (hours)</label>
-        <input
-          type="number"
-          min={1}
-          max={24}
-          value={durationHours}
-          onChange={(e) => setDurationHours(Number(e.target.value))}
-          required
-        />
-
-        <label>Notes / special instructions</label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Medical conditions, preferences, gate instructions, etc."
-        />
-
-        {/* Price summary */}
-        <div className="card" style={{ marginTop: 12, marginBottom: 12, background: "#0b1120" }}>
-          <p style={{ fontSize: 13, color: "#9ca3af" }}>
-            {durationHours} hours × ₹{hourlyRate}/hour = <strong style={{ color: "#e5e7eb", fontSize: 16 }}>₹{totalAmount}</strong>
-          </p>
-        </div>
-
-        {/* Payment method selection with color coding */}
-        <label style={{ marginTop: 12 }}>Payment method</label>
-        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            style={{
-              padding: "8px 16px",
-              borderRadius: "999px",
-              border: "1px solid " + (paymentMethod === "fonepay" ? "#0ea5e9" : "#1f2937"),
-              background: paymentMethod === "fonepay" ? "#0ea5e9" : "#020617",
-              color: paymentMethod === "fonepay" ? "#f9fafb" : "#e5e7eb",
-              cursor: "pointer",
-              fontWeight: paymentMethod === "fonepay" ? "600" : "500",
-            }}
-            onClick={() => setPaymentMethod("fonepay")}
-          >
-            💳 Fonepay
-          </button>
-          <button
-            type="button"
-            style={{
-              padding: "8px 16px",
-              borderRadius: "999px",
-              border: "1px solid " + (paymentMethod === "cash" ? "#10b981" : "#1f2937"),
-              background: paymentMethod === "cash" ? "#10b981" : "#020617",
-              color: paymentMethod === "cash" ? "#f9fafb" : "#e5e7eb",
-              cursor: "pointer",
-              fontWeight: paymentMethod === "cash" ? "600" : "500",
-            }}
-            onClick={() => setPaymentMethod("cash")}
-          >
-            💵 Cash on delivery
-          </button>
-        </div>
-
-        <button
-          className="btn btn-primary"
-          type="submit"
-          disabled={submitting || processingPayment}
-        >
-          {processingPayment
-            ? "Redirecting to payment..."
-            : submitting
-            ? "Booking..."
-            : paymentMethod === "fonepay"
-            ? "Proceed to Fonepay"
-            : "Confirm booking"}
-        </button>
-      </form>
     </div>
   );
 }

@@ -1,56 +1,123 @@
-// src/AuthPage.js
 import React, { useState } from "react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebaseConfig";
+import "./AuthPage.css";
 
 export default function AuthPage() {
   const [mode, setMode] = useState("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [roles, setRoles] = useState([]); // Array for multiple selection
+  const [selectedRole, setSelectedRole] = useState("user");
+  const [organizationName, setOrganizationName] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const handleRoleToggle = (role) => {
-    if (roles.includes(role)) {
-      setRoles(roles.filter((r) => r !== role));
-    } else {
-      setRoles([...roles, role]);
-    }
-  };
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     try {
       if (mode === "login") {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        if (!roles.length) {
-          alert("Please select at least one role.");
+        if (!selectedRole) {
+          setError("Please select a role");
+          setLoading(false);
+          return;
+        }
+
+        // Validate organization name for org_admin
+        if (selectedRole === "org_admin" && !organizationName.trim()) {
+          setError("Please enter your organization/company name");
           setLoading(false);
           return;
         }
 
         const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-        // Set primary role (if multiple selected, use first one)
-        const primaryRole = roles[0];
-
-        await setDoc(doc(db, "users", cred.user.uid), {
+        let userData = {
           uid: cred.user.uid,
           name: fullName,
           email,
-          role: primaryRole,
-          availableRoles: roles,
+          role: selectedRole,
           createdAt: new Date().toISOString(),
-        });
+          isApproved: false,
+          isSuspended: false,
+          profileComplete: false,
+        };
+
+        // USER/CUSTOMER
+        if (selectedRole === "user") {
+          userData = {
+            ...userData,
+            phone: "",
+            address: "",
+            city: "",
+            profileComplete: false, // Must complete before booking
+          };
+        }
+
+        // ORGANIZATION ADMIN (Partner Vendor)
+        if (selectedRole === "org_admin") {
+          userData = {
+            ...userData,
+            organizationName: organizationName.trim(),
+            organizationId: cred.user.uid,
+            businessLicense: "",
+            businessPhone: "",
+            businessAddress: "",
+            businessCity: "",
+            totalCaregivers: 0,
+            totalEarnings: 0,
+            totalBookings: 0,
+            commissionRate: 15, // Default, can be changed by superadmin
+            isApproved: false, // Superadmin must approve
+            verified: false,
+            profileComplete: false,
+          };
+
+          // Create organization document
+          await setDoc(doc(db, "organizations", cred.user.uid), {
+            organizationId: cred.user.uid,
+            organizationName: organizationName.trim(),
+            adminUid: cred.user.uid,
+            adminName: fullName,
+            adminEmail: email,
+            caregivers: [], // Array of caregiver UIDs under this org
+            totalCaregivers: 0,
+            totalEarnings: 0,
+            totalBookings: 0,
+            commissionRate: 15,
+            isApproved: false,
+            verified: false,
+            createdAt: new Date().toISOString(),
+          });
+        }
+
+        // NOTE: Individual caregivers CANNOT sign up directly
+        // They must be added by organization admins
+
+        await setDoc(doc(db, "users", cred.user.uid), userData);
       }
     } catch (err) {
       console.error("Auth error:", err);
-      alert(err.message || "Something went wrong. Please try again.");
+
+      if (err.code === "auth/email-already-in-use") {
+        setError("This email is already registered. Please log in.");
+      } else if (err.code === "auth/weak-password") {
+        setError("Password must be at least 6 characters long.");
+      } else if (err.code === "auth/invalid-email") {
+        setError("Please enter a valid email address.");
+      } else if (err.code === "auth/user-not-found") {
+        setError("No account found. Please sign up first.");
+      } else if (err.code === "auth/wrong-password") {
+        setError("Incorrect password.");
+      } else {
+        setError(err.message || "Something went wrong.");
+      }
     } finally {
       setLoading(false);
     }
@@ -58,7 +125,6 @@ export default function AuthPage() {
 
   return (
     <div className="auth-shell">
-      {/* Left hero */}
       <div className="auth-hero">
         <h1 className="auth-title">Ghar Sathi</h1>
         <p className="auth-tagline">
@@ -68,99 +134,103 @@ export default function AuthPage() {
           <li>✔ Verified caregivers reviewed by admins</li>
           <li>✔ Clear timings, locations, and booking history</li>
           <li>✔ Designed for Nepali families and workers</li>
+          <li>✔ Partner organizations manage their teams</li>
         </ul>
       </div>
 
-      {/* Right form card */}
       <div className="auth-card">
         <h2>{mode === "login" ? "Welcome back" : "Create your account"}</h2>
         <p>
           {mode === "login"
-            ? "Sign in to manage your bookings or jobs."
-            : "Sign up as a user or caregiver to get started."}
+            ? "Sign in to manage your bookings or organization."
+            : "Join Ghar Sathi as a customer or partner organization."}
         </p>
 
-                <form className="form" onSubmit={handleSubmit}>
+        {error && <div className="error-message">{error}</div>}
+
+        <form className="form" onSubmit={handleSubmit}>
           {mode === "register" && (
             <>
-              <label>Full name</label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                placeholder="Your full name"
-              />
-
-              <label style={{ marginTop: 12 }}>I want to be</label>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: roles.includes("user") ? "#0ea5e9" : "#020617",
-                    border: "1px solid " + (roles.includes("user") ? "#0ea5e9" : "#1f2937"),
-                    color: roles.includes("user") ? "#f9fafb" : "#e5e7eb",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={roles.includes("user")}
-                    onChange={() => handleRoleToggle("user")}
-                    style={{ cursor: "pointer" }}
-                  />
-                  👨‍👩‍👧 A user (hiring)
-                </label>
-
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    padding: "8px 12px",
-                    borderRadius: "999px",
-                    background: roles.includes("caregiver") ? "#10b981" : "#020617",
-                    border: "1px solid " + (roles.includes("caregiver") ? "#10b981" : "#1f2937"),
-                    color: roles.includes("caregiver") ? "#f9fafb" : "#e5e7eb",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={roles.includes("caregiver")}
-                    onChange={() => handleRoleToggle("caregiver")}
-                    style={{ cursor: "pointer" }}
-                  />
-                  👩‍💼 A caregiver (worker)
-                </label>
+              <div>
+                <label>Full name</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  placeholder="Your full name"
+                />
               </div>
+
+              <div>
+                <label>I want to register as</label>
+                <div className="role-selection">
+                  <label className="role-option">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="user"
+                      checked={selectedRole === "user"}
+                      onChange={() => setSelectedRole("user")}
+                    />
+                    <span>👨‍👩‍👧 Customer (Book caregivers)</span>
+                  </label>
+                  
+                  <label className="role-option">
+                    <input
+                      type="radio"
+                      name="role"
+                      value="org_admin"
+                      checked={selectedRole === "org_admin"}
+                      onChange={() => setSelectedRole("org_admin")}
+                    />
+                    <span>🏢 Organization/Company (Provide caregivers)</span>
+                  </label>
+                </div>
+                <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
+                  {selectedRole === "user" && "Browse and book trusted caregivers for your family"}
+                  {selectedRole === "org_admin" && "Partner with Ghar Sathi and manage your caregiver team"}
+                </p>
+              </div>
+
+              {/* Organization Name - Only for org_admin */}
+              {selectedRole === "org_admin" && (
+                <div>
+                  <label>Organization/Company Name</label>
+                  <input
+                    type="text"
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    required
+                    placeholder="e.g., ABC Care Services Pvt. Ltd."
+                  />
+                </div>
+              )}
             </>
           )}
 
-          <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="[email protected]"
-          />
+          <div>
+            <label>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="your@email.com"
+            />
+          </div>
 
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            placeholder="At least 6 characters"
-          />
+          <div>
+            <label>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              placeholder={mode === "login" ? "Your password" : "At least 6 characters"}
+            />
+          </div>
 
           <button
             type="submit"
@@ -177,29 +247,35 @@ export default function AuthPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: 12, fontSize: 12, color: "#9ca3af" }}>
+        <div className="auth-toggle">
           {mode === "login" ? (
-            <>
+            <p>
               New here?{" "}
               <button
                 type="button"
                 className="link-button"
-                onClick={() => setMode("register")}
+                onClick={() => {
+                  setMode("register");
+                  setError("");
+                }}
               >
                 Create an account
               </button>
-            </>
+            </p>
           ) : (
-            <>
+            <p>
               Already have an account?{" "}
               <button
                 type="button"
                 className="link-button"
-                onClick={() => setMode("login")}
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                }}
               >
                 Sign in
               </button>
-            </>
+            </p>
           )}
         </div>
       </div>

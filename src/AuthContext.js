@@ -1,23 +1,49 @@
-// src/AuthContext.js
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./firebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "./firebaseConfig";
 
-const AuthContext = createContext({ user: null, loading: true });
+const AuthContext = createContext({
+  user: null,
+  loading: true,
+  userRole: null,
+  userDoc: null,
+  userData: null,
+});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [userDoc, setUserDoc] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
+    return onAuthStateChanged(auth, async (u) => {
       setUser(u);
+      if (u) {
+        try {
+          const docSnap = await getDoc(doc(db, "users", u.uid));
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUserRole(data.role);
+            setUserDoc(data);
+            setUserData(data);
+          }
+        } catch (err) {
+          console.error("Error fetching user data:", err);
+        }
+      } else {
+        setUserRole(null);
+        setUserDoc(null);
+        setUserData(null);
+      }
       setLoading(false);
     });
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, userRole, userDoc, userData }}>
       {children}
     </AuthContext.Provider>
   );
@@ -30,4 +56,3 @@ export const useAuth = () => {
   }
   return ctx;
 };
-

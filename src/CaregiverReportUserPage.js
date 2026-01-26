@@ -1,85 +1,77 @@
-// src/CaregiverReportUserPage.js
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebaseConfig";
-import { useAuth } from "./AuthContext";
 
 const REPORT_REASONS = [
-  "Abusive behavior",
   "Non-payment",
-  "No-show",
-  "Harassment",
-  "Fraud",
-  "Disrespectful conduct",
-  "Safety concern",
+  "Abusive behavior",
+  "Safety concerns",
+  "Cancellation without notice",
+  "Inappropriate requests",
   "Other",
 ];
 
-function useQuery() {
-  const { search } = useLocation();
-  return React.useMemo(() => new URLSearchParams(search), [search]);
-}
-
 export default function CaregiverReportUserPage() {
-  const { user } = useAuth();
-  const query = useQuery();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [userId, setUserId] = useState("");
-  const [userName, setUserName] = useState("");       // NEW
   const [bookingId, setBookingId] = useState("");
+  const [userId, setUserId] = useState("");
+  const [userName, setUserName] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [employeeId, setEmployeeId] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const qUserId = query.get("userId") || "";
-    const qUserName = query.get("userName") || "";    // NEW
-    const qBookingId = query.get("bookingId") || "";
-    const qEmployeeId = query.get("employeeId") || "";
+    // Get params from URL
+    const bookingIdParam = searchParams.get("bookingId");
+    const userIdParam = searchParams.get("userId");
+    const userNameParam = searchParams.get("userName");
+    const employeeIdParam = searchParams.get("employeeId");
 
-    setUserId(qUserId);
-    setUserName(qUserName);                           // NEW
-    setBookingId(qBookingId);
-    setEmployeeId(qEmployeeId);
-  }, [query]);
+    if (bookingIdParam) setBookingId(bookingIdParam);
+    if (userIdParam) setUserId(userIdParam);
+    if (userNameParam) setUserName(userNameParam);
+    if (employeeIdParam) setEmployeeId(employeeIdParam);
+  }, [searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
-    if (!userId || !reason) {
-      alert("Please fill all required fields.");
+    if (!reason) {
+      setError("Please select a reason");
+      return;
+    }
+
+    if (!description.trim()) {
+      setError("Please provide a description");
       return;
     }
 
     try {
       setSubmitting(true);
 
-      const caregiverName =
-        user?.displayName ||
-        user?.email ||
-        user?.phoneNumber ||
-        "Caregiver";
-
       await addDoc(collection(db, "blacklistReports"), {
+        bookingId,
         userId,
-        userName: userName || userId,                 // store name; fallback to uid
-        bookingId: bookingId || null,
+        userName,
+        reportedBy: employeeId,
+        reportedByName: "Caregiver",
         reason,
-        description,
-        reportedBy: employeeId || user?.uid || "caregiver",
-        reportedByName: caregiverName,
+        description: description.trim(),
         status: "pending",
         createdAt: serverTimestamp(),
       });
 
-      alert("Report submitted successfully! Admin will review it shortly.");
-      navigate("/caregiver/dashboard");
+      alert("Report submitted successfully. Admin will review it.");
+      navigate("/caregiver");
     } catch (err) {
       console.error("Error submitting report:", err);
-      alert("Could not submit report. Please try again.");
+      setError("Could not submit report. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -87,43 +79,50 @@ export default function CaregiverReportUserPage() {
 
   return (
     <div className="app-shell">
-      <div className="app-card">
-        <div className="app-header">
-          <div>
-            <h1 className="app-title">Report user</h1>
-            <p className="app-subtitle">
-              This report will be linked to your booking and reviewed by admin.
-            </p>
-          </div>
+      <div className="app-card" style={{ maxWidth: 600 }}>
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ color: "#e5e7eb", fontSize: 24, marginBottom: 8 }}>
+            🚫 Report User
+          </h1>
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+            Submit a report to admin about this user
+          </p>
         </div>
 
+        {/* Warning */}
+        <div
+          style={{
+            background: "#fef3c7",
+            color: "#92400e",
+            padding: 12,
+            borderRadius: 8,
+            fontSize: 13,
+            marginBottom: 16,
+            border: "1px solid #fcd34d",
+          }}
+        >
+          <strong>⚠️ Important:</strong> Only use this feature for serious issues like abuse,
+          non-payment, or safety concerns. False reports may affect your account.
+        </div>
+
+        {error && <div className="error-message">{error}</div>}
+
+        {/* User info */}
+        <div className="card" style={{ marginBottom: 16, background: "#0b1120" }}>
+          <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
+            <strong>User:</strong> {userName || "Unknown"}
+          </p>
+          <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
+            <strong>User ID:</strong> {userId || "N/A"}
+          </p>
+          <p style={{ fontSize: 13, color: "#e5e7eb", margin: 0 }}>
+            <strong>Booking ID:</strong> {bookingId?.substring(0, 12)}...
+          </p>
+        </div>
+
+        {/* Report Form */}
         <form onSubmit={handleSubmit} className="form">
-          {/* Show user name instead of UID */}
-          <label>User</label>
-          <input
-            value={userName || userId}
-            onChange={(e) => setUserName(e.target.value)}
-            placeholder="User name"
-          />
-
-          {/* If you still want to keep UID, hide or make read-only */}
-          <label>User ID (UID)</label>
-          <input
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            placeholder="Firebase user ID"
-            readOnly
-          />
-
-          <label>Booking ID</label>
-          <input
-            value={bookingId}
-            onChange={(e) => setBookingId(e.target.value)}
-            placeholder="Related booking ID"
-            readOnly={!!bookingId}
-          />
-
-          <label>Reason for report</label>
+          <label>Reason for report *</label>
           <select
             value={reason}
             onChange={(e) => setReason(e.target.value)}
@@ -137,22 +136,57 @@ export default function CaregiverReportUserPage() {
             ))}
           </select>
 
-          <label>Additional details (optional)</label>
+          <label>Description *</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Provide more information about the incident..."
-            rows="5"
+            required
+            placeholder="Please provide detailed information about the issue. Include dates, times, and specific incidents."
+            rows={6}
+            style={{ resize: "vertical" }}
           />
 
-          <button
-            className="btn btn-primary"
-            type="submit"
-            disabled={submitting}
-          >
-            {submitting ? "Submitting..." : "📋 Submit report"}
-          </button>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={submitting}
+              style={{ flex: 1 }}
+            >
+              {submitting ? "Submitting..." : "Submit Report"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => navigate("/caregiver")}
+              style={{
+                flex: 1,
+                background: "#111827",
+                color: "#e5e7eb",
+                border: "1px solid #1f2937",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </form>
+
+        {/* Disclaimer */}
+        <div
+          style={{
+            marginTop: 24,
+            padding: 12,
+            background: "#020617",
+            border: "1px solid #1f2937",
+            borderRadius: 8,
+            fontSize: 12,
+            color: "#9ca3af",
+          }}
+        >
+          <strong style={{ color: "#e5e7eb" }}>Note:</strong> Your report will be reviewed by an
+          admin within 24-48 hours. The user may be blacklisted if the report is verified. You will
+          be notified of the decision.
+        </div>
       </div>
     </div>
   );
