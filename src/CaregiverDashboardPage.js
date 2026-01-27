@@ -729,20 +729,58 @@ export default function CaregiverDashboardPage() {
             />
 
             {/* Category - NOW EDITABLE */}
-            <label>Category</label>
-            <select
-              value={editCategory}
-              onChange={(e) => setEditCategory(e.target.value)}
-            >
-              <option value="caregiver">Care Giver</option>
-              <option value="household">Household</option>
-              <option value="both">Both (Care Giver + Household)</option>
-            </select>
-            <p style={{ fontSize: 11, color: "#9ca3af", marginTop: -8 }}>
-              {editCategory === "both"
-                ? "You can provide both care giving and household services"
-                : `You provide ${editCategory === "caregiver" ? "care giving" : "household"} services only`}
-            </p>
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                style={{
+                  color: "#e5e7eb",
+                  fontWeight: "600",
+                  fontSize: "13px",
+                }}
+              >
+                Category *
+              </label>
+
+              <select
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #1f2937",
+                  background: "#111827",
+                  color: "#e5e7eb",
+                  marginTop: "8px",
+                  boxSizing: "border-box",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                <option value="caregiver">
+                  🏥 Care Giver (Only care giving services)
+                </option>
+                <option value="household">
+                  🏠 Household (Only household services)
+                </option>
+                <option value="both">
+                  👥 Both (Care Giver & Household services)
+                </option>
+              </select>
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "#9ca3af",
+                  marginTop: "6px",
+                  margin: "6px 0 0 0",
+                }}
+              >
+                {editCategory === "both"
+                  ? "✓ You can provide both care giving and household services"
+                  : editCategory === "caregiver"
+                    ? "You provide care giving services only"
+                    : "You provide household services only"}
+              </p>
+            </div>
 
             <label>Availability</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>

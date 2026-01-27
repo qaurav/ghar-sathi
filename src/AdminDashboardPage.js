@@ -8,6 +8,9 @@ import {
   setDoc,
   deleteDoc,
   serverTimestamp,
+  addDoc,
+  query,
+  where,
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { db, auth } from "./firebaseConfig";
@@ -20,7 +23,9 @@ export default function AdminDashboardPage() {
   const [loadingOrganizations, setLoadingOrganizations] = useState(true);
   const [orgStatusFilter, setOrgStatusFilter] = useState("all");
   const [searchOrg, setSearchOrg] = useState("");
-
+  const [selectedOrg, setSelectedOrg] = useState(null); // NEW: For org details modal
+  const [orgCaregivers, setOrgCaregivers] = useState([]); // NEW: Caregivers under org
+  
   // Add Organization Form
   const [showAddOrgForm, setShowAddOrgForm] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
@@ -143,6 +148,7 @@ export default function AdminDashboardPage() {
       const totalRevenue = bookingsData
         .filter((b) => b.status === "completed")
         .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+
       const platformEarnings = bookingsData
         .filter((b) => b.status === "completed")
         .reduce((sum, b) => sum + (b.platformCommission || 0), 0);
@@ -162,6 +168,63 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // ===== NEW: Load caregivers for selected organization =====
+  const handleOrgClick = async (org) => {
+    setSelectedOrg(org);
+    try {
+      const q = query(
+        collection(db, "vendors"),
+        where("organizationId", "==", org.id)
+      );
+      const snap = await getDocs(q);
+      setOrgCaregivers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error("Error loading caregivers:", err);
+    }
+  };
+
+  // ===== NEW: Approve caregiver =====
+  const handleApproveCaregiverClick = async (caregiverId) => {
+    try {
+      await updateDoc(doc(db, "vendors", caregiverId), {
+        isApproved: true,
+        approvedAt: serverTimestamp(),
+        approvedBy: "superadmin",
+      });
+      await updateDoc(doc(db, "users", caregiverId), {
+        isApproved: true,
+      });
+      alert("Caregiver approved!");
+      if (selectedOrg) {
+        handleOrgClick(selectedOrg);
+      }
+      loadAllData();
+    } catch (err) {
+      console.error("Error approving caregiver:", err);
+    }
+  };
+
+  // ===== NEW: Reject caregiver =====
+  const handleRejectCaregiverClick = async (caregiverId) => {
+    const reason = prompt("Enter rejection reason:");
+    if (!reason) return;
+
+    try {
+      await updateDoc(doc(db, "vendors", caregiverId), {
+        isApproved: false,
+        rejectionReason: reason,
+        rejectedAt: serverTimestamp(),
+      });
+      alert("Caregiver rejected!");
+      if (selectedOrg) {
+        handleOrgClick(selectedOrg);
+      }
+      loadAllData();
+    } catch (err) {
+      console.error("Error rejecting caregiver:", err);
+    }
+  };
+
   // Handle create organization
   const handleCreateOrganization = async (e) => {
     e.preventDefault();
@@ -169,12 +232,7 @@ export default function AdminDashboardPage() {
     setAddingOrg(true);
 
     try {
-      const orgCred = await createUserWithEmailAndPassword(
-        auth,
-        newOrgEmail,
-        newOrgPassword
-      );
-
+      const orgCred = await createUserWithEmailAndPassword(auth, newOrgEmail, newOrgPassword);
       const orgUid = orgCred.user.uid;
 
       const userData = {
@@ -219,7 +277,6 @@ export default function AdminDashboardPage() {
       await setDoc(doc(db, "organizations", orgUid), orgData);
 
       alert("Organization created successfully!");
-      
       setNewOrgName("");
       setNewOrgAdminName("");
       setNewOrgEmail("");
@@ -229,7 +286,6 @@ export default function AdminDashboardPage() {
       setNewOrgCity("");
       setNewOrgCommission(15);
       setShowAddOrgForm(false);
-
       loadAllData();
     } catch (err) {
       console.error("Error creating organization:", err);
@@ -255,7 +311,6 @@ export default function AdminDashboardPage() {
         newSuperAdminEmail,
         newSuperAdminPassword
       );
-
       const superAdminUid = superAdminCred.user.uid;
 
       const userData = {
@@ -273,12 +328,10 @@ export default function AdminDashboardPage() {
       await setDoc(doc(db, "users", superAdminUid), userData);
 
       alert("SuperAdmin created successfully!");
-      
       setNewSuperAdminName("");
       setNewSuperAdminEmail("");
       setNewSuperAdminPassword("");
       setShowAddSuperAdminForm(false);
-
       loadAllData();
     } catch (err) {
       console.error("Error creating superadmin:", err);
@@ -292,6 +345,50 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // ===== NEW: Add service (SuperAdmin) =====
+  const handleAddService = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!newServiceLabel.trim()) {
+      setError("Please enter a service name");
+      return;
+    }
+
+    try {
+      const id = newServiceLabel.trim().toLowerCase().replace(/ /g, "_");
+      await setDoc(doc(db, "services", id), {
+        label: newServiceLabel.trim(),
+        serviceName: newServiceLabel.trim(),
+        category: newServiceCategory,
+        createdAt: serverTimestamp(),
+        createdBy: "superadmin",
+      });
+
+      setNewServiceLabel("");
+      setNewServiceCategory("caregiver");
+      alert("Service added!");
+      loadAllData();
+    } catch (err) {
+      console.error("Error adding service:", err);
+      setError("Could not add service");
+    }
+  };
+
+    // ===== NEW: Delete service (SuperAdmin) =====
+  const handleDeleteService = async (serviceId, label) => {
+    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
+
+    try {
+      await deleteDoc(doc(db, "services", serviceId));
+      alert("Service deleted!");
+      loadAllData();
+    } catch (err) {
+      console.error("Error deleting service:", err);
+      alert("Could not delete service");
+    }
+  };
+
   // Handle approve organization
   const handleApproveOrganization = async (orgId) => {
     try {
@@ -300,11 +397,9 @@ export default function AdminDashboardPage() {
         approvedAt: serverTimestamp(),
         approvedBy: "superadmin",
       });
-      
       await updateDoc(doc(db, "users", orgId), {
         isApproved: true,
       });
-
       alert("Organization approved successfully!");
       loadAllData();
     } catch (err) {
@@ -324,11 +419,6 @@ export default function AdminDashboardPage() {
         rejectionReason: reason,
         rejectedAt: serverTimestamp(),
       });
-
-      await updateDoc(doc(db, "users", orgId), {
-        isApproved: false,
-      });
-
       alert("Organization rejected");
       loadAllData();
     } catch (err) {
@@ -344,151 +434,14 @@ export default function AdminDashboardPage() {
         isSuspended: !isSuspended,
         suspendedAt: !isSuspended ? serverTimestamp() : null,
       });
-
       await updateDoc(doc(db, "users", orgId), {
         isSuspended: !isSuspended,
       });
-
       alert(`Organization ${!isSuspended ? "suspended" : "unsuspended"}`);
       loadAllData();
     } catch (err) {
       console.error("Error updating organization:", err);
       alert("Could not update organization");
-    }
-  };
-
-  // Handle approve caregiver
-  const handleApproveCaregiver = async (caregiverId) => {
-    try {
-      await updateDoc(doc(db, "vendors", caregiverId), {
-        isApproved: true,
-        approvedAt: serverTimestamp(),
-        approvedBy: "superadmin",
-      });
-
-      await updateDoc(doc(db, "users", caregiverId), {
-        isApproved: true,
-      });
-
-      alert("Caregiver approved!");
-      loadAllData();
-    } catch (err) {
-      console.error("Error approving caregiver:", err);
-      alert("Could not approve caregiver");
-    }
-  };
-
-  // Handle reject caregiver
-  const handleRejectCaregiver = async (caregiverId) => {
-    const reason = prompt("Enter rejection reason:");
-    if (!reason) return;
-
-    try {
-      await updateDoc(doc(db, "vendors", caregiverId), {
-        isApproved: false,
-        rejectionReason: reason,
-        rejectedAt: serverTimestamp(),
-      });
-
-      alert("Caregiver rejected");
-      loadAllData();
-    } catch (err) {
-            console.error("Error rejecting caregiver:", err);
-      alert("Could not reject caregiver");
-    }
-  };
-
-  // Handle suspend caregiver
-  const handleSuspendCaregiver = async (caregiverId, isSuspended) => {
-    try {
-      await updateDoc(doc(db, "vendors", caregiverId), {
-        isSuspended: !isSuspended,
-        suspendedAt: !isSuspended ? serverTimestamp() : null,
-      });
-
-      await updateDoc(doc(db, "users", caregiverId), {
-        isSuspended: !isSuspended,
-      });
-
-      alert(`Caregiver ${!isSuspended ? "suspended" : "unsuspended"}`);
-      loadAllData();
-    } catch (err) {
-      console.error("Error suspending caregiver:", err);
-      alert("Could not update caregiver");
-    }
-  };
-
-  // Handle add service
-  const handleAddService = async (e) => {
-    e.preventDefault();
-    setError("");
-    
-    if (!newServiceLabel.trim()) {
-      setError("Please enter a service name");
-      return;
-    }
-
-    try {
-      const id = newServiceLabel.trim().toLowerCase().replace(/\s+/g, "_");
-      await setDoc(doc(db, "services", id), {
-        label: newServiceLabel.trim(),
-        category: newServiceCategory,
-        createdAt: serverTimestamp(),
-        createdBy: "superadmin",
-      });
-
-      setNewServiceLabel("");
-      setNewServiceCategory("caregiver");
-      alert("Service added!");
-      loadAllData();
-    } catch (err) {
-      console.error("Error adding service:", err);
-      setError("Could not add service");
-    }
-  };
-
-  // Handle edit service
-  const startEditService = (service) => {
-    setEditingService(service);
-    setEditServiceLabel(service.label);
-    setEditServiceCategory(service.category);
-  };
-
-  const handleUpdateService = async () => {
-    if (!editServiceLabel.trim()) {
-      setError("Service name cannot be empty");
-      return;
-    }
-
-    try {
-      await updateDoc(doc(db, "services", editingService.id), {
-        label: editServiceLabel.trim(),
-        category: editServiceCategory,
-        updatedAt: serverTimestamp(),
-      });
-
-      alert("Service updated!");
-      setEditingService(null);
-      setEditServiceLabel("");
-      setEditServiceCategory("caregiver");
-      loadAllData();
-    } catch (err) {
-      console.error("Error updating service:", err);
-      setError("Could not update service");
-    }
-  };
-
-  // Handle delete service
-  const handleDeleteService = async (serviceId, label) => {
-    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
-
-    try {
-      await deleteDoc(doc(db, "services", serviceId));
-      alert("Service deleted");
-      loadAllData();
-    } catch (err) {
-      console.error("Error deleting service:", err);
-      alert("Could not delete service");
     }
   };
 
@@ -526,7 +479,6 @@ export default function AdminDashboardPage() {
       await updateDoc(doc(db, "blacklistReports", reportId), {
         status: "rejected",
       });
-
       alert("Report rejected");
       loadAllData();
     } catch (err) {
@@ -561,7 +513,7 @@ export default function AdminDashboardPage() {
     color: activeTab === tabName ? "white" : "#e5e7eb",
     cursor: "pointer",
     fontWeight: activeTab === tabName ? "600" : "500",
-    fontSize: 13,
+    fontSize: "13px",
     transition: "all 0.2s ease",
   });
 
@@ -573,10 +525,15 @@ export default function AdminDashboardPage() {
       org.adminEmail?.toLowerCase().includes(searchOrg.toLowerCase());
 
     const matchStatus =
-      orgStatusFilter === "all" ? true :
-      orgStatusFilter === "pending" ? !org.isApproved :
-      orgStatusFilter === "approved" ? org.isApproved && !org.isSuspended :
-      orgStatusFilter === "suspended" ? org.isSuspended : true;
+      orgStatusFilter === "all"
+        ? true
+        : orgStatusFilter === "pending"
+        ? !org.isApproved
+        : orgStatusFilter === "approved"
+        ? org.isApproved && !org.isSuspended
+        : orgStatusFilter === "suspended"
+        ? org.isSuspended
+        : true;
 
     return matchSearch && matchStatus;
   });
@@ -589,10 +546,15 @@ export default function AdminDashboardPage() {
       vendor.organizationName?.toLowerCase().includes(searchVendor.toLowerCase());
 
     const matchStatus =
-      vendorStatusFilter === "all" ? true :
-      vendorStatusFilter === "pending" ? !vendor.isApproved :
-      vendorStatusFilter === "approved" ? vendor.isApproved && !vendor.isSuspended :
-      vendorStatusFilter === "suspended" ? vendor.isSuspended : true;
+      vendorStatusFilter === "all"
+        ? true
+        : vendorStatusFilter === "pending"
+        ? !vendor.isApproved
+        : vendorStatusFilter === "approved"
+        ? vendor.isApproved && !vendor.isSuspended
+        : vendorStatusFilter === "suspended"
+        ? vendor.isSuspended
+        : true;
 
     return matchSearch && matchStatus;
   });
@@ -609,14 +571,10 @@ export default function AdminDashboardPage() {
     (r) => r.status === blacklistFilter
   );
 
-  // Get global services (not org-specific)
-  const globalServices = services.filter((s) => !s.organizationId);
-  const orgSpecificServices = services.filter((s) => s.organizationId);
-
   return (
-    <div>
-      <h1 style={{ color: "#e5e7eb", marginBottom: 8 }}>SuperAdmin Dashboard</h1>
-      <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 16 }}>
+    <div style={{ padding: "20px" }}>
+      <h1 style={{ color: "#e5e7eb", marginBottom: "8px" }}>SuperAdmin Dashboard</h1>
+      <p style={{ fontSize: "13px", color: "#9ca3af", marginBottom: "16px" }}>
         Ghar Sathi Platform Management - Full control over all platform activities
       </p>
 
@@ -625,113 +583,144 @@ export default function AdminDashboardPage() {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-          gap: 12,
-          marginBottom: 24,
+          gap: "12px",
+          marginBottom: "24px",
         }}
       >
         <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Total Organizations</p>
-          <p style={{ fontSize: 24, color: "#0ea5e9", fontWeight: "bold", margin: 0 }}>
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+            Total Organizations
+          </p>
+          <p style={{ fontSize: "24px", color: "#0ea5e9", fontWeight: "bold", margin: "0" }}>
             {analytics.totalOrganizations}
           </p>
-          <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
             {analytics.approvedOrganizations} approved
           </p>
         </div>
+
         <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Total Caregivers</p>
-          <p style={{ fontSize: 24, color: "#10b981", fontWeight: "bold", margin: 0 }}>
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+            Total Caregivers
+          </p>
+          <p style={{ fontSize: "24px", color: "#10b981", fontWeight: "bold", margin: "0" }}>
             {analytics.totalCaregivers}
           </p>
-          <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
             {analytics.approvedCaregivers} approved
           </p>
         </div>
+
         <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Total Bookings</p>
-          <p style={{ fontSize: 24, color: "#fbbf24", fontWeight: "bold", margin: 0 }}>
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+            Total Bookings
+          </p>
+          <p style={{ fontSize: "24px", color: "#fbbf24", fontWeight: "bold", margin: "0" }}>
             {analytics.totalBookings}
           </p>
-          <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
             {analytics.completedBookings} completed
           </p>
         </div>
+
         <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Total Revenue</p>
-          <p style={{ fontSize: 24, color: "#22c55e", fontWeight: "bold", margin: 0 }}>
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+            Total Revenue
+          </p>
+          <p style={{ fontSize: "24px", color: "#22c55e", fontWeight: "bold", margin: "0" }}>
             ₹{analytics.totalRevenue.toLocaleString()}
           </p>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
+            All time
+          </p>
         </div>
+
         <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Platform Earnings</p>
-          <p style={{ fontSize: 24, color: "#0ea5e9", fontWeight: "bold", margin: 0 }}>
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+            Platform Earnings
+          </p>
+          <p style={{ fontSize: "24px", color: "#0ea5e9", fontWeight: "bold", margin: "0" }}>
             ₹{Math.round(analytics.platformEarnings).toLocaleString()}
           </p>
-          <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
             {globalCommissionRate}% commission
           </p>
         </div>
+
         <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>SuperAdmins</p>
-          <p style={{ fontSize: 24, color: "#6366f1", fontWeight: "bold", margin: 0 }}>
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+            SuperAdmins
+          </p>
+          <p style={{ fontSize: "24px", color: "#6366f1", fontWeight: "bold", margin: "0" }}>
             {superAdmins.length}
+          </p>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
+            Active
           </p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="choice-buttons" style={{ marginBottom: 24, flexWrap: "wrap" }}>
+      <div
+        className="choice-buttons"
+        style={{ marginBottom: "24px", flexWrap: "wrap" }}
+      >
         <button
           type="button"
           style={getTabStyle("organizations")}
           onClick={() => setActiveTab("organizations")}
         >
-          🏢 Organizations ({filteredOrganizations.length})
+          Organizations {filteredOrganizations.length}
         </button>
+
         <button
           type="button"
           style={getTabStyle("caregivers")}
           onClick={() => setActiveTab("caregivers")}
         >
-          👥 Caregivers ({filteredVendors.length})
+          Caregivers {filteredVendors.length}
         </button>
+
         <button
           type="button"
           style={getTabStyle("bookings")}
           onClick={() => setActiveTab("bookings")}
         >
-          📅 Bookings ({filteredBookings.length})
+          Bookings {filteredBookings.length}
         </button>
+
         <button
           type="button"
           style={getTabStyle("services")}
           onClick={() => setActiveTab("services")}
         >
-          🛠️ Services ({globalServices.length})
+          Services {services.length}
         </button>
+
         <button
           type="button"
           style={getTabStyle("reports")}
           onClick={() => setActiveTab("reports")}
         >
-          🚫 Reports ({filteredReports.length})
+          Reports {filteredReports.length}
         </button>
+
         <button
           type="button"
           style={getTabStyle("settings")}
           onClick={() => setActiveTab("settings")}
         >
-          ⚙️ Settings
+          Settings
         </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
-      {/* ORGANIZATIONS TAB */}
-      {activeTab === "organizations" && (
+      {/* ===== ORGANIZATIONS TAB ===== */}
+      {activeTab === "organizations" && !selectedOrg && (
         <div>
           {/* Action Buttons */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
             <button
               className="btn btn-primary"
               onClick={() => {
@@ -739,8 +728,9 @@ export default function AdminDashboardPage() {
                 setShowAddSuperAdminForm(false);
               }}
             >
-              {showAddOrgForm ? "Cancel" : "+ Create Organization"}
+              {showAddOrgForm ? "Cancel" : "➕ Create Organization"}
             </button>
+
             <button
               className="btn"
               onClick={() => {
@@ -753,97 +743,115 @@ export default function AdminDashboardPage() {
                 border: "none",
               }}
             >
-              {showAddSuperAdminForm ? "Cancel" : "+ Add SuperAdmin"}
+              {showAddSuperAdminForm ? "Cancel" : "➕ Add SuperAdmin"}
             </button>
           </div>
 
           {/* Add Organization Form */}
           {showAddOrgForm && (
-            <div className="card" style={{ marginBottom: 16, background: "#0b1120" }}>
-              <h3 style={{ color: "#e5e7eb", marginTop: 0 }}>Create New Organization</h3>
-              
+            <div className="card" style={{ marginBottom: "16px", background: "#0b1120" }}>
+              <h3 style={{ color: "#e5e7eb", marginTop: "0" }}>
+                Create New Organization
+              </h3>
+
               <form onSubmit={handleCreateOrganization} className="form">
-                <label>Organization Name *</label>
-                <input
-                  value={newOrgName}
-                  onChange={(e) => setNewOrgName(e.target.value)}
-                  required
-                  placeholder="e.g., ABC Care Services Pvt. Ltd."
-                />
+                <div>
+                  <label>Organization Name *</label>
+                  <input
+                    value={newOrgName}
+                    onChange={(e) => setNewOrgName(e.target.value)}
+                    required
+                    placeholder="e.g., ABC Care Services Pvt. Ltd."
+                  />
+                </div>
 
-                <label>Admin Name *</label>
-                <input
-                  value={newOrgAdminName}
-                  onChange={(e) => setNewOrgAdminName(e.target.value)}
-                  required
-                  placeholder="Organization admin's name"
-                />
+                <div>
+                  <label>Admin Name *</label>
+                  <input
+                    value={newOrgAdminName}
+                    onChange={(e) => setNewOrgAdminName(e.target.value)}
+                    required
+                    placeholder="Organization admin's name"
+                  />
+                </div>
 
-                <label>Admin Email *</label>
-                <input
-                  type="email"
-                  value={newOrgEmail}
-                  onChange={(e) => setNewOrgEmail(e.target.value)}
-                  required
-                  placeholder="admin@organization.com"
-                />
+                <div>
+                  <label>Admin Email *</label>
+                  <input
+                    type="email"
+                    value={newOrgEmail}
+                    onChange={(e) => setNewOrgEmail(e.target.value)}
+                    required
+                    placeholder="admin@organization.com"
+                  />
+                </div>
 
-                <label>Admin Password *</label>
-                <input
-                                    type="password"
-                  value={newOrgPassword}
-                  onChange={(e) => setNewOrgPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="At least 6 characters"
-                />
+                <div>
+                  <label>Admin Password *</label>
+                  <input
+                    type="password"
+                    value={newOrgPassword}
+                    onChange={(e) => setNewOrgPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    placeholder="At least 6 characters"
+                  />
+                </div>
 
-                <label>Business Phone</label>
-                <input
-                  type="tel"
-                  value={newOrgPhone}
-                  onChange={(e) => setNewOrgPhone(e.target.value)}
-                  placeholder="98XXXXXXXX"
-                />
+                <div>
+                  <label>Business Phone</label>
+                  <input
+                    type="tel"
+                    value={newOrgPhone}
+                    onChange={(e) => setNewOrgPhone(e.target.value)}
+                    placeholder="98XXXXXXXX"
+                  />
+                </div>
 
-                <label>Business Address</label>
-                <input
-                  value={newOrgAddress}
-                  onChange={(e) => setNewOrgAddress(e.target.value)}
-                  placeholder="Office address"
-                />
+                <div>
+                  <label>Business Address</label>
+                  <input
+                    value={newOrgAddress}
+                    onChange={(e) => setNewOrgAddress(e.target.value)}
+                    placeholder="Office address"
+                  />
+                </div>
 
-                <label>City</label>
-                <select
-                  value={newOrgCity}
-                  onChange={(e) => setNewOrgCity(e.target.value)}
-                >
-                  <option value="">Select city</option>
-                  <option value="Kathmandu">Kathmandu</option>
-                  <option value="Lalitpur">Lalitpur</option>
-                  <option value="Bhaktapur">Bhaktapur</option>
-                  <option value="Pokhara">Pokhara</option>
-                  <option value="Other">Other</option>
-                </select>
+                <div>
+                  <label>City</label>
+                  <select
+                    value={newOrgCity}
+                    onChange={(e) => setNewOrgCity(e.target.value)}
+                  >
+                    <option value="">Select city</option>
+                    <option value="Kathmandu">Kathmandu</option>
+                    <option value="Lalitpur">Lalitpur</option>
+                    <option value="Bhaktapur">Bhaktapur</option>
+                    <option value="Pokhara">Pokhara</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
 
-                <label>Commission Rate (%)</label>
-                <input
-                  type="number"
-                  value={newOrgCommission}
-                  onChange={(e) => setNewOrgCommission(e.target.value)}
-                  min="0"
-                  max="100"
-                  placeholder="15"
-                />
-                <p style={{ fontSize: 11, color: "#9ca3af", marginTop: -8 }}>
-                  Platform takes this percentage from each booking
-                </p>
+                <div>
+                  <label>Commission Rate (%)</label>
+                  <input
+                    type="number"
+                    value={newOrgCommission}
+                    onChange={(e) => setNewOrgCommission(e.target.value)}
+                    min="0"
+                    max="100"
+                    placeholder="15"
+                  />
+                  <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "-8px" }}>
+                    Platform takes this percentage from each booking
+                  </p>
+                </div>
 
                 <button
                   type="submit"
                   className="btn btn-primary"
                   disabled={addingOrg}
-                  style={{ marginTop: 16 }}
+                  style={{ marginTop: "16px" }}
                 >
                   {addingOrg ? "Creating Organization..." : "Create Organization"}
                 </button>
@@ -853,57 +861,73 @@ export default function AdminDashboardPage() {
 
           {/* Add SuperAdmin Form */}
           {showAddSuperAdminForm && (
-            <div className="card" style={{ marginBottom: 16, background: "#0b1120", border: "2px solid #6366f1" }}>
-              <h3 style={{ color: "#e5e7eb", marginTop: 0 }}>Add New SuperAdmin</h3>
-              
+            <div
+              className="card"
+              style={{
+                marginBottom: "16px",
+                background: "#0b1120",
+                border: "2px solid #6366f1",
+              }}
+            >
+              <h3 style={{ color: "#e5e7eb", marginTop: "0" }}>
+                Add New SuperAdmin
+              </h3>
+
               <div
                 style={{
                   background: "#fef3c7",
                   color: "#92400e",
-                  padding: 12,
-                  borderRadius: 8,
-                  fontSize: 12,
-                  marginBottom: 16,
+                  padding: "12px",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  marginBottom: "16px",
                   border: "1px solid #fcd34d",
                 }}
               >
-                <strong>⚠️ Warning:</strong> SuperAdmins have full access to the platform. Only add trusted team members.
+                <strong>⚠️ Warning:</strong> SuperAdmins have full access to the platform.
+                Only add trusted team members.
               </div>
 
               <form onSubmit={handleCreateSuperAdmin} className="form">
-                <label>Full Name *</label>
-                <input
-                  value={newSuperAdminName}
-                  onChange={(e) => setNewSuperAdminName(e.target.value)}
-                  required
-                  placeholder="SuperAdmin's full name"
-                />
+                <div>
+                  <label>Full Name *</label>
+                  <input
+                    value={newSuperAdminName}
+                    onChange={(e) => setNewSuperAdminName(e.target.value)}
+                    required
+                    placeholder="SuperAdmin's full name"
+                  />
+                </div>
 
-                <label>Email *</label>
-                <input
-                  type="email"
-                  value={newSuperAdminEmail}
-                  onChange={(e) => setNewSuperAdminEmail(e.target.value)}
-                  required
-                  placeholder="superadmin@gharsathi.com"
-                />
+                <div>
+                  <label>Email *</label>
+                  <input
+                    type="email"
+                    value={newSuperAdminEmail}
+                    onChange={(e) => setNewSuperAdminEmail(e.target.value)}
+                    required
+                    placeholder="superadmin@gharsathi.com"
+                  />
+                </div>
 
-                <label>Password *</label>
-                <input
-                  type="password"
-                  value={newSuperAdminPassword}
-                  onChange={(e) => setNewSuperAdminPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="At least 6 characters"
-                />
+                <div>
+                  <label>Password *</label>
+                  <input
+                    type="password"
+                    value={newSuperAdminPassword}
+                    onChange={(e) => setNewSuperAdminPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    placeholder="At least 6 characters"
+                  />
+                </div>
 
                 <button
                   type="submit"
                   className="btn"
                   disabled={addingSuperAdmin}
                   style={{
-                    marginTop: 16,
+                    marginTop: "16px",
                     background: "#6366f1",
                     color: "white",
                     border: "none",
@@ -914,28 +938,29 @@ export default function AdminDashboardPage() {
               </form>
 
               {/* Current SuperAdmins List */}
-              <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #1f2937" }}>
-                <h4 style={{ color: "#e5e7eb", fontSize: 14, marginBottom: 12 }}>
+              <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid #1f2937" }}>
+                <h4 style={{ color: "#e5e7eb", fontSize: "14px", marginBottom: "12px" }}>
                   Current SuperAdmins ({superAdmins.length})
                 </h4>
+
                 {superAdmins.map((sa) => (
                   <div
                     key={sa.id}
                     style={{
                       padding: "8px 12px",
                       background: "#020617",
-                      borderRadius: 6,
-                      marginBottom: 8,
+                      borderRadius: "6px",
+                      marginBottom: "8px",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
                     }}
                   >
                     <div>
-                      <p style={{ margin: 0, fontSize: 13, color: "#e5e7eb" }}>
+                      <p style={{ margin: "0", fontSize: "13px", color: "#e5e7eb" }}>
                         <strong>{sa.name}</strong>
                       </p>
-                      <p style={{ margin: 0, fontSize: 11, color: "#9ca3af" }}>
+                      <p style={{ margin: "0", fontSize: "11px", color: "#9ca3af" }}>
                         {sa.email}
                       </p>
                     </div>
@@ -945,11 +970,11 @@ export default function AdminDashboardPage() {
                         color: "white",
                         padding: "4px 8px",
                         borderRadius: "4px",
-                        fontSize: 11,
+                        fontSize: "11px",
                         fontWeight: "600",
                       }}
                     >
-                      🔐 SuperAdmin
+                      SuperAdmin
                     </span>
                   </div>
                 ))}
@@ -958,7 +983,7 @@ export default function AdminDashboardPage() {
           )}
 
           {/* Filters */}
-          <div className="row" style={{ marginBottom: 16 }}>
+          <div className="row" style={{ marginBottom: "16px" }}>
             <div className="col">
               <label>Search</label>
               <input
@@ -968,6 +993,7 @@ export default function AdminDashboardPage() {
                 onChange={(e) => setSearchOrg(e.target.value)}
               />
             </div>
+
             <div className="col">
               <label>Status</label>
               <select
@@ -989,210 +1015,435 @@ export default function AdminDashboardPage() {
               <div className="empty-state-icon">🏢</div>
               <p className="empty-state-title">No organizations found</p>
               <p className="empty-state-text">
-                {organizations.length === 0 
+                {organizations.length === 0
                   ? "Create your first organization to get started"
                   : "No organizations match your filters"}
               </p>
             </div>
           ) : (
-            <div>
-              {filteredOrganizations.map((org) => (
-                <div key={org.id} className="card" style={{ marginBottom: 12 }}>
+            filteredOrganizations.map((org) => (
+              <div key={org.id} className="card" style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    flexWrap: "wrap",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: "#e5e7eb", fontSize: "18px" }}>
+                      {org.organizationName}
+                    </strong>
+
+                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                      Admin: {org.adminName}
+                    </div>
+
+                    <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                      {org.adminEmail}
+                    </div>
+
+                    {org.businessPhone && (
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                        {org.businessPhone}
+                      </div>
+                    )}
+
+                    {org.businessAddress && (
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                        {org.businessAddress}, {org.businessCity}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                      Joined: {new Date(org.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "6px",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                    }}
+                  >
+                    {org.isApproved ? (
+                      <span
+                        style={{
+                          background: "#dcfce7",
+                          color: "#15803d",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        ✓ Approved
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          background: "#fef3c7",
+                          color: "#92400e",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        ⏳ Pending
+                      </span>
+                    )}
+
+                    {org.isSuspended && (
+                      <span
+                        style={{
+                          background: "#dc2626",
+                          color: "#fff",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        🔒 Suspended
+                      </span>
+                    )}
+
+                    {org.createdBy === "superadmin" && (
+                      <span
+                        style={{
+                          background: "#6366f1",
+                          color: "white",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Created by Admin
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Organization Stats */}
+                <div
+                  style={{
+                    marginTop: "12px",
+                    paddingTop: "12px",
+                    borderTop: "1px solid #1f2937",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0" }}>
+                      Total Caregivers
+                    </p>
+                    <p style={{ fontSize: "16px", color: "#0ea5e9", fontWeight: "bold", margin: "0" }}>
+                      {org.totalCaregivers || 0}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0" }}>
+                      Total Bookings
+                    </p>
+                    <p style={{ fontSize: "16px", color: "#10b981", fontWeight: "bold", margin: "0" }}>
+                      {org.totalBookings || 0}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0" }}>
+                      Total Earnings
+                    </p>
+                    <p style={{ fontSize: "16px", color: "#22c55e", fontWeight: "bold", margin: "0" }}>
+                      ₹{org.totalEarnings || 0}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0" }}>
+                      Commission Rate
+                    </p>
+                    <p style={{ fontSize: "16px", color: "#fbbf24", fontWeight: "bold", margin: "0" }}>
+                      {org.commissionRate || 15}%
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: "8px", marginTop: "12px", flexWrap: "wrap" }}>
+                  {!org.isApproved && (
+                    <>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => handleApproveOrganization(org.id)}
+                        style={{ flex: 1 }}
+                      >
+                        ✓ Approve
+                      </button>
+
+                      <button
+                        className="btn btn-outline"
+                        onClick={() => handleRejectOrganization(org.id)}
+                        style={{
+                          flex: 1,
+                          background: "#7f1d1d",
+                          color: "#fecaca",
+                          border: "1px solid #991b1b",
+                        }}
+                      >
+                        ✕ Reject
+                      </button>
+                    </>
+                  )}
+
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => handleSuspendOrganization(org.id, org.isSuspended)}
+                    style={{
+                      flex: 1,
+                      background: org.isSuspended ? "#111827" : "#7f1d1d",
+                      color: org.isSuspended ? "#e5e7eb" : "#fecaca",
+                      border: `1px solid ${org.isSuspended ? "#1f2937" : "#991b1b"}`,
+                    }}
+                  >
+                    {org.isSuspended ? "🔓 Unsuspend" : "🔒 Suspend"}
+                  </button>
+
+                                    {/* NEW: View Organization Details Button */}
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleOrgClick(org)}
+                    style={{ flex: 1, background: "#10b981" }}
+                  >
+                    📋 View Caregivers
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ===== ORGANIZATION DETAILS MODAL ===== */}
+      {activeTab === "organizations" && selectedOrg && (
+        <div>
+          {/* Back Button */}
+          <button
+            onClick={() => setSelectedOrg(null)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#0ea5e9",
+              cursor: "pointer",
+              fontSize: "14px",
+              marginBottom: "16px",
+              fontWeight: "600",
+            }}
+          >
+            ← Back to Organizations
+          </button>
+
+          {/* Organization Details */}
+          <div
+            className="card"
+            style={{
+              background: "#0b1120",
+              marginBottom: "24px",
+            }}
+          >
+            <h2 style={{ color: "#e5e7eb", marginTop: "0" }}>
+              {selectedOrg.organizationName}
+            </h2>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
+              <div>
+                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                  Organization ID
+                </p>
+                <p style={{ color: "#e5e7eb", margin: "0" }}>{selectedOrg.id}</p>
+              </div>
+
+              <div>
+                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                  Admin Name
+                </p>
+                <p style={{ color: "#e5e7eb", margin: "0" }}>{selectedOrg.adminName}</p>
+              </div>
+
+              <div>
+                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                  Admin Email
+                </p>
+                <p style={{ color: "#e5e7eb", margin: "0" }}>{selectedOrg.adminEmail}</p>
+              </div>
+
+              <div>
+                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                  Status
+                </p>
+                <span
+                  style={{
+                    background: selectedOrg.isApproved ? "#dcfce7" : "#fee2e2",
+                    color: selectedOrg.isApproved ? "#15803d" : "#991b1b",
+                    padding: "6px 12px",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                  }}
+                >
+                  {selectedOrg.isApproved ? "✓ Approved" : "⏳ Pending Approval"}
+                </span>
+              </div>
+
+              <div>
+                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                  Commission Rate
+                </p>
+                <p style={{ color: "#e5e7eb", margin: "0" }}>
+                  {selectedOrg.commissionRate || 15}%
+                </p>
+              </div>
+
+              <div>
+                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                  Total Caregivers
+                </p>
+                <p style={{ color: "#e5e7eb", margin: "0" }}>
+                  {selectedOrg.totalCaregivers || 0}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Caregivers Under Organization */}
+          <div>
+            <h3 style={{ color: "#e5e7eb", marginBottom: "16px" }}>
+              Caregivers ({orgCaregivers.length})
+            </h3>
+
+            {orgCaregivers.length === 0 ? (
+              <p style={{ color: "#9ca3af" }}>No caregivers under this organization</p>
+            ) : (
+              orgCaregivers.map((caregiver) => (
+                <div key={caregiver.id} className="card" style={{ marginBottom: "12px" }}>
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "flex-start",
-                      flexWrap: "wrap",
-                      gap: 12,
                     }}
                   >
                     <div>
-                      <strong style={{ color: "#e5e7eb", fontSize: 18 }}>
-                        {org.organizationName}
-                      </strong>
-                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
-                        👤 Admin: {org.adminName}
-                      </div>
-                      <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                        📧 {org.adminEmail}
-                      </div>
-                      {org.businessPhone && (
-                        <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                          📞 {org.businessPhone}
-                        </div>
-                      )}
-                      {org.businessAddress && (
-                        <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                          📍 {org.businessAddress}, {org.businessCity}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                        📅 Joined: {new Date(org.createdAt).toLocaleDateString()}
-                      </div>
+                      <h4 style={{ margin: "0 0 8px 0", color: "#e5e7eb" }}>
+                        {caregiver.name}
+                      </h4>
+
+                      <p style={{ margin: "4px 0", color: "#9ca3af", fontSize: "12px" }}>
+                        📍 {caregiver.location}
+                      </p>
+
+                      <p style={{ margin: "4px 0", color: "#9ca3af", fontSize: "12px" }}>
+                        📞 {caregiver.phone}
+                      </p>
+
+                      <p style={{ margin: "4px 0", color: "#9ca3af", fontSize: "12px" }}>
+                        Category:{" "}
+                        {caregiver.category === "caregiver"
+                          ? "🏥 Care Giver"
+                          : caregiver.category === "household"
+                          ? "🏠 Household"
+                          : "👥 Both"}
+                      </p>
+
+                      <p style={{ margin: "4px 0", color: "#9ca3af", fontSize: "12px" }}>
+                        Status:{" "}
+                        <span
+                          style={{
+                            background: caregiver.isApproved ? "#dcfce7" : "#fee2e2",
+                            color: caregiver.isApproved ? "#15803d" : "#991b1b",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            fontSize: "11px",
+                          }}
+                        >
+                          {caregiver.isApproved ? "✓ Approved" : "⏳ Pending"}
+                        </span>
+                      </p>
                     </div>
 
-                    <div style={{ display: "flex", gap: 6, flexDirection: "column", alignItems: "flex-end" }}>
-                      {org.isApproved ? (
-                        <span
-                          style={{
-                            background: "#dcfce7",
-                            color: "#15803d",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: 11,
-                            fontWeight: "600",
-                          }}
-                        >
-                          ✓ Approved
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            background: "#fef3c7",
-                            color: "#92400e",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: 11,
-                            fontWeight: "600",
-                          }}
-                        >
-                          ⏳ Pending
-                        </span>
-                      )}
-                      {org.isSuspended && (
-                        <span
-                          style={{
-                            background: "#dc2626",
-                            color: "#fff",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: 11,
-                            fontWeight: "600",
-                          }}
-                        >
-                          🚫 Suspended
-                        </span>
-                      )}
-                      {org.createdBy === "superadmin" && (
-                        <span
-                          style={{
-                            background: "#6366f1",
-                            color: "white",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: 11,
-                            fontWeight: "600",
-                          }}
-                        >
-                          Created by Admin
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Organization Stats */}
-                  <div
-                    style={{
-                      marginTop: 12,
-                      paddingTop: 12,
-                      borderTop: "1px solid #1f2937",
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-                      gap: 12,
-                    }}
-                  >
-                    <div>
-                      <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>Total Caregivers</p>
-                      <p style={{ fontSize: 16, color: "#0ea5e9", fontWeight: "bold", margin: 0 }}>
-                        {org.totalCaregivers || 0}
-                      </p>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>Total Bookings</p>
-                      <p style={{ fontSize: 16, color: "#10b981", fontWeight: "bold", margin: 0 }}>
-                        {org.totalBookings || 0}
-                      </p>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>Total Earnings</p>
-                      <p style={{ fontSize: 16, color: "#22c55e", fontWeight: "bold", margin: 0 }}>
-                        ₹{org.totalEarnings || 0}
-                      </p>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>Commission Rate</p>
-                      <p style={{ fontSize: 16, color: "#fbbf24", fontWeight: "bold", margin: 0 }}>
-                        {org.commissionRate || 15}%
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                    {!org.isApproved && (
-                      <>
+                    {/* NEW: Approve/Reject Buttons */}
+                    {!caregiver.isApproved && (
+                      <div style={{ display: "flex", gap: "8px" }}>
                         <button
-                          className="btn btn-primary"
-                          onClick={() => handleApproveOrganization(org.id)}
-                          style={{ flex: 1 }}
+                          onClick={() => handleApproveCaregiverClick(caregiver.id)}
+                          style={{
+                            background: "#22c55e",
+                            color: "white",
+                            border: "none",
+                            padding: "8px 16px",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                          }}
                         >
                           ✓ Approve
                         </button>
+
                         <button
-                          className="btn btn-outline"
-                          onClick={() => handleRejectOrganization(org.id)}
+                          onClick={() => handleRejectCaregiverClick(caregiver.id)}
                           style={{
-                            flex: 1,
-                            background: "#7f1d1d",
-                            color: "#fecaca",
-                            border: "1px solid #991b1b",
+                            background: "#ef4444",
+                            color: "white",
+                            border: "none",
+                            padding: "8px 16px",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            fontWeight: "600",
                           }}
                         >
-                          ✗ Reject
+                          ✕ Reject
                         </button>
-                      </>
+                      </div>
                     )}
-
-                    <button
-                      className="btn btn-outline"
-                      onClick={() => handleSuspendOrganization(org.id, org.isSuspended)}
-                      style={{
-                        flex: 1,
-                        background: org.isSuspended ? "#111827" : "#7f1d1d",
-                        color: org.isSuspended ? "#e5e7eb" : "#fecaca",
-                        border: `1px solid ${org.isSuspended ? "#1f2937" : "#991b1b"}`,
-                      }}
-                    >
-                      {org.isSuspended ? "Unsuspend" : "Suspend"}
-                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
       )}
 
-      {/* CAREGIVERS TAB */}
+      {/* ===== CAREGIVERS TAB ===== */}
       {activeTab === "caregivers" && (
         <div>
           <div
             style={{
               background: "#dbeafe",
               color: "#0369a1",
-              padding: 12,
-              borderRadius: 8,
-              fontSize: 13,
-              marginBottom: 16,
+              padding: "12px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              marginBottom: "16px",
               border: "1px solid #7dd3fc",
             }}
           >
-            ℹ️ Caregivers are approved by their respective organizations. You can view all caregivers here.
+            Caregivers are approved by SuperAdmin. Click organization details above to approve
+            caregivers under that organization.
           </div>
 
           {/* Filters */}
-          <div className="row" style={{ marginBottom: 16 }}>
+          <div className="row" style={{ marginBottom: "16px" }}>
             <div className="col">
               <label>Search</label>
               <input
@@ -1202,6 +1453,7 @@ export default function AdminDashboardPage() {
                 onChange={(e) => setSearchVendor(e.target.value)}
               />
             </div>
+
             <div className="col">
               <label>Status</label>
               <select
@@ -1220,126 +1472,264 @@ export default function AdminDashboardPage() {
             <p style={{ color: "#9ca3af" }}>Loading caregivers...</p>
           ) : filteredVendors.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">👥</div>
+              <div className="empty-state-icon">👤</div>
               <p className="empty-state-title">No caregivers found</p>
             </div>
           ) : (
-            <div>
-              {filteredVendors.map((vendor) => (
-                <div key={vendor.id} className="card" style={{ marginBottom: 12 }}>
+            filteredVendors.map((vendor) => (
+              <div key={vendor.id} className="card" style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    flexWrap: "wrap",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: "#e5e7eb", fontSize: "16px" }}>
+                      {vendor.name}
+                    </strong>
+
+                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                      {vendor.email}
+                    </div>
+
+                    <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                      📍 {vendor.location}
+                    </div>
+
+                    <div style={{ fontSize: "12px", color: "#0ea5e9", marginTop: "4px" }}>
+                      {vendor.organizationName}
+                    </div>
+
+                    <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                      💰 ₹{vendor.hourlyRate}/hour
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "6px",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                    }}
+                  >
+                    {vendor.isApproved ? (
+                      <span
+                        style={{
+                          background: "#dcfce7",
+                          color: "#15803d",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        ✓ Approved
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          background: "#fef3c7",
+                          color: "#92400e",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        ⏳ Pending Approval
+                      </span>
+                    )}
+
+                    {vendor.isSuspended && (
+                      <span
+                        style={{
+                          background: "#dc2626",
+                          color: "#fff",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        🔒 Suspended
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Caregiver Details */}
+                <div
+                  style={{
+                    marginTop: "12px",
+                    paddingTop: "12px",
+                    borderTop: "1px solid #1f2937",
+                    fontSize: "13px",
+                    color: "#e5e7eb",
+                  }}
+                >
+                  <p style={{ margin: "0 0 6px 0" }}>
+                    <strong>Category:</strong>{" "}
+                    {vendor.category === "caregiver"
+                      ? "🏥 Care Giver"
+                      : vendor.category === "household"
+                      ? "🏠 Household"
+                      : "👥 Both"}
+                  </p>
+
+                  <p style={{ margin: "0 0 6px 0" }}>
+                    <strong>Work Type:</strong>{" "}
+                    {vendor.workType === "full_time" ? "Full Time" : "Part Time"}
+                  </p>
+
+                  <p style={{ margin: "0 0 6px 0" }}>
+                    <strong>Services:</strong> {vendor.servicesOffered?.join(", ") || "None"}
+                  </p>
+
+                  <p style={{ margin: "0" }}>
+                    <strong>Experience:</strong> {vendor.experience || 0} years
+                  </p>
+                </div>
+
+                {/* View Only Note */}
+                <div
+                  style={{
+                    marginTop: "12px",
+                    padding: "12px",
+                    background: "#020617",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    color: "#9ca3af",
+                  }}
+                >
+                  This caregiver is managed by{" "}
+                  <strong style={{ color: "#0ea5e9" }}>{vendor.organizationName}</strong>. Visit
+                  their organization details above to approve/reject.
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ===== SERVICES TAB ===== */}
+      {activeTab === "services" && (
+        <div>
+          <div
+            style={{
+              background: "#dbeafe",
+              color: "#0369a1",
+              padding: "12px",
+              borderRadius: "8px",
+              fontSize: "13px",
+              marginBottom: "16px",
+              border: "1px solid #7dd3fc",
+            }}
+          >
+            ✓ SuperAdmin can now create and manage services for the entire platform!
+          </div>
+
+                   {/* Add Service Form */}
+          <div className="card" style={{ background: "#0b1120", marginBottom: "20px" }}>
+            <h3 style={{ color: "#e5e7eb", marginTop: "0" }}>Add New Service</h3>
+
+            <form onSubmit={handleAddService} className="form">
+              <div>
+                <label>Service Name *</label>
+                <input
+                  type="text"
+                  value={newServiceLabel}
+                  onChange={(e) => setNewServiceLabel(e.target.value)}
+                  placeholder="e.g., Elderly Care, Child Care"
+                  required
+                />
+              </div>
+
+              <div>
+                <label>Category *</label>
+                <select
+                  value={newServiceCategory}
+                  onChange={(e) => setNewServiceCategory(e.target.value)}
+                >
+                  <option value="caregiver">🏥 Care Giver</option>
+                  <option value="household">🏠 Household</option>
+                  <option value="both">👥 Both</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ marginTop: "16px" }}
+              >
+                ➕ Add Service
+              </button>
+            </form>
+          </div>
+
+          {/* Services List */}
+          <h3 style={{ color: "#e5e7eb", marginBottom: "12px" }}>
+            All Services ({services.length})
+          </h3>
+
+          {services.length === 0 ? (
+            <div className="empty-state">
+              <p style={{ color: "#9ca3af" }}>No services created yet</p>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+                gap: "12px",
+              }}
+            >
+              {services.map((service) => (
+                <div key={service.id} className="card">
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "flex-start",
-                      flexWrap: "wrap",
-                      gap: 12,
                     }}
                   >
                     <div>
-                      <strong style={{ color: "#e5e7eb", fontSize: 16 }}>
-                        {vendor.name}
+                      <strong style={{ color: "#e5e7eb" }}>
+                        {service.label || service.serviceName}
                       </strong>
-                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
-                        📧 {vendor.email}
-                      </div>
-                      <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                        📍 {vendor.location}
-                      </div>
-                      {vendor.organizationName && (
-                        <div style={{ fontSize: 12, color: "#0ea5e9", marginTop: 4 }}>
-                          🏢 {vendor.organizationName}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                        💰 ₹{vendor.hourlyRate}/hour
-                      </div>
+
+                      <p style={{ fontSize: "12px", color: "#9ca3af", margin: "4px 0 0 0" }}>
+                        Category:{" "}
+                        {service.category === "caregiver"
+                          ? "🏥 Care Giver"
+                          : service.category === "household"
+                          ? "🏠 Household"
+                          : "👥 Both"}
+                      </p>
+
+                      <p style={{ fontSize: "11px", color: "#6b7280", margin: "4px 0 0 0" }}>
+                        ID: {service.id}
+                      </p>
                     </div>
 
-                    <div style={{ display: "flex", gap: 6, flexDirection: "column", alignItems: "flex-end" }}>
-                      {vendor.isApproved ? (
-                        <span
-                          style={{
-                            background: "#dcfce7",
-                            color: "#15803d",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: 11,
-                            fontWeight: "600",
-                          }}
-                        >
-                          ✓ Approved
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            background: "#fef3c7",
-                            color: "#92400e",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: 11,
-                            fontWeight: "600",
-                          }}
-                        >
-                          ⏳ Pending (Org Approval)
-                        </span>
-                      )}
-                      {vendor.isSuspended && (
-                        <span
-                          style={{
-                            background: "#dc2626",
-                            color: "#fff",
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: 11,
-                            fontWeight: "600",
-                          }}
-                        >
-                          🚫 Suspended
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Caregiver Details */}
-                  <div
-                    style={{
-                      marginTop: 12,
-                      paddingTop: 12,
-                      borderTop: "1px solid #1f2937",
-                      fontSize: 13,
-                      color: "#e5e7eb",
-                    }}
-                  >
-                    <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>Category:</strong> {vendor.category === "caregiver" ? "Care Giver" : vendor.category === "household" ? "Household" : "Both"}
-                    </p>
-                    <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>Work Type:</strong> {vendor.workType === "full_time" ? "Full Time" : "Part Time"}
-                    </p>
-                    <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>Services:</strong> {(vendor.servicesOffered || []).join(", ") || "None"}
-                    </p>
-                    <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>Experience:</strong> {vendor.experience || 0} years
-                    </p>
-                    <p style={{ margin: 0 }}>
-                      <strong>Jobs Completed:</strong> {vendor.jobsCompleted || 0}
-                    </p>
-                  </div>
-
-                  {/* View Only - No Actions */}
-                  <div
-                    style={{
-                      marginTop: 12,
-                      padding: 12,
-                      background: "#020617",
-                      borderRadius: 6,
-                      fontSize: 12,
-                      color: "#9ca3af",
-                    }}
-                  >
-                    💡 This caregiver is managed by <strong style={{ color: "#0ea5e9" }}>{vendor.organizationName || "their organization"}</strong>
+                    <button
+                      onClick={() => handleDeleteService(service.id, service.label)}
+                      style={{
+                        background: "#ef4444",
+                        color: "white",
+                        border: "none",
+                        padding: "6px 10px",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                      }}
+                    >
+                      🗑️ Delete
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1348,12 +1738,11 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-
-      {/* BOOKINGS TAB */}
+      {/* ===== BOOKINGS TAB ===== */}
       {activeTab === "bookings" && (
         <div>
           {/* Filters */}
-          <div className="row" style={{ marginBottom: 16 }}>
+          <div className="row" style={{ marginBottom: "16px" }}>
             <div className="col">
               <label>Date</label>
               <input
@@ -1362,6 +1751,7 @@ export default function AdminDashboardPage() {
                 onChange={(e) => setBookingDateFilter(e.target.value)}
               />
             </div>
+
             <div className="col">
               <label>Status</label>
               <select
@@ -1384,160 +1774,123 @@ export default function AdminDashboardPage() {
               <div className="empty-state-icon">📅</div>
               <p className="empty-state-title">No bookings found</p>
               <p className="empty-state-text">
-                {bookings.length === 0 
+                {bookings.length === 0
                   ? "No bookings in the system yet"
                   : "No bookings match your filters"}
               </p>
             </div>
           ) : (
-            <div>
-              {filteredBookings.map((booking) => (
-                <div key={booking.id} className="card" style={{ marginBottom: 12 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      flexWrap: "wrap",
-                      gap: 12,
-                    }}
-                  >
-                    <div>
-                      <strong style={{ color: "#e5e7eb", fontSize: 16 }}>
-                        {booking.userName} → {booking.caregiverName}
-                      </strong>
-                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
-                        📞 {booking.userPhone}
-                      </div>
-                      {booking.organizationName && (
-                        <div style={{ fontSize: 12, color: "#0ea5e9" }}>
-                          🏢 {booking.organizationName}
-                        </div>
-                      )}
+            filteredBookings.map((booking) => (
+              <div key={booking.id} className="card" style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    flexWrap: "wrap",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: "#e5e7eb", fontSize: "16px" }}>
+                      {booking.userName} → {booking.caregiverName}
+                    </strong>
+
+                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                      {booking.userPhone}
                     </div>
 
-                    <span
-                      style={{
-                        background:
-                          booking.status === "completed" ? "#dcfce7" :
-                          booking.status === "accepted" ? "#dbeafe" :
-                          booking.status === "pending" ? "#fef3c7" : "#fee2e2",
-                        color:
-                          booking.status === "completed" ? "#15803d" :
-                          booking.status === "accepted" ? "#0369a1" :
-                          booking.status === "pending" ? "#92400e" : "#991b1b",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        fontSize: 11,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {(booking.status || "pending").toUpperCase()}
-                    </span>
+                    <div style={{ fontSize: "12px", color: "#0ea5e9" }}>
+                      {booking.organizationName}
+                    </div>
                   </div>
 
-                  <div
+                  <span
                     style={{
-                      marginTop: 12,
-                      paddingTop: 12,
-                      borderTop: "1px solid #1f2937",
-                      fontSize: 13,
-                      color: "#e5e7eb",
+                      background:
+                        booking.status === "completed"
+                          ? "#dcfce7"
+                          : booking.status === "accepted"
+                          ? "#dbeafe"
+                          : booking.status === "pending"
+                          ? "#fef3c7"
+                          : "#fee2e2",
+                      color:
+                        booking.status === "completed"
+                          ? "#15803d"
+                          : booking.status === "accepted"
+                          ? "#0369a1"
+                          : booking.status === "pending"
+                          ? "#92400e"
+                          : "#991b1b",
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      fontSize: "11px",
+                      fontWeight: "600",
                     }}
                   >
-                    <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>📅 Date:</strong> {booking.date}
-                    </p>
-                    <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>⏰ Time:</strong> {booking.time}
-                    </p>
-                    <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>💰 Total:</strong> ₹{booking.totalAmount}
-                    </p>
-                    <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>Platform Fee:</strong> ₹{Math.round(booking.platformCommission || 0)}
-                    </p>
-                    <p style={{ margin: 0 }}>
-                      <strong>Payment:</strong> {booking.paymentMethod === "fonepay" ? "💳 Fonepay" : "💵 Cash"} - {booking.paymentStatus || "pending"}
-                    </p>
-                  </div>
-
-                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 10 }}>
-                    ID: {booking.id.substring(0, 12)}... · Created: {booking.createdAt?.toDate?.().toLocaleDateString?.() || "N/A"}
-                  </div>
+                    {booking.status?.toUpperCase()}
+                  </span>
                 </div>
-              ))}
-            </div>
+
+                <div
+                  style={{
+                    marginTop: "12px",
+                    paddingTop: "12px",
+                    borderTop: "1px solid #1f2937",
+                    fontSize: "13px",
+                    color: "#e5e7eb",
+                  }}
+                >
+                  <p style={{ margin: "0 0 6px 0" }}>
+                    <strong>Date:</strong> {booking.date}
+                  </p>
+
+                  <p style={{ margin: "0 0 6px 0" }}>
+                    <strong>Time:</strong> {booking.time}
+                  </p>
+
+                  <p style={{ margin: "0 0 6px 0" }}>
+                    <strong>Total:</strong> ₹{booking.totalAmount}
+                  </p>
+
+                  <p style={{ margin: "0 0 6px 0" }}>
+                    <strong>Platform Fee:</strong> ₹{Math.round(booking.platformCommission || 0)}
+                  </p>
+
+                  <p style={{ margin: "0" }}>
+                    <strong>Payment:</strong>{" "}
+                    {booking.paymentMethod === "fonepay" ? "Fonepay" : "Cash"} -{" "}
+                    {booking.paymentStatus || "pending"}
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "#6b7280",
+                    marginTop: "10px",
+                  }}
+                >
+                  ID: {booking.id?.substring(0, 12)}... | Created:{" "}
+                  {booking.createdAt?.toDate?.()?.toLocaleDateString?.() || "N/A"}
+                </div>
+              </div>
+            ))
           )}
         </div>
       )}
 
-      {/* SERVICES TAB */}
-      {activeTab === "services" && (
-        <div>
-          <div
-            style={{
-              background: "#dbeafe",
-              color: "#0369a1",
-              padding: 12,
-              borderRadius: 8,
-              fontSize: 13,
-              marginBottom: 16,
-              border: "1px solid #7dd3fc",
-            }}
-          >
-            ℹ️ Services are managed by individual organizations. You can view all services here.
-          </div>
-
-          {/* Global Services (View Only) */}
-          <h4 style={{ color: "#e5e7eb", marginBottom: 12 }}>
-            All Services in Platform ({services.length})
-          </h4>
-
-          {services.length === 0 ? (
-            <div className="empty-state">
-              <p style={{ color: "#9ca3af" }}>No services yet</p>
-            </div>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-                gap: 12,
-              }}
-            >
-              {services.map((service) => (
-                <div key={service.id} className="card">
-                  <strong style={{ color: "#e5e7eb" }}>{service.label}</strong>
-                  <p style={{ fontSize: 12, color: "#9ca3af", margin: "4px 0 0 0" }}>
-                    Category: {service.category === "both" ? "Both" : service.category === "caregiver" ? "Care Giver" : "Household"}
-                  </p>
-                  {service.organizationName && (
-                    <p style={{ fontSize: 11, color: "#0ea5e9", margin: "4px 0 0 0" }}>
-                      🏢 {service.organizationName}
-                    </p>
-                  )}
-                  <p style={{ fontSize: 11, color: "#6b7280", margin: "4px 0 0 0" }}>
-                    ID: {service.id}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-
-      {/* REPORTS TAB */}
+      {/* ===== REPORTS TAB ===== */}
       {activeTab === "reports" && (
         <div>
           {/* Filter */}
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: "16px" }}>
             <label>Report Status</label>
             <select
               value={blacklistFilter}
               onChange={(e) => setBlacklistFilter(e.target.value)}
-              style={{ maxWidth: 200 }}
+              style={{ maxWidth: "200px" }}
             >
               <option value="pending">Pending</option>
               <option value="blacklisted">Blacklisted</option>
@@ -1545,59 +1898,68 @@ export default function AdminDashboardPage() {
             </select>
           </div>
 
-          <h4 style={{ color: "#e5e7eb", marginBottom: 12 }}>
+          <h4 style={{ color: "#e5e7eb", marginBottom: "12px" }}>
             User Reports ({filteredReports.length})
           </h4>
 
           {filteredReports.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">🚫</div>
+              <div className="empty-state-icon">📋</div>
               <p className="empty-state-title">No reports found</p>
               <p className="empty-state-text">
-                {blacklistReports.length === 0 
+                {blacklistReports.length === 0
                   ? "No user reports submitted yet"
                   : "No reports match this filter"}
               </p>
             </div>
           ) : (
-            <div style={{ marginBottom: 40 }}>
+            <div style={{ marginBottom: "40px" }}>
               {filteredReports.map((report) => (
-                <div key={report.id} className="card" style={{ marginBottom: 12 }}>
+                <div key={report.id} className="card" style={{ marginBottom: "12px" }}>
                   <div
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "flex-start",
                       flexWrap: "wrap",
-                      gap: 12,
+                      gap: "12px",
                     }}
                   >
                     <div>
-                      <strong style={{ color: "#e5e7eb", fontSize: 16 }}>
+                      <strong style={{ color: "#e5e7eb", fontSize: "16px" }}>
                         Report: {report.userName}
                       </strong>
-                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
-                        📝 Reason: {report.reason}
+
+                      <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                        Reason: {report.reason}
                       </div>
-                      <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                        👤 Reported by: {report.reportedByName}
+
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                        Reported by: {report.reportedByName}
                       </div>
-                      <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                        📅 {report.createdAt?.toDate?.().toLocaleString?.() || "N/A"}
+
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                        {report.createdAt?.toDate?.()?.toLocaleString?.() || "N/A"}
                       </div>
                     </div>
 
                     <span
                       style={{
                         background:
-                          report.status === "pending" ? "#fef3c7" :
-                          report.status === "blacklisted" ? "#dcfce7" : "#fee2e2",
+                          report.status === "pending"
+                            ? "#fef3c7"
+                            : report.status === "blacklisted"
+                            ? "#dcfce7"
+                            : "#fee2e2",
                         color:
-                          report.status === "pending" ? "#92400e" :
-                          report.status === "blacklisted" ? "#15803d" : "#991b1b",
+                          report.status === "pending"
+                            ? "#92400e"
+                            : report.status === "blacklisted"
+                            ? "#15803d"
+                            : "#991b1b",
                         padding: "4px 8px",
                         borderRadius: "4px",
-                        fontSize: 11,
+                        fontSize: "11px",
                         fontWeight: "600",
                       }}
                     >
@@ -1608,14 +1970,14 @@ export default function AdminDashboardPage() {
                   {report.description && (
                     <p
                       style={{
-                        marginTop: 12,
-                        paddingTop: 12,
+                        marginTop: "12px",
+                        paddingTop: "12px",
                         borderTop: "1px solid #1f2937",
-                        fontSize: 13,
+                        fontSize: "13px",
                         color: "#cbd5f5",
                         fontStyle: "italic",
                         borderLeft: "3px solid #fbbf24",
-                        paddingLeft: 10,
+                        paddingLeft: "10px",
                       }}
                     >
                       <strong>Description:</strong> {report.description}
@@ -1623,14 +1985,15 @@ export default function AdminDashboardPage() {
                   )}
 
                   {report.status === "pending" && (
-                    <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: "8px", marginTop: "12px", flexWrap: "wrap" }}>
                       <button
                         className="btn btn-primary"
                         onClick={() => handleBlacklistUser(report.id, report.userId)}
                         style={{ flex: 1 }}
                       >
-                        🚫 Blacklist User
+                        🔒 Blacklist User
                       </button>
+
                       <button
                         className="btn btn-outline"
                         onClick={() => handleRejectReport(report.id)}
@@ -1641,7 +2004,7 @@ export default function AdminDashboardPage() {
                           border: "1px solid #1f2937",
                         }}
                       >
-                        Reject Report
+                        ✕ Reject Report
                       </button>
                     </div>
                   )}
@@ -1651,8 +2014,8 @@ export default function AdminDashboardPage() {
           )}
 
           {/* Blacklisted Users */}
-          <div style={{ marginTop: 40, paddingTop: 24, borderTop: "2px solid #1f2937" }}>
-            <h4 style={{ color: "#e5e7eb", marginBottom: 12 }}>
+          <div style={{ marginTop: "40px", paddingTop: "24px", borderTop: "2px solid #1f2937" }}>
+            <h4 style={{ color: "#e5e7eb", marginBottom: "12px" }}>
               Blacklisted Users ({blacklist.length})
             </h4>
 
@@ -1661,90 +2024,103 @@ export default function AdminDashboardPage() {
                 <p style={{ color: "#9ca3af" }}>No blacklisted users</p>
               </div>
             ) : (
-              <div>
-                {blacklist.map((user) => (
-                  <div key={user.id} className="card" style={{ marginBottom: 12 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                      }}
-                    >
-                      <div>
-                        <strong style={{ color: "#e5e7eb" }}>{user.userName}</strong>
-                        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
-                          User ID: {user.userId || user.id}
-                        </div>
-                        <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                          Reason: {user.reason}
-                        </div>
-                        <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                          Reported by: {user.reportedByName}
-                        </div>
-                        <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
-                          Blacklisted: {user.blacklistedAt?.toDate?.().toLocaleString?.() || "N/A"}
-                        </div>
+              blacklist.map((user) => (
+                <div key={user.id} className="card" style={{ marginBottom: "12px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: "#e5e7eb" }}>{user.userName}</strong>
+
+                      <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                        User ID: {user.userId || user.id}
                       </div>
 
-                      <span
-                        style={{
-                          background: "#dc2626",
-                          color: "#fff",
-                          padding: "4px 8px",
-                          borderRadius: "4px",
-                          fontSize: 11,
-                          fontWeight: "600",
-                        }}
-                      >
-                        BLACKLISTED
-                      </span>
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                        Reason: {user.reason}
+                      </div>
+
+                      <div style={{ fontSize: "12px", color: "#9ca3af" }}>
+                        Reported by: {user.reportedByName}
+                      </div>
+
+                                            <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "4px" }}>
+                        Blacklisted: {user.blacklistedAt?.toDate?.()?.toLocaleString?.() || "N/A"}
+                      </div>
                     </div>
 
-                    {user.description && (
-                      <p
-                        style={{
-                          marginTop: 12,
-                          paddingTop: 12,
-                          borderTop: "1px solid #1f2937",
-                          fontSize: 13,
-                          color: "#cbd5f5",
-                        }}
-                      >
-                        <strong>Description:</strong> {user.description}
-                      </p>
-                    )}
-
-                    <button
-                      className="btn btn-outline"
-                      onClick={() => handleRemoveFromBlacklist(user.id)}
+                    <span
                       style={{
-                        marginTop: 12,
-                        background: "#111827",
-                        color: "#e5e7eb",
-                        border: "1px solid #1f2937",
+                        background: "#dc2626",
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        fontSize: "11px",
+                        fontWeight: "600",
                       }}
                     >
-                      Remove from Blacklist
-                    </button>
+                      BLACKLISTED
+                    </span>
                   </div>
-                ))}
-              </div>
+
+                  {user.description && (
+                    <p
+                      style={{
+                        marginTop: "12px",
+                        paddingTop: "12px",
+                        borderTop: "1px solid #1f2937",
+                        fontSize: "13px",
+                        color: "#cbd5f5",
+                      }}
+                    >
+                      <strong>Description:</strong> {user.description}
+                    </p>
+                  )}
+
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => handleRemoveFromBlacklist(user.id)}
+                    style={{
+                      marginTop: "12px",
+                      background: "#111827",
+                      color: "#e5e7eb",
+                      border: "1px solid #1f2937",
+                      width: "100%",
+                    }}
+                  >
+                    🔓 Remove from Blacklist
+                  </button>
+                </div>
+              ))
             )}
           </div>
         </div>
       )}
 
-      {/* SETTINGS TAB */}
+      {/* ===== SETTINGS TAB ===== */}
       {activeTab === "settings" && (
         <div>
           <div className="card" style={{ background: "#0b1120" }}>
-            <h3 style={{ color: "#e5e7eb", marginTop: 0 }}>Platform Settings</h3>
+            <h3 style={{ color: "#e5e7eb", marginTop: "0" }}>Platform Settings</h3>
 
             {/* Commission Rate */}
-            <div style={{ marginBottom: 24 }}>
-              <label>Global Commission Rate (%)</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+            <div style={{ marginBottom: "24px" }}>
+              <label style={{ color: "#e5e7eb", fontWeight: "600" }}>
+                Global Commission Rate (%)
+              </label>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  alignItems: "center",
+                  marginTop: "8px",
+                }}
+              >
                 <input
                   type="number"
                   value={globalCommissionRate}
@@ -1753,7 +2129,7 @@ export default function AdminDashboardPage() {
                   min="0"
                   max="100"
                   style={{
-                    width: 100,
+                    width: "100px",
                     padding: "8px 12px",
                     borderRadius: "6px",
                     border: "1px solid #1f2937",
@@ -1761,7 +2137,9 @@ export default function AdminDashboardPage() {
                     color: "#e5e7eb",
                   }}
                 />
-                <span style={{ fontSize: 13, color: "#9ca3af" }}>%</span>
+
+                <span style={{ fontSize: "13px", color: "#9ca3af" }}>%</span>
+
                 {editingCommission ? (
                   <>
                     <button
@@ -1783,6 +2161,7 @@ export default function AdminDashboardPage() {
                     >
                       Save
                     </button>
+
                     <button
                       className="btn btn-outline"
                       onClick={() => {
@@ -1814,7 +2193,8 @@ export default function AdminDashboardPage() {
                   </button>
                 )}
               </div>
-              <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
+
+              <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "8px" }}>
                 This commission applies to all new bookings. Current: {globalCommissionRate}%
               </p>
             </div>
@@ -1822,57 +2202,71 @@ export default function AdminDashboardPage() {
             {/* Platform Info */}
             <div
               style={{
-                padding: 16,
+                padding: "16px",
                 background: "#020617",
-                borderRadius: 8,
+                borderRadius: "8px",
                 border: "1px solid #1f2937",
               }}
             >
-              <h4 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 12 }}>
-                                Platform Information
+              <h4 style={{ color: "#e5e7eb", marginTop: "0", marginBottom: "12px" }}>
+                Platform Information
               </h4>
-              <p style={{ fontSize: 13, color: "#e5e7eb", margin: "8px 0" }}>
+
+              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
                 <strong>Platform Name:</strong> Ghar Sathi
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb", margin: "8px 0" }}>
+
+              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
                 <strong>Version:</strong> 1.0.0 Multi-Vendor
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb", margin: "8px 0" }}>
+
+              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
                 <strong>Total Organizations:</strong> {organizations.length}
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb", margin: "8px 0" }}>
+
+              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
                 <strong>Total Caregivers:</strong> {vendors.length}
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb", margin: "8px 0" }}>
+
+              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
                 <strong>Total Bookings:</strong> {bookings.length}
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb", margin: "8px 0" }}>
+
+              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
                 <strong>Total Revenue:</strong> ₹{analytics.totalRevenue.toLocaleString()}
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb", margin: "8px 0" }}>
-                <strong>Platform Earnings:</strong> ₹{Math.round(analytics.platformEarnings).toLocaleString()}
+
+              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
+                <strong>Platform Earnings:</strong> ₹
+                {Math.round(analytics.platformEarnings).toLocaleString()}
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb", margin: "8px 0" }}>
+
+              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
                 <strong>Active SuperAdmins:</strong> {superAdmins.length}
               </p>
             </div>
 
             {/* Additional Settings */}
-            <div style={{ marginTop: 24, paddingTop: 24, borderTop: "2px solid #1f2937" }}>
-              <h4 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 12 }}>
+            <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "2px solid #1f2937" }}>
+              <h4 style={{ color: "#e5e7eb", marginTop: "0", marginBottom: "12px" }}>
                 Additional Settings
               </h4>
-              
-              <div style={{ fontSize: 13, color: "#9ca3af" }}>
+
+              <div style={{ fontSize: "13px", color: "#9ca3af" }}>
                 <p style={{ margin: "8px 0" }}>
-                  <strong style={{ color: "#e5e7eb" }}>Default Commission:</strong> {globalCommissionRate}%
+                  <strong style={{ color: "#e5e7eb" }}>Default Commission:</strong>{" "}
+                  {globalCommissionRate}%
                 </p>
+
                 <p style={{ margin: "8px 0" }}>
                   <strong style={{ color: "#e5e7eb" }}>Organizations can override:</strong> Yes
                 </p>
+
                 <p style={{ margin: "8px 0" }}>
-                  <strong style={{ color: "#e5e7eb" }}>Auto-approve organizations:</strong> No (Manual)
+                  <strong style={{ color: "#e5e7eb" }}>Auto-approve organizations:</strong> No
+                  (Manual)
                 </p>
+
                 <p style={{ margin: "8px 0" }}>
                   <strong style={{ color: "#e5e7eb" }}>Auto-approve caregivers:</strong> No (Manual)
                 </p>
@@ -1884,8 +2278,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-                
-
 
 
