@@ -1,3 +1,4 @@
+// src/AdminDashboardPage.js
 import React, { useEffect, useState } from "react";
 import {
   collection,
@@ -14,18 +15,21 @@ import {
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { db, auth } from "./firebaseConfig";
+import "./OrganizationDashboard.css";
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState("organizations");
-  
+
   // Organizations
   const [organizations, setOrganizations] = useState([]);
   const [loadingOrganizations, setLoadingOrganizations] = useState(true);
   const [orgStatusFilter, setOrgStatusFilter] = useState("all");
   const [searchOrg, setSearchOrg] = useState("");
-  const [selectedOrg, setSelectedOrg] = useState(null); // NEW: For org details modal
-  const [orgCaregivers, setOrgCaregivers] = useState([]); // NEW: Caregivers under org
-  
+  const [selectedOrg, setSelectedOrg] = useState(null);
+
+  // Org details modal caregivers list
+  const [orgCaregivers, setOrgCaregivers] = useState([]);
+
   // Add Organization Form
   const [showAddOrgForm, setShowAddOrgForm] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
@@ -93,97 +97,118 @@ export default function AdminDashboardPage() {
 
   // Load all data
   useEffect(() => {
+    const loadAllData = async () => {
+      try {
+        // Organizations
+        setLoadingOrganizations(true);
+        const orgSnap = await getDocs(collection(db, "organizations"));
+        const orgsData = orgSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        setOrganizations(orgsData);
+        setLoadingOrganizations(false);
+
+        // Vendors/Caregivers
+        setLoadingVendors(true);
+        const vendorSnap = await getDocs(collection(db, "vendors"));
+        const vendorsData = vendorSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        setVendors(vendorsData);
+        setLoadingVendors(false);
+
+        // Bookings
+        setLoadingBookings(true);
+        const bookingSnap = await getDocs(collection(db, "bookings"));
+        const bookingsData = bookingSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        setBookings(bookingsData);
+        setLoadingBookings(false);
+
+        // Services
+        const servicesSnap = await getDocs(collection(db, "services"));
+        const servicesData = servicesSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        setServices(servicesData);
+
+        // Blacklist Reports
+        const reportsSnap = await getDocs(collection(db, "blacklistReports"));
+        setBlacklistReports(
+          reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+        );
+
+        // Blacklist
+        const blacklistSnap = await getDocs(collection(db, "blacklist"));
+        setBlacklist(
+          blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+        );
+
+        // SuperAdmins
+        const usersSnap = await getDocs(collection(db, "users"));
+        const allUsers = usersSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        const superAdminsList = allUsers.filter((u) => u.role === "superadmin");
+        setSuperAdmins(superAdminsList);
+
+        // Global commission
+        const settingsSnap = await getDoc(doc(db, "settings", "commission"));
+        if (settingsSnap.exists()) {
+          setGlobalCommissionRate(settingsSnap.data().rate ?? 15);
+        }
+
+        // Analytics
+        const totalRevenueCalc = bookingsData
+          .filter((b) => b.status === "completed")
+          .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+        const platformEarningsCalc = bookingsData
+          .filter((b) => b.status === "completed")
+          .reduce((sum, b) => sum + (b.platformCommission || 0), 0);
+
+        setAnalytics({
+          totalOrganizations: orgsData.length,
+          approvedOrganizations: orgsData.filter((o) => o.isApproved).length,
+          totalCaregivers: vendorsData.length,
+          approvedCaregivers: vendorsData.filter((v) => v.isApproved).length,
+          totalBookings: bookingsData.length,
+          completedBookings: bookingsData.filter(
+            (b) => b.status === "completed",
+          ).length,
+          totalRevenue: totalRevenueCalc,
+          platformEarnings: platformEarningsCalc,
+        });
+      } catch (err) {
+        console.error("Error loading data", err);
+        setError("Could not load admin dashboard data.");
+      }
+    };
+
     loadAllData();
   }, []);
 
-  const loadAllData = async () => {
-    try {
-      // Load Organizations
-      setLoadingOrganizations(true);
-      const orgSnap = await getDocs(collection(db, "organizations"));
-      const orgsData = orgSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setOrganizations(orgsData);
-      setLoadingOrganizations(false);
-
-      // Load Vendors/Caregivers
-      setLoadingVendors(true);
-      const vendorSnap = await getDocs(collection(db, "vendors"));
-      const vendorsData = vendorSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setVendors(vendorsData);
-      setLoadingVendors(false);
-
-      // Load Bookings
-      setLoadingBookings(true);
-      const bookingSnap = await getDocs(collection(db, "bookings"));
-      const bookingsData = bookingSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setBookings(bookingsData);
-      setLoadingBookings(false);
-
-      // Load Services
-      const servicesSnap = await getDocs(collection(db, "services"));
-      const servicesData = servicesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setServices(servicesData);
-
-      // Load Blacklist Reports
-      const reportsSnap = await getDocs(collection(db, "blacklistReports"));
-      setBlacklistReports(reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-
-      // Load Blacklist
-      const blacklistSnap = await getDocs(collection(db, "blacklist"));
-      setBlacklist(blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-
-      // Load SuperAdmins
-      const usersSnap = await getDocs(collection(db, "users"));
-      const allUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      const superAdminsList = allUsers.filter((u) => u.role === "superadmin");
-      setSuperAdmins(superAdminsList);
-
-      // Load global commission
-      const settingsSnap = await getDoc(doc(db, "settings", "commission"));
-      if (settingsSnap.exists()) {
-        setGlobalCommissionRate(settingsSnap.data().rate || 15);
-      }
-
-      // Calculate Analytics
-      const totalRevenue = bookingsData
-        .filter((b) => b.status === "completed")
-        .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-
-      const platformEarnings = bookingsData
-        .filter((b) => b.status === "completed")
-        .reduce((sum, b) => sum + (b.platformCommission || 0), 0);
-
-      setAnalytics({
-        totalOrganizations: orgsData.length,
-        approvedOrganizations: orgsData.filter((o) => o.isApproved).length,
-        totalCaregivers: vendorsData.length,
-        approvedCaregivers: vendorsData.filter((v) => v.isApproved).length,
-        totalBookings: bookingsData.length,
-        completedBookings: bookingsData.filter((b) => b.status === "completed").length,
-        totalRevenue,
-        platformEarnings,
-      });
-    } catch (err) {
-      console.error("Error loading data:", err);
-    }
-  };
-
-  // ===== NEW: Load caregivers for selected organization =====
+  // Load caregivers for selected organization
   const handleOrgClick = async (org) => {
     setSelectedOrg(org);
     try {
       const q = query(
         collection(db, "vendors"),
-        where("organizationId", "==", org.id)
+        where("organizationId", "==", org.id),
       );
       const snap = await getDocs(q);
       setOrgCaregivers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.error("Error loading caregivers:", err);
+      console.error("Error loading caregivers", err);
     }
   };
 
-  // ===== NEW: Approve caregiver =====
+  // Approve caregiver
   const handleApproveCaregiverClick = async (caregiverId) => {
     try {
       await updateDoc(doc(db, "vendors", caregiverId), {
@@ -196,19 +221,17 @@ export default function AdminDashboardPage() {
       });
       alert("Caregiver approved!");
       if (selectedOrg) {
-        handleOrgClick(selectedOrg);
+        await handleOrgClick(selectedOrg);
       }
-      loadAllData();
     } catch (err) {
-      console.error("Error approving caregiver:", err);
+      console.error("Error approving caregiver", err);
     }
   };
 
-  // ===== NEW: Reject caregiver =====
+  // Reject caregiver
   const handleRejectCaregiverClick = async (caregiverId) => {
-    const reason = prompt("Enter rejection reason:");
+    const reason = window.prompt("Enter rejection reason");
     if (!reason) return;
-
     try {
       await updateDoc(doc(db, "vendors", caregiverId), {
         isApproved: false,
@@ -217,29 +240,31 @@ export default function AdminDashboardPage() {
       });
       alert("Caregiver rejected!");
       if (selectedOrg) {
-        handleOrgClick(selectedOrg);
+        await handleOrgClick(selectedOrg);
       }
-      loadAllData();
     } catch (err) {
-      console.error("Error rejecting caregiver:", err);
+      console.error("Error rejecting caregiver", err);
     }
   };
 
-  // Handle create organization
+  // Create organization
   const handleCreateOrganization = async (e) => {
     e.preventDefault();
     setError("");
     setAddingOrg(true);
-
     try {
-      const orgCred = await createUserWithEmailAndPassword(auth, newOrgEmail, newOrgPassword);
+      const orgCred = await createUserWithEmailAndPassword(
+        auth,
+        newOrgEmail,
+        newOrgPassword,
+      );
       const orgUid = orgCred.user.uid;
 
       const userData = {
         uid: orgUid,
         name: newOrgAdminName,
         email: newOrgEmail,
-        role: "org_admin",
+        role: "orgadmin",
         organizationName: newOrgName,
         organizationId: orgUid,
         businessPhone: newOrgPhone,
@@ -267,7 +292,7 @@ export default function AdminDashboardPage() {
         totalCaregivers: 0,
         totalEarnings: 0,
         totalBookings: 0,
-        commissionRate: Number(newOrgCommission),
+        commissionRate: Number(newOrgCommission) || 15,
         isApproved: true,
         verified: true,
         createdAt: new Date().toISOString(),
@@ -286,32 +311,34 @@ export default function AdminDashboardPage() {
       setNewOrgCity("");
       setNewOrgCommission(15);
       setShowAddOrgForm(false);
-      loadAllData();
+
+      // reload orgs
+      const orgSnap = await getDocs(collection(db, "organizations"));
+      setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.error("Error creating organization:", err);
+      console.error("Error creating organization", err);
       if (err.code === "auth/email-already-in-use") {
-        setError("This email is already registered");
+        setError("This email is already registered.");
       } else {
-        setError(err.message || "Could not create organization");
+        setError(err.message || "Could not create organization.");
       }
     } finally {
       setAddingOrg(false);
     }
   };
 
-  // Handle create superadmin
+  // Create superadmin
   const handleCreateSuperAdmin = async (e) => {
     e.preventDefault();
     setError("");
     setAddingSuperAdmin(true);
-
     try {
-      const superAdminCred = await createUserWithEmailAndPassword(
+      const cred = await createUserWithEmailAndPassword(
         auth,
         newSuperAdminEmail,
-        newSuperAdminPassword
+        newSuperAdminPassword,
       );
-      const superAdminUid = superAdminCred.user.uid;
+      const superAdminUid = cred.user.uid;
 
       const userData = {
         uid: superAdminUid,
@@ -326,37 +353,41 @@ export default function AdminDashboardPage() {
       };
 
       await setDoc(doc(db, "users", superAdminUid), userData);
-
       alert("SuperAdmin created successfully!");
+
       setNewSuperAdminName("");
       setNewSuperAdminEmail("");
       setNewSuperAdminPassword("");
       setShowAddSuperAdminForm(false);
-      loadAllData();
+
+      const usersSnap = await getDocs(collection(db, "users"));
+      const allUsers = usersSnap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+      setSuperAdmins(allUsers.filter((u) => u.role === "superadmin"));
     } catch (err) {
-      console.error("Error creating superadmin:", err);
+      console.error("Error creating superadmin", err);
       if (err.code === "auth/email-already-in-use") {
-        setError("This email is already registered");
+        setError("This email is already registered.");
       } else {
-        setError(err.message || "Could not create superadmin");
+        setError(err.message || "Could not create superadmin.");
       }
     } finally {
       setAddingSuperAdmin(false);
     }
   };
 
-  // ===== NEW: Add service (SuperAdmin) =====
+  // Add service (superadmin)
   const handleAddService = async (e) => {
     e.preventDefault();
     setError("");
-
     if (!newServiceLabel.trim()) {
-      setError("Please enter a service name");
+      setError("Please enter a service name.");
       return;
     }
-
     try {
-      const id = newServiceLabel.trim().toLowerCase().replace(/ /g, "_");
+      const id = newServiceLabel.trim().toLowerCase().replace(/\s+/g, "_");
       await setDoc(doc(db, "services", id), {
         label: newServiceLabel.trim(),
         serviceName: newServiceLabel.trim(),
@@ -364,32 +395,31 @@ export default function AdminDashboardPage() {
         createdAt: serverTimestamp(),
         createdBy: "superadmin",
       });
-
       setNewServiceLabel("");
       setNewServiceCategory("caregiver");
       alert("Service added!");
-      loadAllData();
+      const servicesSnap = await getDocs(collection(db, "services"));
+      setServices(servicesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.error("Error adding service:", err);
-      setError("Could not add service");
+      console.error("Error adding service", err);
+      setError("Could not add service.");
     }
   };
 
-    // ===== NEW: Delete service (SuperAdmin) =====
   const handleDeleteService = async (serviceId, label) => {
-    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
-
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     try {
       await deleteDoc(doc(db, "services", serviceId));
       alert("Service deleted!");
-      loadAllData();
+      const servicesSnap = await getDocs(collection(db, "services"));
+      setServices(servicesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.error("Error deleting service:", err);
-      alert("Could not delete service");
+      console.error("Error deleting service", err);
+      alert("Could not delete service.");
     }
   };
 
-  // Handle approve organization
+  // Approve organization
   const handleApproveOrganization = async (orgId) => {
     try {
       await updateDoc(doc(db, "organizations", orgId), {
@@ -401,33 +431,32 @@ export default function AdminDashboardPage() {
         isApproved: true,
       });
       alert("Organization approved successfully!");
-      loadAllData();
+      const orgSnap = await getDocs(collection(db, "organizations"));
+      setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.error("Error approving organization:", err);
-      alert("Could not approve organization");
+      console.error("Error approving organization", err);
+      alert("Could not approve organization.");
     }
   };
 
-  // Handle reject organization
   const handleRejectOrganization = async (orgId) => {
-    const reason = prompt("Enter rejection reason:");
+    const reason = window.prompt("Enter rejection reason");
     if (!reason) return;
-
     try {
       await updateDoc(doc(db, "organizations", orgId), {
         isApproved: false,
         rejectionReason: reason,
         rejectedAt: serverTimestamp(),
       });
-      alert("Organization rejected");
-      loadAllData();
+      alert("Organization rejected.");
+      const orgSnap = await getDocs(collection(db, "organizations"));
+      setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.error("Error rejecting organization:", err);
-      alert("Could not reject organization");
+      console.error("Error rejecting organization", err);
+      alert("Could not reject organization.");
     }
   };
 
-  // Handle suspend organization
   const handleSuspendOrganization = async (orgId, isSuspended) => {
     try {
       await updateDoc(doc(db, "organizations", orgId), {
@@ -437,71 +466,74 @@ export default function AdminDashboardPage() {
       await updateDoc(doc(db, "users", orgId), {
         isSuspended: !isSuspended,
       });
-      alert(`Organization ${!isSuspended ? "suspended" : "unsuspended"}`);
-      loadAllData();
+      alert(`Organization ${!isSuspended ? "suspended" : "unsuspended"}.`);
+      const orgSnap = await getDocs(collection(db, "organizations"));
+      setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.error("Error updating organization:", err);
-      alert("Could not update organization");
+      console.error("Error updating organization", err);
+      alert("Could not update organization.");
     }
   };
 
-  // Handle blacklist user
+  // Blacklist actions
   const handleBlacklistUser = async (reportId, userId) => {
     try {
       const report = blacklistReports.find((r) => r.id === reportId);
       if (!report) return;
-
       await setDoc(doc(db, "blacklist", userId), {
         userName: report.userName,
-        userId: userId,
+        userId,
         reason: report.reason,
         description: report.description,
         reportedBy: report.reportedBy,
         reportedByName: report.reportedByName,
         blacklistedAt: serverTimestamp(),
       });
-
       await updateDoc(doc(db, "blacklistReports", reportId), {
         status: "blacklisted",
       });
-
       alert("User blacklisted successfully!");
-      loadAllData();
+      const reportsSnap = await getDocs(collection(db, "blacklistReports"));
+      setBlacklistReports(
+        reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      );
+      const blacklistSnap = await getDocs(collection(db, "blacklist"));
+      setBlacklist(blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.error("Error blacklisting user:", err);
-      alert("Could not blacklist user");
+      console.error("Error blacklisting user", err);
+      alert("Could not blacklist user.");
     }
   };
 
-  // Handle reject report
   const handleRejectReport = async (reportId) => {
     try {
       await updateDoc(doc(db, "blacklistReports", reportId), {
         status: "rejected",
       });
-      alert("Report rejected");
-      loadAllData();
+      alert("Report rejected.");
+      const reportsSnap = await getDocs(collection(db, "blacklistReports"));
+      setBlacklistReports(
+        reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      );
     } catch (err) {
-      console.error("Error rejecting report:", err);
-      alert("Could not reject report");
+      console.error("Error rejecting report", err);
+      alert("Could not reject report.");
     }
   };
 
-  // Handle remove from blacklist
   const handleRemoveFromBlacklist = async (userId) => {
     if (!window.confirm("Remove this user from blacklist?")) return;
-
     try {
       await deleteDoc(doc(db, "blacklist", userId));
-      alert("User removed from blacklist");
-      loadAllData();
+      alert("User removed from blacklist.");
+      const blacklistSnap = await getDocs(collection(db, "blacklist"));
+      setBlacklist(blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.error("Error removing from blacklist:", err);
-      alert("Could not remove from blacklist");
+      console.error("Error removing from blacklist", err);
+      alert("Could not remove from blacklist.");
     }
   };
 
-  // Get tab style
   const getTabStyle = (tabName) => ({
     padding: "8px 16px",
     borderRadius: "6px",
@@ -510,75 +542,80 @@ export default function AdminDashboardPage() {
       activeTab === tabName
         ? "linear-gradient(135deg, #0ea5e9, #06b6d4)"
         : "#020617",
-    color: activeTab === tabName ? "white" : "#e5e7eb",
+    color: activeTab === tabName ? "#ffffff" : "#e5e7eb",
     cursor: "pointer",
-    fontWeight: activeTab === tabName ? "600" : "500",
+    fontWeight: activeTab === tabName ? 600 : 500,
     fontSize: "13px",
     transition: "all 0.2s ease",
   });
 
-  // Filter organizations
+  // Filters
   const filteredOrganizations = organizations.filter((org) => {
+    const term = searchOrg.toLowerCase();
     const matchSearch =
-      org.organizationName?.toLowerCase().includes(searchOrg.toLowerCase()) ||
-      org.adminName?.toLowerCase().includes(searchOrg.toLowerCase()) ||
-      org.adminEmail?.toLowerCase().includes(searchOrg.toLowerCase());
-
+      org.organizationName?.toLowerCase().includes(term) ||
+      org.adminName?.toLowerCase().includes(term) ||
+      org.adminEmail?.toLowerCase().includes(term);
     const matchStatus =
       orgStatusFilter === "all"
         ? true
         : orgStatusFilter === "pending"
-        ? !org.isApproved
-        : orgStatusFilter === "approved"
-        ? org.isApproved && !org.isSuspended
-        : orgStatusFilter === "suspended"
-        ? org.isSuspended
-        : true;
-
+          ? !org.isApproved
+          : orgStatusFilter === "approved"
+            ? org.isApproved && !org.isSuspended
+            : orgStatusFilter === "suspended"
+              ? org.isSuspended
+              : true;
     return matchSearch && matchStatus;
   });
 
-  // Filter vendors
   const filteredVendors = vendors.filter((vendor) => {
+    const term = searchVendor.toLowerCase();
     const matchSearch =
-      vendor.name?.toLowerCase().includes(searchVendor.toLowerCase()) ||
-      vendor.email?.toLowerCase().includes(searchVendor.toLowerCase()) ||
-      vendor.organizationName?.toLowerCase().includes(searchVendor.toLowerCase());
-
+      vendor.name?.toLowerCase().includes(term) ||
+      vendor.email?.toLowerCase().includes(term) ||
+      vendor.organizationName?.toLowerCase().includes(term);
     const matchStatus =
       vendorStatusFilter === "all"
         ? true
         : vendorStatusFilter === "pending"
-        ? !vendor.isApproved
-        : vendorStatusFilter === "approved"
-        ? vendor.isApproved && !vendor.isSuspended
-        : vendorStatusFilter === "suspended"
-        ? vendor.isSuspended
-        : true;
-
+          ? !vendor.isApproved
+          : vendorStatusFilter === "approved"
+            ? vendor.isApproved && !vendor.isSuspended
+            : vendorStatusFilter === "suspended"
+              ? vendor.isSuspended
+              : true;
     return matchSearch && matchStatus;
   });
 
-  // Filter bookings
   const filteredBookings = bookings.filter((b) => {
-    const matchStatus = !bookingStatusFilter || b.status === bookingStatusFilter;
+    const matchStatus =
+      !bookingStatusFilter || b.status === bookingStatusFilter;
     const matchDate = !bookingDateFilter || b.date === bookingDateFilter;
     return matchStatus && matchDate;
   });
 
-  // Filter reports
   const filteredReports = blacklistReports.filter(
-    (r) => r.status === blacklistFilter
+    (r) => r.status === blacklistFilter,
   );
 
   return (
     <div style={{ padding: "20px" }}>
-      <h1 style={{ color: "#e5e7eb", marginBottom: "8px" }}>SuperAdmin Dashboard</h1>
-      <p style={{ fontSize: "13px", color: "#9ca3af", marginBottom: "16px" }}>
-        Ghar Sathi Platform Management - Full control over all platform activities
+      <h1 style={{ color: "#e5e7eb", marginBottom: "8px" }}>
+        SuperAdmin Dashboard
+      </h1>
+      <p
+        style={{
+          fontSize: "13px",
+          color: "#9ca3af",
+          marginBottom: "16px",
+        }}
+      >
+        Ghar Sathi Platform Management - Full control over all platform
+        activities.
       </p>
 
-      {/* Analytics Cards */}
+      {/* Analytics cards */}
       <div
         style={{
           display: "grid",
@@ -587,74 +624,134 @@ export default function AdminDashboardPage() {
           marginBottom: "24px",
         }}
       >
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>
             Total Organizations
           </p>
-          <p style={{ fontSize: "24px", color: "#0ea5e9", fontWeight: "bold", margin: "0" }}>
+          <p
+            style={{
+              fontSize: "24px",
+              color: "#0ea5e9",
+              fontWeight: "bold",
+              margin: 0,
+            }}
+          >
             {analytics.totalOrganizations}
           </p>
-          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: 0 }}>
             {analytics.approvedOrganizations} approved
           </p>
         </div>
 
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>
             Total Caregivers
           </p>
-          <p style={{ fontSize: "24px", color: "#10b981", fontWeight: "bold", margin: "0" }}>
+          <p
+            style={{
+              fontSize: "24px",
+              color: "#10b981",
+              fontWeight: "bold",
+              margin: 0,
+            }}
+          >
             {analytics.totalCaregivers}
           </p>
-          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: 0 }}>
             {analytics.approvedCaregivers} approved
           </p>
         </div>
 
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>
             Total Bookings
           </p>
-          <p style={{ fontSize: "24px", color: "#fbbf24", fontWeight: "bold", margin: "0" }}>
+          <p
+            style={{
+              fontSize: "24px",
+              color: "#fbbf24",
+              fontWeight: "bold",
+              margin: 0,
+            }}
+          >
             {analytics.totalBookings}
           </p>
-          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: 0 }}>
             {analytics.completedBookings} completed
           </p>
         </div>
 
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>
             Total Revenue
           </p>
-          <p style={{ fontSize: "24px", color: "#22c55e", fontWeight: "bold", margin: "0" }}>
-            ₹{analytics.totalRevenue.toLocaleString()}
+          <p
+            style={{
+              fontSize: "24px",
+              color: "#22c55e",
+              fontWeight: "bold",
+              margin: 0,
+            }}
+          >
+            {analytics.totalRevenue.toLocaleString()}
           </p>
-          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: 0 }}>
             All time
           </p>
         </div>
 
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>
             Platform Earnings
           </p>
-          <p style={{ fontSize: "24px", color: "#0ea5e9", fontWeight: "bold", margin: "0" }}>
-            ₹{Math.round(analytics.platformEarnings).toLocaleString()}
+          <p
+            style={{
+              fontSize: "24px",
+              color: "#0ea5e9",
+              fontWeight: "bold",
+              margin: 0,
+            }}
+          >
+            {Math.round(analytics.platformEarnings).toLocaleString()}
           </p>
-          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: 0 }}>
             {globalCommissionRate}% commission
           </p>
         </div>
 
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
-          <p style={{ fontSize: "12px", color: "#9ca3af", margin: "0" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
+          <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>
             SuperAdmins
           </p>
-          <p style={{ fontSize: "24px", color: "#6366f1", fontWeight: "bold", margin: "0" }}>
+          <p
+            style={{
+              fontSize: "24px",
+              color: "#6366f1",
+              fontWeight: "bold",
+              margin: 0,
+            }}
+          >
             {superAdmins.length}
           </p>
-          <p style={{ fontSize: "10px", color: "#6b7280", margin: "0" }}>
+          <p style={{ fontSize: "10px", color: "#6b7280", margin: 0 }}>
             Active
           </p>
         </div>
@@ -668,43 +765,41 @@ export default function AdminDashboardPage() {
         <button
           type="button"
           style={getTabStyle("organizations")}
-          onClick={() => setActiveTab("organizations")}
+          onClick={() => {
+            setSelectedOrg(null);
+            setActiveTab("organizations");
+          }}
         >
-          Organizations {filteredOrganizations.length}
+          Organizations ({filteredOrganizations.length})
         </button>
-
         <button
           type="button"
           style={getTabStyle("caregivers")}
           onClick={() => setActiveTab("caregivers")}
         >
-          Caregivers {filteredVendors.length}
+          Caregivers ({filteredVendors.length})
         </button>
-
         <button
           type="button"
           style={getTabStyle("bookings")}
           onClick={() => setActiveTab("bookings")}
         >
-          Bookings {filteredBookings.length}
+          Bookings ({filteredBookings.length})
         </button>
-
         <button
           type="button"
           style={getTabStyle("services")}
           onClick={() => setActiveTab("services")}
         >
-          Services {services.length}
+          Services ({services.length})
         </button>
-
         <button
           type="button"
           style={getTabStyle("reports")}
           onClick={() => setActiveTab("reports")}
         >
-          Reports {filteredReports.length}
+          Reports ({filteredReports.length})
         </button>
-
         <button
           type="button"
           style={getTabStyle("settings")}
@@ -720,7 +815,14 @@ export default function AdminDashboardPage() {
       {activeTab === "organizations" && !selectedOrg && (
         <div>
           {/* Action Buttons */}
-          <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              marginBottom: "16px",
+              flexWrap: "wrap",
+            }}
+          >
             <button
               className="btn btn-primary"
               onClick={() => {
@@ -749,7 +851,10 @@ export default function AdminDashboardPage() {
 
           {/* Add Organization Form */}
           {showAddOrgForm && (
-            <div className="card" style={{ marginBottom: "16px", background: "#0b1120" }}>
+            <div
+              className="card"
+              style={{ marginBottom: "16px", background: "#0b1120" }}
+            >
               <h3 style={{ color: "#e5e7eb", marginTop: "0" }}>
                 Create New Organization
               </h3>
@@ -842,7 +947,13 @@ export default function AdminDashboardPage() {
                     max="100"
                     placeholder="15"
                   />
-                  <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "-8px" }}>
+                  <p
+                    style={{
+                      fontSize: "11px",
+                      color: "#9ca3af",
+                      marginTop: "-8px",
+                    }}
+                  >
                     Platform takes this percentage from each booking
                   </p>
                 </div>
@@ -853,7 +964,9 @@ export default function AdminDashboardPage() {
                   disabled={addingOrg}
                   style={{ marginTop: "16px" }}
                 >
-                  {addingOrg ? "Creating Organization..." : "Create Organization"}
+                  {addingOrg
+                    ? "Creating Organization..."
+                    : "Create Organization"}
                 </button>
               </form>
             </div>
@@ -884,8 +997,8 @@ export default function AdminDashboardPage() {
                   border: "1px solid #fcd34d",
                 }}
               >
-                <strong>⚠️ Warning:</strong> SuperAdmins have full access to the platform.
-                Only add trusted team members.
+                <strong>⚠️ Warning:</strong> SuperAdmins have full access to the
+                platform. Only add trusted team members.
               </div>
 
               <form onSubmit={handleCreateSuperAdmin} className="form">
@@ -933,13 +1046,27 @@ export default function AdminDashboardPage() {
                     border: "none",
                   }}
                 >
-                  {addingSuperAdmin ? "Creating SuperAdmin..." : "Create SuperAdmin"}
+                  {addingSuperAdmin
+                    ? "Creating SuperAdmin..."
+                    : "Create SuperAdmin"}
                 </button>
               </form>
 
               {/* Current SuperAdmins List */}
-              <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid #1f2937" }}>
-                <h4 style={{ color: "#e5e7eb", fontSize: "14px", marginBottom: "12px" }}>
+              <div
+                style={{
+                  marginTop: "20px",
+                  paddingTop: "16px",
+                  borderTop: "1px solid #1f2937",
+                }}
+              >
+                <h4
+                  style={{
+                    color: "#e5e7eb",
+                    fontSize: "14px",
+                    marginBottom: "12px",
+                  }}
+                >
                   Current SuperAdmins ({superAdmins.length})
                 </h4>
 
@@ -957,10 +1084,22 @@ export default function AdminDashboardPage() {
                     }}
                   >
                     <div>
-                      <p style={{ margin: "0", fontSize: "13px", color: "#e5e7eb" }}>
+                      <p
+                        style={{
+                          margin: "0",
+                          fontSize: "13px",
+                          color: "#e5e7eb",
+                        }}
+                      >
                         <strong>{sa.name}</strong>
                       </p>
-                      <p style={{ margin: "0", fontSize: "11px", color: "#9ca3af" }}>
+                      <p
+                        style={{
+                          margin: "0",
+                          fontSize: "11px",
+                          color: "#9ca3af",
+                        }}
+                      >
                         {sa.email}
                       </p>
                     </div>
@@ -1022,7 +1161,11 @@ export default function AdminDashboardPage() {
             </div>
           ) : (
             filteredOrganizations.map((org) => (
-              <div key={org.id} className="card" style={{ marginBottom: "12px" }}>
+              <div
+                key={org.id}
+                className="card"
+                style={{ marginBottom: "12px" }}
+              >
                 <div
                   style={{
                     display: "flex",
@@ -1037,7 +1180,13 @@ export default function AdminDashboardPage() {
                       {org.organizationName}
                     </strong>
 
-                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#9ca3af",
+                        marginTop: "4px",
+                      }}
+                    >
                       Admin: {org.adminName}
                     </div>
 
@@ -1057,7 +1206,13 @@ export default function AdminDashboardPage() {
                       </div>
                     )}
 
-                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#9ca3af",
+                        marginTop: "4px",
+                      }}
+                    >
                       Joined: {new Date(org.createdAt).toLocaleDateString()}
                     </div>
                   </div>
@@ -1142,44 +1297,103 @@ export default function AdminDashboardPage() {
                   }}
                 >
                   <div>
-                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0" }}>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#9ca3af",
+                        margin: "0",
+                      }}
+                    >
                       Total Caregivers
                     </p>
-                    <p style={{ fontSize: "16px", color: "#0ea5e9", fontWeight: "bold", margin: "0" }}>
+                    <p
+                      style={{
+                        fontSize: "16px",
+                        color: "#0ea5e9",
+                        fontWeight: "bold",
+                        margin: "0",
+                      }}
+                    >
                       {org.totalCaregivers || 0}
                     </p>
                   </div>
 
                   <div>
-                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0" }}>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#9ca3af",
+                        margin: "0",
+                      }}
+                    >
                       Total Bookings
                     </p>
-                    <p style={{ fontSize: "16px", color: "#10b981", fontWeight: "bold", margin: "0" }}>
+                    <p
+                      style={{
+                        fontSize: "16px",
+                        color: "#10b981",
+                        fontWeight: "bold",
+                        margin: "0",
+                      }}
+                    >
                       {org.totalBookings || 0}
                     </p>
                   </div>
 
                   <div>
-                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0" }}>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#9ca3af",
+                        margin: "0",
+                      }}
+                    >
                       Total Earnings
                     </p>
-                    <p style={{ fontSize: "16px", color: "#22c55e", fontWeight: "bold", margin: "0" }}>
+                    <p
+                      style={{
+                        fontSize: "16px",
+                        color: "#22c55e",
+                        fontWeight: "bold",
+                        margin: "0",
+                      }}
+                    >
                       ₹{org.totalEarnings || 0}
                     </p>
                   </div>
 
                   <div>
-                    <p style={{ fontSize: "11px", color: "#9ca3af", margin: "0" }}>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#9ca3af",
+                        margin: "0",
+                      }}
+                    >
                       Commission Rate
                     </p>
-                    <p style={{ fontSize: "16px", color: "#fbbf24", fontWeight: "bold", margin: "0" }}>
+                    <p
+                      style={{
+                        fontSize: "16px",
+                        color: "#fbbf24",
+                        fontWeight: "bold",
+                        margin: "0",
+                      }}
+                    >
                       {org.commissionRate || 15}%
                     </p>
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: "flex", gap: "8px", marginTop: "12px", flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    marginTop: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
                   {!org.isApproved && (
                     <>
                       <button
@@ -1207,7 +1421,9 @@ export default function AdminDashboardPage() {
 
                   <button
                     className="btn btn-outline"
-                    onClick={() => handleSuspendOrganization(org.id, org.isSuspended)}
+                    onClick={() =>
+                      handleSuspendOrganization(org.id, org.isSuspended)
+                    }
                     style={{
                       flex: 1,
                       background: org.isSuspended ? "#111827" : "#7f1d1d",
@@ -1218,7 +1434,7 @@ export default function AdminDashboardPage() {
                     {org.isSuspended ? "🔓 Unsuspend" : "🔒 Suspend"}
                   </button>
 
-                                    {/* NEW: View Organization Details Button */}
+                  {/* NEW: View Organization Details Button */}
                   <button
                     className="btn btn-primary"
                     onClick={() => handleOrgClick(org)}
@@ -1264,30 +1480,66 @@ export default function AdminDashboardPage() {
               {selectedOrg.organizationName}
             </h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, 1fr)",
+                gap: "16px",
+              }}
+            >
               <div>
-                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                <p
+                  style={{
+                    color: "#9ca3af",
+                    fontSize: "12px",
+                    margin: "0 0 4px 0",
+                  }}
+                >
                   Organization ID
                 </p>
-                <p style={{ color: "#e5e7eb", margin: "0" }}>{selectedOrg.id}</p>
+                <p style={{ color: "#e5e7eb", margin: "0" }}>
+                  {selectedOrg.id}
+                </p>
               </div>
 
               <div>
-                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                <p
+                  style={{
+                    color: "#9ca3af",
+                    fontSize: "12px",
+                    margin: "0 0 4px 0",
+                  }}
+                >
                   Admin Name
                 </p>
-                <p style={{ color: "#e5e7eb", margin: "0" }}>{selectedOrg.adminName}</p>
+                <p style={{ color: "#e5e7eb", margin: "0" }}>
+                  {selectedOrg.adminName}
+                </p>
               </div>
 
               <div>
-                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                <p
+                  style={{
+                    color: "#9ca3af",
+                    fontSize: "12px",
+                    margin: "0 0 4px 0",
+                  }}
+                >
                   Admin Email
                 </p>
-                <p style={{ color: "#e5e7eb", margin: "0" }}>{selectedOrg.adminEmail}</p>
+                <p style={{ color: "#e5e7eb", margin: "0" }}>
+                  {selectedOrg.adminEmail}
+                </p>
               </div>
 
               <div>
-                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                <p
+                  style={{
+                    color: "#9ca3af",
+                    fontSize: "12px",
+                    margin: "0 0 4px 0",
+                  }}
+                >
                   Status
                 </p>
                 <span
@@ -1300,12 +1552,20 @@ export default function AdminDashboardPage() {
                     fontWeight: "600",
                   }}
                 >
-                  {selectedOrg.isApproved ? "✓ Approved" : "⏳ Pending Approval"}
+                  {selectedOrg.isApproved
+                    ? "✓ Approved"
+                    : "⏳ Pending Approval"}
                 </span>
               </div>
 
               <div>
-                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                <p
+                  style={{
+                    color: "#9ca3af",
+                    fontSize: "12px",
+                    margin: "0 0 4px 0",
+                  }}
+                >
                   Commission Rate
                 </p>
                 <p style={{ color: "#e5e7eb", margin: "0" }}>
@@ -1314,7 +1574,13 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 4px 0" }}>
+                <p
+                  style={{
+                    color: "#9ca3af",
+                    fontSize: "12px",
+                    margin: "0 0 4px 0",
+                  }}
+                >
                   Total Caregivers
                 </p>
                 <p style={{ color: "#e5e7eb", margin: "0" }}>
@@ -1331,10 +1597,16 @@ export default function AdminDashboardPage() {
             </h3>
 
             {orgCaregivers.length === 0 ? (
-              <p style={{ color: "#9ca3af" }}>No caregivers under this organization</p>
+              <p style={{ color: "#9ca3af" }}>
+                No caregivers under this organization
+              </p>
             ) : (
               orgCaregivers.map((caregiver) => (
-                <div key={caregiver.id} className="card" style={{ marginBottom: "12px" }}>
+                <div
+                  key={caregiver.id}
+                  className="card"
+                  style={{ marginBottom: "12px" }}
+                >
                   <div
                     style={{
                       display: "flex",
@@ -1347,28 +1619,54 @@ export default function AdminDashboardPage() {
                         {caregiver.name}
                       </h4>
 
-                      <p style={{ margin: "4px 0", color: "#9ca3af", fontSize: "12px" }}>
+                      <p
+                        style={{
+                          margin: "4px 0",
+                          color: "#9ca3af",
+                          fontSize: "12px",
+                        }}
+                      >
                         📍 {caregiver.location}
                       </p>
 
-                      <p style={{ margin: "4px 0", color: "#9ca3af", fontSize: "12px" }}>
+                      <p
+                        style={{
+                          margin: "4px 0",
+                          color: "#9ca3af",
+                          fontSize: "12px",
+                        }}
+                      >
                         📞 {caregiver.phone}
                       </p>
 
-                      <p style={{ margin: "4px 0", color: "#9ca3af", fontSize: "12px" }}>
+                      <p
+                        style={{
+                          margin: "4px 0",
+                          color: "#9ca3af",
+                          fontSize: "12px",
+                        }}
+                      >
                         Category:{" "}
                         {caregiver.category === "caregiver"
                           ? "🏥 Care Giver"
                           : caregiver.category === "household"
-                          ? "🏠 Household"
-                          : "👥 Both"}
+                            ? "🏠 Household"
+                            : "👥 Both"}
                       </p>
 
-                      <p style={{ margin: "4px 0", color: "#9ca3af", fontSize: "12px" }}>
+                      <p
+                        style={{
+                          margin: "4px 0",
+                          color: "#9ca3af",
+                          fontSize: "12px",
+                        }}
+                      >
                         Status:{" "}
                         <span
                           style={{
-                            background: caregiver.isApproved ? "#dcfce7" : "#fee2e2",
+                            background: caregiver.isApproved
+                              ? "#dcfce7"
+                              : "#fee2e2",
                             color: caregiver.isApproved ? "#15803d" : "#991b1b",
                             padding: "2px 8px",
                             borderRadius: "4px",
@@ -1384,7 +1682,9 @@ export default function AdminDashboardPage() {
                     {!caregiver.isApproved && (
                       <div style={{ display: "flex", gap: "8px" }}>
                         <button
-                          onClick={() => handleApproveCaregiverClick(caregiver.id)}
+                          onClick={() =>
+                            handleApproveCaregiverClick(caregiver.id)
+                          }
                           style={{
                             background: "#22c55e",
                             color: "white",
@@ -1400,7 +1700,9 @@ export default function AdminDashboardPage() {
                         </button>
 
                         <button
-                          onClick={() => handleRejectCaregiverClick(caregiver.id)}
+                          onClick={() =>
+                            handleRejectCaregiverClick(caregiver.id)
+                          }
                           style={{
                             background: "#ef4444",
                             color: "white",
@@ -1438,8 +1740,8 @@ export default function AdminDashboardPage() {
               border: "1px solid #7dd3fc",
             }}
           >
-            Caregivers are approved by SuperAdmin. Click organization details above to approve
-            caregivers under that organization.
+            Caregivers are approved by SuperAdmin. Click organization details
+            above to approve caregivers under that organization.
           </div>
 
           {/* Filters */}
@@ -1477,7 +1779,11 @@ export default function AdminDashboardPage() {
             </div>
           ) : (
             filteredVendors.map((vendor) => (
-              <div key={vendor.id} className="card" style={{ marginBottom: "12px" }}>
+              <div
+                key={vendor.id}
+                className="card"
+                style={{ marginBottom: "12px" }}
+              >
                 <div
                   style={{
                     display: "flex",
@@ -1492,7 +1798,13 @@ export default function AdminDashboardPage() {
                       {vendor.name}
                     </strong>
 
-                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#9ca3af",
+                        marginTop: "4px",
+                      }}
+                    >
                       {vendor.email}
                     </div>
 
@@ -1500,7 +1812,13 @@ export default function AdminDashboardPage() {
                       📍 {vendor.location}
                     </div>
 
-                    <div style={{ fontSize: "12px", color: "#0ea5e9", marginTop: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#0ea5e9",
+                        marginTop: "4px",
+                      }}
+                    >
                       {vendor.organizationName}
                     </div>
 
@@ -1577,17 +1895,20 @@ export default function AdminDashboardPage() {
                     {vendor.category === "caregiver"
                       ? "🏥 Care Giver"
                       : vendor.category === "household"
-                      ? "🏠 Household"
-                      : "👥 Both"}
+                        ? "🏠 Household"
+                        : "👥 Both"}
                   </p>
 
                   <p style={{ margin: "0 0 6px 0" }}>
                     <strong>Work Type:</strong>{" "}
-                    {vendor.workType === "full_time" ? "Full Time" : "Part Time"}
+                    {vendor.workType === "full_time"
+                      ? "Full Time"
+                      : "Part Time"}
                   </p>
 
                   <p style={{ margin: "0 0 6px 0" }}>
-                    <strong>Services:</strong> {vendor.servicesOffered?.join(", ") || "None"}
+                    <strong>Services:</strong>{" "}
+                    {vendor.servicesOffered?.join(", ") || "None"}
                   </p>
 
                   <p style={{ margin: "0" }}>
@@ -1607,8 +1928,10 @@ export default function AdminDashboardPage() {
                   }}
                 >
                   This caregiver is managed by{" "}
-                  <strong style={{ color: "#0ea5e9" }}>{vendor.organizationName}</strong>. Visit
-                  their organization details above to approve/reject.
+                  <strong style={{ color: "#0ea5e9" }}>
+                    {vendor.organizationName}
+                  </strong>
+                  . Visit their organization details above to approve/reject.
                 </div>
               </div>
             ))
@@ -1630,12 +1953,18 @@ export default function AdminDashboardPage() {
               border: "1px solid #7dd3fc",
             }}
           >
-            ✓ SuperAdmin can now create and manage services for the entire platform!
+            ✓ SuperAdmin can now create and manage services for the entire
+            platform!
           </div>
 
-                   {/* Add Service Form */}
-          <div className="card" style={{ background: "#0b1120", marginBottom: "20px" }}>
-            <h3 style={{ color: "#e5e7eb", marginTop: "0" }}>Add New Service</h3>
+          {/* Add Service Form */}
+          <div
+            className="card"
+            style={{ background: "#0b1120", marginBottom: "20px" }}
+          >
+            <h3 style={{ color: "#e5e7eb", marginTop: "0" }}>
+              Add New Service
+            </h3>
 
             <form onSubmit={handleAddService} className="form">
               <div>
@@ -1702,22 +2031,36 @@ export default function AdminDashboardPage() {
                         {service.label || service.serviceName}
                       </strong>
 
-                      <p style={{ fontSize: "12px", color: "#9ca3af", margin: "4px 0 0 0" }}>
+                      <p
+                        style={{
+                          fontSize: "12px",
+                          color: "#9ca3af",
+                          margin: "4px 0 0 0",
+                        }}
+                      >
                         Category:{" "}
                         {service.category === "caregiver"
                           ? "🏥 Care Giver"
                           : service.category === "household"
-                          ? "🏠 Household"
-                          : "👥 Both"}
+                            ? "🏠 Household"
+                            : "👥 Both"}
                       </p>
 
-                      <p style={{ fontSize: "11px", color: "#6b7280", margin: "4px 0 0 0" }}>
+                      <p
+                        style={{
+                          fontSize: "11px",
+                          color: "#6b7280",
+                          margin: "4px 0 0 0",
+                        }}
+                      >
                         ID: {service.id}
                       </p>
                     </div>
 
                     <button
-                      onClick={() => handleDeleteService(service.id, service.label)}
+                      onClick={() =>
+                        handleDeleteService(service.id, service.label)
+                      }
                       style={{
                         background: "#ef4444",
                         color: "white",
@@ -1781,7 +2124,11 @@ export default function AdminDashboardPage() {
             </div>
           ) : (
             filteredBookings.map((booking) => (
-              <div key={booking.id} className="card" style={{ marginBottom: "12px" }}>
+              <div
+                key={booking.id}
+                className="card"
+                style={{ marginBottom: "12px" }}
+              >
                 <div
                   style={{
                     display: "flex",
@@ -1796,7 +2143,13 @@ export default function AdminDashboardPage() {
                       {booking.userName} → {booking.caregiverName}
                     </strong>
 
-                    <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#9ca3af",
+                        marginTop: "4px",
+                      }}
+                    >
                       {booking.userPhone}
                     </div>
 
@@ -1811,18 +2164,18 @@ export default function AdminDashboardPage() {
                         booking.status === "completed"
                           ? "#dcfce7"
                           : booking.status === "accepted"
-                          ? "#dbeafe"
-                          : booking.status === "pending"
-                          ? "#fef3c7"
-                          : "#fee2e2",
+                            ? "#dbeafe"
+                            : booking.status === "pending"
+                              ? "#fef3c7"
+                              : "#fee2e2",
                       color:
                         booking.status === "completed"
                           ? "#15803d"
                           : booking.status === "accepted"
-                          ? "#0369a1"
-                          : booking.status === "pending"
-                          ? "#92400e"
-                          : "#991b1b",
+                            ? "#0369a1"
+                            : booking.status === "pending"
+                              ? "#92400e"
+                              : "#991b1b",
                       padding: "4px 8px",
                       borderRadius: "4px",
                       fontSize: "11px",
@@ -1855,7 +2208,8 @@ export default function AdminDashboardPage() {
                   </p>
 
                   <p style={{ margin: "0 0 6px 0" }}>
-                    <strong>Platform Fee:</strong> ₹{Math.round(booking.platformCommission || 0)}
+                    <strong>Platform Fee:</strong> ₹
+                    {Math.round(booking.platformCommission || 0)}
                   </p>
 
                   <p style={{ margin: "0" }}>
@@ -1873,7 +2227,8 @@ export default function AdminDashboardPage() {
                   }}
                 >
                   ID: {booking.id?.substring(0, 12)}... | Created:{" "}
-                  {booking.createdAt?.toDate?.()?.toLocaleDateString?.() || "N/A"}
+                  {booking.createdAt?.toDate?.()?.toLocaleDateString?.() ||
+                    "N/A"}
                 </div>
               </div>
             ))
@@ -1915,7 +2270,11 @@ export default function AdminDashboardPage() {
           ) : (
             <div style={{ marginBottom: "40px" }}>
               {filteredReports.map((report) => (
-                <div key={report.id} className="card" style={{ marginBottom: "12px" }}>
+                <div
+                  key={report.id}
+                  className="card"
+                  style={{ marginBottom: "12px" }}
+                >
                   <div
                     style={{
                       display: "flex",
@@ -1930,7 +2289,13 @@ export default function AdminDashboardPage() {
                         Report: {report.userName}
                       </strong>
 
-                      <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#9ca3af",
+                          marginTop: "4px",
+                        }}
+                      >
                         Reason: {report.reason}
                       </div>
 
@@ -1939,7 +2304,8 @@ export default function AdminDashboardPage() {
                       </div>
 
                       <div style={{ fontSize: "12px", color: "#9ca3af" }}>
-                        {report.createdAt?.toDate?.()?.toLocaleString?.() || "N/A"}
+                        {report.createdAt?.toDate?.()?.toLocaleString?.() ||
+                          "N/A"}
                       </div>
                     </div>
 
@@ -1949,14 +2315,14 @@ export default function AdminDashboardPage() {
                           report.status === "pending"
                             ? "#fef3c7"
                             : report.status === "blacklisted"
-                            ? "#dcfce7"
-                            : "#fee2e2",
+                              ? "#dcfce7"
+                              : "#fee2e2",
                         color:
                           report.status === "pending"
                             ? "#92400e"
                             : report.status === "blacklisted"
-                            ? "#15803d"
-                            : "#991b1b",
+                              ? "#15803d"
+                              : "#991b1b",
                         padding: "4px 8px",
                         borderRadius: "4px",
                         fontSize: "11px",
@@ -1985,10 +2351,19 @@ export default function AdminDashboardPage() {
                   )}
 
                   {report.status === "pending" && (
-                    <div style={{ display: "flex", gap: "8px", marginTop: "12px", flexWrap: "wrap" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        marginTop: "12px",
+                        flexWrap: "wrap",
+                      }}
+                    >
                       <button
                         className="btn btn-primary"
-                        onClick={() => handleBlacklistUser(report.id, report.userId)}
+                        onClick={() =>
+                          handleBlacklistUser(report.id, report.userId)
+                        }
                         style={{ flex: 1 }}
                       >
                         🔒 Blacklist User
@@ -2014,7 +2389,13 @@ export default function AdminDashboardPage() {
           )}
 
           {/* Blacklisted Users */}
-          <div style={{ marginTop: "40px", paddingTop: "24px", borderTop: "2px solid #1f2937" }}>
+          <div
+            style={{
+              marginTop: "40px",
+              paddingTop: "24px",
+              borderTop: "2px solid #1f2937",
+            }}
+          >
             <h4 style={{ color: "#e5e7eb", marginBottom: "12px" }}>
               Blacklisted Users ({blacklist.length})
             </h4>
@@ -2025,7 +2406,11 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               blacklist.map((user) => (
-                <div key={user.id} className="card" style={{ marginBottom: "12px" }}>
+                <div
+                  key={user.id}
+                  className="card"
+                  style={{ marginBottom: "12px" }}
+                >
                   <div
                     style={{
                       display: "flex",
@@ -2034,9 +2419,17 @@ export default function AdminDashboardPage() {
                     }}
                   >
                     <div>
-                      <strong style={{ color: "#e5e7eb" }}>{user.userName}</strong>
+                      <strong style={{ color: "#e5e7eb" }}>
+                        {user.userName}
+                      </strong>
 
-                      <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: "#9ca3af",
+                          marginTop: "4px",
+                        }}
+                      >
                         User ID: {user.userId || user.id}
                       </div>
 
@@ -2048,8 +2441,16 @@ export default function AdminDashboardPage() {
                         Reported by: {user.reportedByName}
                       </div>
 
-                                            <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "4px" }}>
-                        Blacklisted: {user.blacklistedAt?.toDate?.()?.toLocaleString?.() || "N/A"}
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#6b7280",
+                          marginTop: "4px",
+                        }}
+                      >
+                        Blacklisted:{" "}
+                        {user.blacklistedAt?.toDate?.()?.toLocaleString?.() ||
+                          "N/A"}
                       </div>
                     </div>
 
@@ -2105,7 +2506,9 @@ export default function AdminDashboardPage() {
       {activeTab === "settings" && (
         <div>
           <div className="card" style={{ background: "#0b1120" }}>
-            <h3 style={{ color: "#e5e7eb", marginTop: "0" }}>Platform Settings</h3>
+            <h3 style={{ color: "#e5e7eb", marginTop: "0" }}>
+              Platform Settings
+            </h3>
 
             {/* Commission Rate */}
             <div style={{ marginBottom: "24px" }}>
@@ -2124,7 +2527,9 @@ export default function AdminDashboardPage() {
                 <input
                   type="number"
                   value={globalCommissionRate}
-                  onChange={(e) => setGlobalCommissionRate(Number(e.target.value))}
+                  onChange={(e) =>
+                    setGlobalCommissionRate(Number(e.target.value))
+                  }
                   disabled={!editingCommission}
                   min="0"
                   max="100"
@@ -2194,8 +2599,11 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
-              <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "8px" }}>
-                This commission applies to all new bookings. Current: {globalCommissionRate}%
+              <p
+                style={{ fontSize: "11px", color: "#9ca3af", marginTop: "8px" }}
+              >
+                This commission applies to all new bookings. Current:{" "}
+                {globalCommissionRate}%
               </p>
             </div>
 
@@ -2208,67 +2616,112 @@ export default function AdminDashboardPage() {
                 border: "1px solid #1f2937",
               }}
             >
-              <h4 style={{ color: "#e5e7eb", marginTop: "0", marginBottom: "12px" }}>
+              <h4
+                style={{
+                  color: "#e5e7eb",
+                  marginTop: "0",
+                  marginBottom: "12px",
+                }}
+              >
                 Platform Information
               </h4>
 
-              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
+              <p
+                style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}
+              >
                 <strong>Platform Name:</strong> Ghar Sathi
               </p>
 
-              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
+              <p
+                style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}
+              >
                 <strong>Version:</strong> 1.0.0 Multi-Vendor
               </p>
 
-              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
+              <p
+                style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}
+              >
                 <strong>Total Organizations:</strong> {organizations.length}
               </p>
 
-              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
+              <p
+                style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}
+              >
                 <strong>Total Caregivers:</strong> {vendors.length}
               </p>
 
-              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
+              <p
+                style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}
+              >
                 <strong>Total Bookings:</strong> {bookings.length}
               </p>
 
-              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
-                <strong>Total Revenue:</strong> ₹{analytics.totalRevenue.toLocaleString()}
+              <p
+                style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}
+              >
+                <strong>Total Revenue:</strong> ₹
+                {analytics.totalRevenue.toLocaleString()}
               </p>
 
-              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
+              <p
+                style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}
+              >
                 <strong>Platform Earnings:</strong> ₹
                 {Math.round(analytics.platformEarnings).toLocaleString()}
               </p>
 
-              <p style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}>
+              <p
+                style={{ fontSize: "13px", color: "#e5e7eb", margin: "8px 0" }}
+              >
                 <strong>Active SuperAdmins:</strong> {superAdmins.length}
               </p>
             </div>
 
             {/* Additional Settings */}
-            <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "2px solid #1f2937" }}>
-              <h4 style={{ color: "#e5e7eb", marginTop: "0", marginBottom: "12px" }}>
+            <div
+              style={{
+                marginTop: "24px",
+                paddingTop: "24px",
+                borderTop: "2px solid #1f2937",
+              }}
+            >
+              <h4
+                style={{
+                  color: "#e5e7eb",
+                  marginTop: "0",
+                  marginBottom: "12px",
+                }}
+              >
                 Additional Settings
               </h4>
 
               <div style={{ fontSize: "13px", color: "#9ca3af" }}>
                 <p style={{ margin: "8px 0" }}>
-                  <strong style={{ color: "#e5e7eb" }}>Default Commission:</strong>{" "}
+                  <strong style={{ color: "#e5e7eb" }}>
+                    Default Commission:
+                  </strong>{" "}
                   {globalCommissionRate}%
                 </p>
 
                 <p style={{ margin: "8px 0" }}>
-                  <strong style={{ color: "#e5e7eb" }}>Organizations can override:</strong> Yes
+                  <strong style={{ color: "#e5e7eb" }}>
+                    Organizations can override:
+                  </strong>{" "}
+                  Yes
                 </p>
 
                 <p style={{ margin: "8px 0" }}>
-                  <strong style={{ color: "#e5e7eb" }}>Auto-approve organizations:</strong> No
-                  (Manual)
+                  <strong style={{ color: "#e5e7eb" }}>
+                    Auto-approve organizations:
+                  </strong>{" "}
+                  No (Manual)
                 </p>
 
                 <p style={{ margin: "8px 0" }}>
-                  <strong style={{ color: "#e5e7eb" }}>Auto-approve caregivers:</strong> No (Manual)
+                  <strong style={{ color: "#e5e7eb" }}>
+                    Auto-approve caregivers:
+                  </strong>{" "}
+                  No (Manual)
                 </p>
               </div>
             </div>
@@ -2278,5 +2731,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-

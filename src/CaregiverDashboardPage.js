@@ -1,3 +1,4 @@
+// src/CaregiverDashboardPage.js
 import React, { useEffect, useState } from "react";
 import {
   collection,
@@ -9,37 +10,41 @@ import {
   getDocs,
   updateDoc,
 } from "firebase/firestore";
-import { db } from "./firebaseConfig";
-import { useAuth } from "./AuthContext";
-import { useNavigate } from "react-router-dom";
 import {
   updatePassword,
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-import { auth } from "./firebaseConfig"; // Make sure auth is imported
+import { useNavigate } from "react-router-dom";
+import { db, auth } from "./firebaseConfig";
+import { useAuth } from "./AuthContext";
+import "./OrganizationDashboard.css";
 
 const STATUS_OPTIONS = ["pending", "accepted", "completed", "cancelled"];
 const SHIFT_OPTIONS = ["morning", "day", "night"];
+const COMMISSION_RATE = 15;
 
 export default function CaregiverDashboardPage() {
   const { user, userDoc } = useAuth();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("jobs");
+
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState("pending");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [myReports, setMyReports] = useState([]);
   const [services, setServices] = useState([]);
-  // Password Change States
+
+  // Password Change
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // Earnings
   const [earnings, setEarnings] = useState({
     total: 0,
     pending: 0,
@@ -47,14 +52,14 @@ export default function CaregiverDashboardPage() {
     commissioned: 0,
   });
 
-  // Profile Edit States
+  // Profile Edit
   const [profileData, setProfileData] = useState(null);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [editBio, setEditBio] = useState("");
   const [editCategory, setEditCategory] = useState("caregiver");
-  const [editWorkType, setEditWorkType] = useState("part_time");
+  const [editWorkType, setEditWorkType] = useState("parttime");
   const [editShifts, setEditShifts] = useState([]);
   const [editServices, setEditServices] = useState([]);
   const [editHourlyRate, setEditHourlyRate] = useState(0);
@@ -62,8 +67,7 @@ export default function CaregiverDashboardPage() {
   const [editAvailable, setEditAvailable] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
 
-  const COMMISSION_RATE = 15;
-
+  // Load bookings & reports
   useEffect(() => {
     if (!user) {
       setLoading(false);
@@ -71,35 +75,30 @@ export default function CaregiverDashboardPage() {
     }
 
     try {
-      // Load bookings
+      // Bookings
       const bookingsQuery = query(
         collection(db, "bookings"),
-        where("caregiverId", "==", user.uid),
+        where("caregiverId", "==", user.uid)
       );
-
       const unsubBookings = onSnapshot(
         bookingsQuery,
         (snap) => {
           const docs = snap.docs
-            .map((d) => ({
-              id: d.id,
-              ...d.data(),
-            }))
+            .map((d) => ({ id: d.id, ...d.data() }))
             .sort((a, b) => {
               const timeA = a.createdAt?.toDate?.() || new Date(0);
               const timeB = b.createdAt?.toDate?.() || new Date(0);
               return timeB - timeA;
             });
-
           setBookings(docs);
 
-          // Calculate earnings
           const completed = docs.filter((b) => b.status === "completed");
           const totalEarnings = completed.reduce(
             (sum, b) => sum + (b.totalAmount || 0),
-            0,
+            0
           );
-          const platformCommission = (totalEarnings * COMMISSION_RATE) / 100;
+          const platformCommission =
+            (totalEarnings * COMMISSION_RATE) / 100;
           const vendorEarnings = totalEarnings - platformCommission;
 
           setEarnings({
@@ -113,18 +112,17 @@ export default function CaregiverDashboardPage() {
           setError(null);
         },
         (err) => {
-          console.error("Error loading bookings:", err);
-          setError(err.message);
+          console.error("Error loading bookings", err);
+          setError(err.message || "Error loading bookings");
           setLoading(false);
-        },
+        }
       );
 
-      // Load reports
+      // Reports
       const reportsQuery = query(
         collection(db, "caregiverReports"),
-        where("reportedBy", "==", user.uid),
+        where("reportedBy", "==", user.uid)
       );
-
       const unsubReports = onSnapshot(
         reportsQuery,
         (snap) => {
@@ -138,8 +136,8 @@ export default function CaregiverDashboardPage() {
           setMyReports(docs);
         },
         (err) => {
-          console.error("Error loading reports:", err);
-        },
+          console.error("Error loading reports", err);
+        }
       );
 
       return () => {
@@ -147,8 +145,8 @@ export default function CaregiverDashboardPage() {
         unsubReports();
       };
     } catch (err) {
-      console.error("Query error:", err);
-      setError(err.message);
+      console.error("Query error", err);
+      setError(err.message || "Error loading dashboard");
       setLoading(false);
     }
   }, [user]);
@@ -157,9 +155,8 @@ export default function CaregiverDashboardPage() {
   useEffect(() => {
     const loadProfile = async () => {
       if (!user) return;
-
       try {
-        // Load vendor profile
+        // Vendor profile
         const vendorSnap = await getDoc(doc(db, "vendors", user.uid));
         if (vendorSnap.exists()) {
           const data = vendorSnap.data();
@@ -169,15 +166,17 @@ export default function CaregiverDashboardPage() {
           setEditLocation(data.location || "");
           setEditBio(data.bio || "");
           setEditCategory(data.category || "caregiver");
-          setEditWorkType(data.workType || "part_time");
+          setEditWorkType(data.workType || "parttime");
           setEditShifts(data.shifts || []);
           setEditServices(data.servicesOffered || []);
           setEditHourlyRate(data.hourlyRate || 0);
           setEditExperience(data.experience || 0);
-          setEditAvailable(data.isAvailable ?? true);
+          setEditAvailable(
+            data.isAvailable === undefined ? true : data.isAvailable
+          );
         }
 
-        // Load services
+        // Services
         const servicesSnap = await getDocs(collection(db, "services"));
         const servicesData = servicesSnap.docs.map((d) => ({
           id: d.id,
@@ -185,7 +184,7 @@ export default function CaregiverDashboardPage() {
         }));
         setServices(servicesData);
       } catch (err) {
-        console.error("Error loading profile:", err);
+        console.error("Error loading profile", err);
       }
     };
 
@@ -198,33 +197,36 @@ export default function CaregiverDashboardPage() {
         status: newStatus,
       });
     } catch (err) {
-      console.error("Error updating status:", err);
+      console.error("Error updating status", err);
       alert("Could not update status. Please try again.");
     }
   };
 
   const handleReportUser = (b) => {
     const confirmed = window.confirm(
-      "Report this user to your organization? Use this only for serious issues.",
+      "Report this user to your organization? Use this only for serious issues."
     );
     if (!confirmed) return;
 
     navigate(
-      `/caregiver/reportuser?bookingId=${encodeURIComponent(
-        b.id,
-      )}&userId=${encodeURIComponent(b.userId || "")}&userName=${encodeURIComponent(
-        b.userName || "",
-      )}&caregiverId=${encodeURIComponent(user?.uid || "")}&organizationId=${encodeURIComponent(
-        userDoc?.organizationId || "",
-      )}`,
+      `/caregiverreportuser?bookingId=${encodeURIComponent(
+        b.id
+      )}&userId=${encodeURIComponent(
+        b.userId
+      )}&userName=${encodeURIComponent(
+        b.userName
+      )}&caregiverId=${encodeURIComponent(
+        user?.uid || ""
+      )}&organizationId=${encodeURIComponent(
+        userDoc?.organizationId || ""
+      )}`
     );
   };
 
-  const isBookingReported = (bookingId) => {
-    return myReports.some((r) => r.bookingId === bookingId);
-  };
+  const isBookingReported = (bookingId) =>
+    myReports.some((r) => r.bookingId === bookingId);
 
-  // Profile editing functions
+  // Profile editing
   const toggleShift = (shift) => {
     if (editShifts.includes(shift)) {
       setEditShifts(editShifts.filter((s) => s !== shift));
@@ -246,14 +248,14 @@ export default function CaregiverDashboardPage() {
     setError(null);
 
     if (!editName || !editLocation) {
-      setError("Name and location are required");
+      setError("Name and location are required.");
       return;
     }
 
     try {
       setSavingProfile(true);
-
-      const finalShifts = editWorkType === "part_time" ? editShifts : [];
+      const finalShifts =
+        editWorkType === "parttime" ? editShifts : [];
 
       await updateDoc(doc(db, "vendors", user.uid), {
         name: editName,
@@ -264,13 +266,12 @@ export default function CaregiverDashboardPage() {
         workType: editWorkType,
         shifts: finalShifts,
         servicesOffered: editServices,
-        hourlyRate: Number(editHourlyRate),
-        experience: Number(editExperience),
+        hourlyRate: Number(editHourlyRate) || 0,
+        experience: Number(editExperience) || 0,
         isAvailable: editAvailable,
         updatedAt: new Date().toISOString(),
       });
 
-      // Also update user doc
       await updateDoc(doc(db, "users", user.uid), {
         name: editName,
         phone: editPhone,
@@ -278,14 +279,12 @@ export default function CaregiverDashboardPage() {
       });
 
       alert("Profile updated successfully!");
-
-      // Reload profile
       const vendorSnap = await getDoc(doc(db, "vendors", user.uid));
       if (vendorSnap.exists()) {
         setProfileData(vendorSnap.data());
       }
     } catch (err) {
-      console.error("Error saving profile:", err);
+      console.error("Error saving profile", err);
       setError("Could not save profile. Please try again.");
     } finally {
       setSavingProfile(false);
@@ -300,32 +299,87 @@ export default function CaregiverDashboardPage() {
       activeTab === tabName
         ? "linear-gradient(135deg, #0ea5e9, #06b6d4)"
         : "#020617",
-    color: activeTab === tabName ? "white" : "#e5e7eb",
+    color: activeTab === tabName ? "#ffffff" : "#e5e7eb",
     cursor: "pointer",
-    fontWeight: activeTab === tabName ? "600" : "500",
+    fontWeight: activeTab === tabName ? 600 : 500,
     fontSize: 13,
   });
 
   const filtered = bookings.filter((b) =>
-    statusFilter ? b.status === statusFilter : true,
+    statusFilter && statusFilter !== "All jobs"
+      ? b.status === statusFilter
+      : true
   );
 
-  if (loading)
+  // Change password
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError("Please fill all password fields.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("New passwords do not match.");
+      return;
+    }
+    if (!user?.email) {
+      setError("No email associated with this account.");
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        currentPassword
+      );
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, newPassword);
+      alert("Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowPasswordSection(false);
+    } catch (err) {
+      console.error("Error changing password", err);
+      if (err.code === "auth/wrong-password") {
+        setError("Current password is incorrect.");
+      } else if (err.code === "auth/requires-recent-login") {
+        setError(
+          "Please log out and log back in before changing password."
+        );
+      } else {
+        setError(err.message || "Could not change password.");
+      }
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  if (loading) {
     return (
       <p style={{ color: "#9ca3af", textAlign: "center", padding: 20 }}>
         Loading dashboard...
       </p>
     );
+  }
 
-  if (error && !profileData)
+  if (error && !profileData) {
     return (
       <p style={{ color: "#ef4444", textAlign: "center", padding: 20 }}>
         Error: {error}
       </p>
     );
+  }
 
   return (
-    <div>
+    <div style={{ padding: 20 }}>
       <h2 className="section-title">Caregiver Dashboard</h2>
       <p
         style={{
@@ -335,10 +389,9 @@ export default function CaregiverDashboardPage() {
           marginBottom: 12,
         }}
       >
-        Manage jobs and update your profile
+        Manage jobs and update your profile.
       </p>
 
-      {/* Organization Info */}
       {userDoc?.organizationName && (
         <div
           style={{
@@ -351,7 +404,8 @@ export default function CaregiverDashboardPage() {
             border: "1px solid #7dd3fc",
           }}
         >
-          🏢 You're part of <strong>{userDoc.organizationName}</strong>
+          You&apos;re part of{" "}
+          <strong>{userDoc.organizationName}</strong>
         </div>
       )}
 
@@ -364,25 +418,25 @@ export default function CaregiverDashboardPage() {
           style={getTabStyle("jobs")}
           onClick={() => setActiveTab("jobs")}
         >
-          📊 Jobs ({bookings.length})
+          Jobs ({bookings.length})
         </button>
         <button
           type="button"
           style={getTabStyle("profile")}
           onClick={() => setActiveTab("profile")}
         >
-          👤 My Profile
+          My Profile
         </button>
         <button
           type="button"
           style={getTabStyle("earnings")}
           onClick={() => setActiveTab("earnings")}
         >
-          💰 Earnings
+          Earnings
         </button>
       </div>
 
-      {/* ========== JOBS TAB ========== */}
+      {/* JOBS TAB */}
       {activeTab === "jobs" && (
         <div>
           {/* Filter */}
@@ -393,7 +447,7 @@ export default function CaregiverDashboardPage() {
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="">All jobs</option>
+                <option>All jobs</option>
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
                     {s[0].toUpperCase() + s.slice(1)}
@@ -403,10 +457,10 @@ export default function CaregiverDashboardPage() {
             </div>
           </div>
 
-          {/* Bookings List */}
+          {/* Bookings list */}
           {filtered.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">📋</div>
+              <div className="empty-state-icon" />
               <p className="empty-state-title">
                 {bookings.length === 0
                   ? "No bookings yet"
@@ -420,7 +474,11 @@ export default function CaregiverDashboardPage() {
             </div>
           ) : (
             filtered.map((b) => (
-              <div key={b.id} className="card" style={{ marginBottom: 12 }}>
+              <div
+                key={b.id}
+                className="card"
+                style={{ marginBottom: 12 }}
+              >
                 <div
                   style={{
                     display: "flex",
@@ -429,41 +487,58 @@ export default function CaregiverDashboardPage() {
                   }}
                 >
                   <div>
-                    <strong style={{ color: "#e5e7eb", fontSize: 14 }}>
+                    <strong
+                      style={{ color: "#e5e7eb", fontSize: 14 }}
+                    >
                       {b.userName || "User"}
                     </strong>
                     <div
-                      style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}
+                      style={{
+                        fontSize: 12,
+                        color: "#9ca3af",
+                        marginTop: 4,
+                      }}
                     >
-                      📞 {b.userPhone || "N/A"} · 📍 {b.address || "N/A"}
+                      {b.userPhone || "NA"}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#9ca3af",
+                        marginTop: 4,
+                      }}
+                    >
+                      {b.address || "NA"}
                     </div>
                   </div>
-                  <span
-                    style={{
-                      background:
-                        b.status === "pending"
-                          ? "#fef3c7"
-                          : b.status === "accepted"
+                  <div>
+                    <span
+                      style={{
+                        background:
+                          b.status === "pending"
+                            ? "#fef3c7"
+                            : b.status === "accepted"
                             ? "#dbeafe"
                             : b.status === "completed"
-                              ? "#dcfce7"
-                              : "#fee2e2",
-                      color:
-                        b.status === "pending"
-                          ? "#92400e"
-                          : b.status === "accepted"
+                            ? "#dcfce7"
+                            : "#fee2e2",
+                        color:
+                          b.status === "pending"
+                            ? "#92400e"
+                            : b.status === "accepted"
                             ? "#0369a1"
                             : b.status === "completed"
-                              ? "#15803d"
-                              : "#991b1b",
-                      padding: "4px 8px",
-                      borderRadius: "4px",
-                      fontSize: 11,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {(b.status || "pending").toUpperCase()}
-                  </span>
+                            ? "#15803d"
+                            : "#991b1b",
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {(b.status || "pending").toUpperCase()}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Booking details */}
@@ -475,95 +550,137 @@ export default function CaregiverDashboardPage() {
                   }}
                 >
                   <p
-                    style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}
+                    style={{
+                      fontSize: 13,
+                      color: "#e5e7eb",
+                      marginBottom: 6,
+                    }}
                   >
-                    <strong>📅 Date:</strong> {b.date || "Not specified"}
+                    <strong>Date:</strong>{" "}
+                    {b.date || "Not specified"}
                   </p>
-                  <p
-                    style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}
-                  >
-                    <strong>⏰ Time:</strong> {b.time || "Not specified"}
-                  </p>
-                  <p
-                    style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}
-                  >
-                    <strong>⏱️ Duration:</strong> {b.durationHours || "N/A"}{" "}
-                    hours
-                  </p>
-                  <p style={{ fontSize: 13, color: "#e5e7eb" }}>
-                    <strong>🏠 Location:</strong> {b.address || "Not specified"}
-                  </p>
-                </div>
-
-                {/* Notes */}
-                {b.notes && (
                   <p
                     style={{
                       fontSize: 13,
-                      color: "#cbd5f5",
-                      marginTop: 10,
-                      fontStyle: "italic",
-                      borderLeft: "3px solid #0ea5e9",
-                      paddingLeft: 10,
+                      color: "#e5e7eb",
+                      marginBottom: 6,
                     }}
                   >
-                    <strong>📝 User notes:</strong> {b.notes}
+                    <strong>Time:</strong>{" "}
+                    {b.time || "Not specified"}
                   </p>
-                )}
-
-                {/* Payment Info */}
-                {b.totalAmount && (
-                  <div
+                  <p
                     style={{
-                      marginTop: 10,
-                      paddingTop: 10,
-                      borderTop: "1px solid #1f2937",
-                      background: "#0b1120",
-                      padding: "10px",
-                      borderRadius: "8px",
+                      fontSize: 13,
+                      color: "#e5e7eb",
+                      marginBottom: 6,
                     }}
                   >
+                    <strong>Duration:</strong>{" "}
+                    {b.durationHours || "NA"} hours
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "#e5e7eb",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <strong>Location:</strong>{" "}
+                    {b.address || "Not specified"}
+                  </p>
+
+                  {/* Notes */}
+                  {b.notes && (
                     <p
                       style={{
-                        fontSize: 12,
-                        color: "#e5e7eb",
-                        marginBottom: 4,
+                        fontSize: 13,
+                        color: "#cbd5f5",
+                        marginTop: 10,
+                        fontStyle: "italic",
+                        borderLeft: "3px solid #0ea5e9",
+                        paddingLeft: 10,
                       }}
                     >
-                      <strong>💰 Total Amount:</strong> ₹{b.totalAmount}
+                      <strong>User notes:</strong> {b.notes}
                     </p>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "#22c55e",
-                        marginBottom: 4,
-                      }}
-                    >
-                      <strong>Your Earnings:</strong> ₹
-                      {Math.round(b.vendorEarnings || b.totalAmount * 0.85)}
-                    </p>
-                    <p style={{ fontSize: 11, color: "#fbbf24" }}>
-                      Platform fee: ₹
-                      {Math.round(b.platformCommission || b.totalAmount * 0.15)}{" "}
-                      ({COMMISSION_RATE}%)
-                    </p>
-                    {b.paymentMethod && (
-                      <p
-                        style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}
-                      >
-                        <strong>Payment:</strong>{" "}
-                        {b.paymentMethod === "fonepay"
-                          ? "💳 Fonepay"
-                          : "💵 Cash"}
-                      </p>
+                  )}
+                </div>
+
+                {/* Payment info */}
+                <div
+                  style={{
+                    marginTop: 10,
+                    paddingTop: 10,
+                    borderTop: "1px solid #1f2937",
+                    background: "#0b1120",
+                    padding: 10,
+                    borderRadius: 8,
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#e5e7eb",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <strong>Total Amount:</strong>{" "}
+                    {b.totalAmount || 0}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#22c55e",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <strong>Your Earnings:</strong>{" "}
+                    {Math.round(
+                      b.vendorEarnings ??
+                        (b.totalAmount || 0) * 0.85
                     )}
-                  </div>
-                )}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: "#fbbf24",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Platform fee (approx):{" "}
+                    {Math.round(
+                      b.platformCommission ??
+                        (b.totalAmount || 0) * 0.15
+                    )}{" "}
+                    ({COMMISSION_RATE}%)
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#9ca3af",
+                      marginTop: 8,
+                    }}
+                  >
+                    <strong>Payment:</strong>{" "}
+                    {b.paymentMethod === "fonepay"
+                      ? "Fonepay"
+                      : "Cash"}
+                  </p>
+                </div>
 
                 {/* Booking ID */}
-                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 10 }}>
-                  Booking ID: {b.id.substring(0, 8)}... · Created:{" "}
-                  {b.createdAt?.toDate?.().toLocaleDateString?.() || "N/A"}
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7280",
+                    marginTop: 10,
+                  }}
+                >
+                  Booking ID:{" "}
+                  {(b.id || "").substring(0, 8)}... • Created{" "}
+                  {b.createdAt?.toDate?.()?.toLocaleDateString?.() ||
+                    "NA"}
                 </div>
 
                 {/* Actions */}
@@ -579,14 +696,18 @@ export default function CaregiverDashboardPage() {
                     <>
                       <button
                         className="btn btn-primary"
-                        onClick={() => updateStatus(b.id, "accepted")}
+                        onClick={() =>
+                          updateStatus(b.id, "accepted")
+                        }
                         style={{ flex: 1 }}
                       >
-                        ✓ Accept
+                        Accept
                       </button>
                       <button
                         className="btn btn-outline"
-                        onClick={() => updateStatus(b.id, "cancelled")}
+                        onClick={() =>
+                          updateStatus(b.id, "cancelled")
+                        }
                         style={{
                           flex: 1,
                           background: "#7f1d1d",
@@ -594,7 +715,7 @@ export default function CaregiverDashboardPage() {
                           borderColor: "#991b1b",
                         }}
                       >
-                        ✗ Decline
+                        Decline
                       </button>
                     </>
                   )}
@@ -603,14 +724,18 @@ export default function CaregiverDashboardPage() {
                     <>
                       <button
                         className="btn btn-primary"
-                        onClick={() => updateStatus(b.id, "completed")}
+                        onClick={() =>
+                          updateStatus(b.id, "completed")
+                        }
                         style={{ flex: 1 }}
                       >
-                        ✓ Mark Complete
+                        Mark Complete
                       </button>
                       <button
                         className="btn btn-outline"
-                        onClick={() => updateStatus(b.id, "cancelled")}
+                        onClick={() =>
+                          updateStatus(b.id, "cancelled")
+                        }
                         style={{
                           flex: 1,
                           background: "#7f1d1d",
@@ -618,67 +743,60 @@ export default function CaregiverDashboardPage() {
                           borderColor: "#991b1b",
                         }}
                       >
-                        ✗ Cancel
+                        Cancel
                       </button>
-
-                      {isBookingReported(b.id) ? (
-                        <button
-                          className="btn btn-outline"
-                          disabled
-                          style={{
-                            flex: 1,
-                            background: "#111827",
-                            color: "#9ca3af",
-                            borderColor: "#4b5563",
-                            cursor: "default",
-                          }}
-                        >
-                          ✅ Reported
-                        </button>
-                      ) : (
-                        <button
-                          className="btn btn-outline"
-                          onClick={() => handleReportUser(b)}
-                          style={{
-                            flex: 1,
-                            background: "#111827",
-                            color: "#fecaca",
-                            borderColor: "#991b1b",
-                          }}
-                        >
-                          🚫 Report User
-                        </button>
-                      )}
                     </>
                   )}
 
                   {b.status === "completed" && (
-                    <>
-                      <div style={{ fontSize: 13, color: "#22c55e", flex: 1 }}>
-                        ✓ Job completed
-                      </div>
-
-                      {!isBookingReported(b.id) && (
-                        <button
-                          className="btn btn-outline"
-                          onClick={() => handleReportUser(b)}
-                          style={{
-                            flex: 1,
-                            background: "#111827",
-                            color: "#fecaca",
-                            borderColor: "#991b1b",
-                          }}
-                        >
-                          🚫 Report User
-                        </button>
-                      )}
-                    </>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: "#22c55e",
+                        flex: 1,
+                      }}
+                    >
+                      Job completed
+                    </div>
                   )}
 
                   {b.status === "cancelled" && (
-                    <div style={{ fontSize: 13, color: "#ef4444" }}>
-                      ✗ Job cancelled
+                    <div
+                      style={{ fontSize: 13, color: "#ef4444" }}
+                    >
+                      Job cancelled
                     </div>
+                  )}
+
+                  {isBookingReported(b.id) ? (
+                    <button
+                      className="btn btn-outline"
+                      disabled
+                      style={{
+                        flex: 1,
+                        background: "#111827",
+                        color: "#9ca3af",
+                        borderColor: "#4b5563",
+                        cursor: "default",
+                      }}
+                    >
+                      Reported
+                    </button>
+                  ) : (
+                    b.status !== "cancelled" && (
+                      <button
+                        className="btn btn-outline"
+                        onClick={() => handleReportUser(b)}
+                        style={{
+                          flex: 1,
+                          background: "#111827",
+                          color: "#fecaca",
+                          borderColor: "#991b1b",
+                        }}
+                      >
+                        Report User
+                      </button>
+                    )
                   )}
                 </div>
               </div>
@@ -687,15 +805,14 @@ export default function CaregiverDashboardPage() {
         </div>
       )}
 
-      {/* ========== PROFILE TAB ========== */}
+      {/* PROFILE TAB */}
       {activeTab === "profile" && (
         <div>
           <h3 style={{ color: "#e5e7eb", marginBottom: 12 }}>
             Edit Your Profile
           </h3>
-
           <form onSubmit={handleSaveProfile} className="form">
-            <label>Full Name *</label>
+            <label>Full Name</label>
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
@@ -712,7 +829,7 @@ export default function CaregiverDashboardPage() {
               maxLength={10}
             />
 
-            <label>Location *</label>
+            <label>Location</label>
             <input
               value={editLocation}
               onChange={(e) => setEditLocation(e.target.value)}
@@ -728,60 +845,60 @@ export default function CaregiverDashboardPage() {
               rows={4}
             />
 
-            {/* Category - NOW EDITABLE */}
-            <div style={{ marginBottom: "16px" }}>
+            {/* Category */}
+            <div style={{ marginBottom: 16 }}>
               <label
                 style={{
                   color: "#e5e7eb",
-                  fontWeight: "600",
-                  fontSize: "13px",
+                  fontWeight: 600,
+                  fontSize: 13,
                 }}
               >
-                Category *
+                Category
               </label>
-
               <select
                 value={editCategory}
                 onChange={(e) => setEditCategory(e.target.value)}
                 style={{
                   width: "100%",
                   padding: "10px 12px",
-                  borderRadius: "6px",
+                  borderRadius: 6,
                   border: "1px solid #1f2937",
                   background: "#111827",
                   color: "#e5e7eb",
-                  marginTop: "8px",
+                  marginTop: 8,
                   boxSizing: "border-box",
-                  fontSize: "13px",
+                  fontSize: 13,
                   cursor: "pointer",
                 }}
               >
                 <option value="caregiver">
-                  🏥 Care Giver (Only care giving services)
+                  Care Giver (care giving services)
                 </option>
                 <option value="household">
-                  🏠 Household (Only household services)
+                  Household (household services)
                 </option>
                 <option value="both">
-                  👥 Both (Care Giver & Household services)
+                  Both Care Giver & Household
                 </option>
               </select>
               <p
                 style={{
-                  fontSize: "11px",
+                  fontSize: 11,
                   color: "#9ca3af",
-                  marginTop: "6px",
+                  marginTop: 6,
                   margin: "6px 0 0 0",
                 }}
               >
                 {editCategory === "both"
-                  ? "✓ You can provide both care giving and household services"
+                  ? "You can provide both care giving and household services."
                   : editCategory === "caregiver"
-                    ? "You provide care giving services only"
-                    : "You provide household services only"}
+                  ? "You provide care giving services only."
+                  : "You provide household services only."}
               </p>
             </div>
 
+            {/* Availability */}
             <label>Availability</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <button
@@ -789,75 +906,93 @@ export default function CaregiverDashboardPage() {
                 onClick={() => setEditAvailable(true)}
                 style={{
                   padding: "8px 16px",
-                  borderRadius: "6px",
+                  borderRadius: 6,
                   border: editAvailable ? "none" : "1px solid #1f2937",
                   background: editAvailable ? "#22c55e" : "#111827",
-                  color: editAvailable ? "white" : "#e5e7eb",
+                  color: editAvailable ? "#ffffff" : "#e5e7eb",
                   cursor: "pointer",
-                  fontWeight: "600",
+                  fontWeight: 600,
                 }}
               >
-                ✓ Available
+                Available
               </button>
               <button
                 type="button"
                 onClick={() => setEditAvailable(false)}
                 style={{
                   padding: "8px 16px",
-                  borderRadius: "6px",
-                  border: !editAvailable ? "none" : "1px solid #1f2937",
+                  borderRadius: 6,
+                  border: !editAvailable
+                    ? "none"
+                    : "1px solid #1f2937",
                   background: !editAvailable ? "#ef4444" : "#111827",
-                  color: !editAvailable ? "white" : "#e5e7eb",
+                  color: !editAvailable ? "#ffffff" : "#e5e7eb",
                   cursor: "pointer",
-                  fontWeight: "600",
+                  fontWeight: 600,
                 }}
               >
-                ✗ Not Available
+                Not Available
               </button>
             </div>
 
+            {/* Work Type */}
             <label>Work Type</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <button
                 type="button"
                 onClick={() => {
-                  setEditWorkType("full_time");
+                  setEditWorkType("fulltime");
                   setEditShifts([]);
                 }}
                 style={{
                   padding: "8px 16px",
-                  borderRadius: "6px",
+                  borderRadius: 6,
                   border:
-                    editWorkType === "full_time" ? "none" : "1px solid #1f2937",
+                    editWorkType === "fulltime"
+                      ? "none"
+                      : "1px solid #1f2937",
                   background:
-                    editWorkType === "full_time" ? "#0ea5e9" : "#111827",
-                  color: editWorkType === "full_time" ? "white" : "#e5e7eb",
+                    editWorkType === "fulltime"
+                      ? "#0ea5e9"
+                      : "#111827",
+                  color:
+                    editWorkType === "fulltime"
+                      ? "#ffffff"
+                      : "#e5e7eb",
                   cursor: "pointer",
-                  fontWeight: "600",
+                  fontWeight: 600,
                 }}
               >
-                💼 Full Time
+                Full Time
               </button>
               <button
                 type="button"
-                onClick={() => setEditWorkType("part_time")}
+                onClick={() => setEditWorkType("parttime")}
                 style={{
                   padding: "8px 16px",
-                  borderRadius: "6px",
+                  borderRadius: 6,
                   border:
-                    editWorkType === "part_time" ? "none" : "1px solid #1f2937",
+                    editWorkType === "parttime"
+                      ? "none"
+                      : "1px solid #1f2937",
                   background:
-                    editWorkType === "part_time" ? "#fbbf24" : "#111827",
-                  color: editWorkType === "part_time" ? "black" : "#e5e7eb",
+                    editWorkType === "parttime"
+                      ? "#fbbf24"
+                      : "#111827",
+                  color:
+                    editWorkType === "parttime"
+                      ? "#000000"
+                      : "#e5e7eb",
                   cursor: "pointer",
-                  fontWeight: "600",
+                  fontWeight: 600,
                 }}
               >
-                ⏰ Part Time
+                Part Time
               </button>
             </div>
 
-            {editWorkType === "part_time" && (
+            {/* Shifts */}
+            {editWorkType === "parttime" && (
               <>
                 <label>Shifts</label>
                 <div
@@ -875,30 +1010,33 @@ export default function CaregiverDashboardPage() {
                       onClick={() => toggleShift(shift)}
                       style={{
                         padding: "6px 12px",
-                        borderRadius: "6px",
+                        borderRadius: 6,
                         border: editShifts.includes(shift)
                           ? "none"
                           : "1px solid #1f2937",
                         background: editShifts.includes(shift)
                           ? "#0ea5e9"
                           : "#111827",
-                        color: editShifts.includes(shift) ? "white" : "#e5e7eb",
+                        color: editShifts.includes(shift)
+                          ? "#ffffff"
+                          : "#e5e7eb",
                         cursor: "pointer",
                         fontSize: 12,
-                        fontWeight: "600",
+                        fontWeight: 600,
                       }}
                     >
                       {shift === "morning"
-                        ? "🌅 Morning"
+                        ? "Morning"
                         : shift === "day"
-                          ? "☀️ Day"
-                          : "🌙 Night"}
+                        ? "Day"
+                        : "Night"}
                     </button>
                   ))}
                 </div>
               </>
             )}
 
+            {/* Services */}
             <label>Services You Offer</label>
             <div
               style={{
@@ -908,59 +1046,60 @@ export default function CaregiverDashboardPage() {
                 marginBottom: 12,
               }}
             >
-              {services.length === 0 ? (
+              {services.length === 0 && (
                 <p style={{ fontSize: 12, color: "#9ca3af" }}>
-                  No services available
+                  No services available.
                 </p>
-              ) : (
-                services
-                  .filter((s) => {
-                    if (editCategory === "both") {
-                      return (
-                        s.organizationId === userDoc?.organizationId ||
-                        !s.organizationId
-                      );
-                    }
-                    return (
-                      (s.organizationId === userDoc?.organizationId ||
-                        !s.organizationId) &&
-                      (s.category === editCategory || s.category === "both")
-                    );
-                  })
-                  .map((service) => (
-                    <button
-                      key={service.id}
-                      type="button"
-                      onClick={() => toggleService(service.id)}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: "6px",
-                        border: editServices.includes(service.id)
-                          ? "none"
-                          : "1px solid #1f2937",
-                        background: editServices.includes(service.id)
-                          ? "#10b981"
-                          : "#111827",
-                        color: editServices.includes(service.id)
-                          ? "white"
-                          : "#e5e7eb",
-                        cursor: "pointer",
-                        fontSize: 12,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {service.label}
-                    </button>
-                  ))
               )}
+              {services
+                .filter((s) => {
+                  if (editCategory === "both") {
+                    return (
+                      s.organizationId === userDoc?.organizationId ||
+                      !s.organizationId
+                    );
+                  }
+                  return (
+                    (s.organizationId ===
+                      userDoc?.organizationId ||
+                      !s.organizationId) &&
+                    (s.category === editCategory ||
+                      s.category === "both")
+                  );
+                })
+                .map((service) => (
+                  <button
+                    key={service.id}
+                    type="button"
+                    onClick={() => toggleService(service.id)}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      border: editServices.includes(service.id)
+                        ? "none"
+                        : "1px solid #1f2937",
+                      background: editServices.includes(service.id)
+                        ? "#10b981"
+                        : "#111827",
+                      color: editServices.includes(service.id)
+                        ? "#ffffff"
+                        : "#e5e7eb",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {service.label}
+                  </button>
+                ))}
             </div>
 
-            <label>Hourly Rate (₹)</label>
+            <label>Hourly Rate</label>
             <input
               type="number"
               value={editHourlyRate}
               onChange={(e) => setEditHourlyRate(e.target.value)}
-              min="0"
+              min={0}
               placeholder="500"
             />
 
@@ -969,7 +1108,7 @@ export default function CaregiverDashboardPage() {
               type="number"
               value={editExperience}
               onChange={(e) => setEditExperience(e.target.value)}
-              min="0"
+              min={0}
               placeholder="0"
             />
 
@@ -983,15 +1122,20 @@ export default function CaregiverDashboardPage() {
             </button>
           </form>
 
-          {/* Change Password Section */}
+          {/* Change Password */}
           <div
             className="card"
             style={{ marginTop: 24, background: "#0b1120" }}
           >
-            <h3 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 12 }}>
+            <h3
+              style={{
+                color: "#e5e7eb",
+                marginTop: 0,
+                marginBottom: 12,
+              }}
+            >
               Change Password
             </h3>
-
             {!showPasswordSection ? (
               <button
                 type="button"
@@ -1003,101 +1147,61 @@ export default function CaregiverDashboardPage() {
                   border: "1px solid #1f2937",
                 }}
               >
-                🔒 Change Password
+                Change Password
               </button>
             ) : (
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setError(null);
-
-                  if (!currentPassword || !newPassword || !confirmPassword) {
-                    setError("Please fill all password fields");
-                    return;
-                  }
-
-                  if (newPassword.length < 6) {
-                    setError("New password must be at least 6 characters");
-                    return;
-                  }
-
-                  if (newPassword !== confirmPassword) {
-                    setError("New passwords do not match");
-                    return;
-                  }
-
-                  try {
-                    setChangingPassword(true);
-
-                    // Re-authenticate
-                    const credential = EmailAuthProvider.credential(
-                      user.email,
-                      currentPassword,
-                    );
-                    await reauthenticateWithCredential(user, credential);
-
-                    // Update password
-                    await updatePassword(user, newPassword);
-
-                    alert("Password changed successfully!");
-                    setCurrentPassword("");
-                    setNewPassword("");
-                    setConfirmPassword("");
-                    setShowPasswordSection(false);
-                  } catch (err) {
-                    console.error("Error changing password:", err);
-                    if (err.code === "auth/wrong-password") {
-                      setError("Current password is incorrect");
-                    } else if (err.code === "auth/requires-recent-login") {
-                      setError(
-                        "Please log out and log back in before changing password",
-                      );
-                    } else {
-                      setError(err.message || "Could not change password");
-                    }
-                  } finally {
-                    setChangingPassword(false);
-                  }
-                }}
-                className="form"
-              >
-                <label>Current Password *</label>
+              <form onSubmit={handleChangePassword} className="form">
+                <label>Current Password</label>
                 <input
                   type="password"
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  onChange={(e) =>
+                    setCurrentPassword(e.target.value)
+                  }
                   required
                   placeholder="Enter current password"
                 />
 
-                <label>New Password *</label>
+                <label>New Password</label>
                 <input
                   type="password"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e) =>
+                    setNewPassword(e.target.value)
+                  }
                   required
                   minLength={6}
                   placeholder="At least 6 characters"
                 />
 
-                <label>Confirm New Password *</label>
+                <label>Confirm New Password</label>
                 <input
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) =>
+                    setConfirmPassword(e.target.value)
+                  }
                   required
                   minLength={6}
                   placeholder="Re-enter new password"
                 />
 
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginTop: 12,
+                  }}
+                >
                   <button
                     type="submit"
                     className="btn btn-primary"
                     disabled={changingPassword}
                     style={{ flex: 1 }}
                   >
-                    {changingPassword ? "Changing..." : "Update Password"}
+                    {changingPassword
+                      ? "Changing..."
+                      : "Update Password"}
                   </button>
                   <button
                     type="button"
@@ -1123,7 +1227,7 @@ export default function CaregiverDashboardPage() {
             )}
           </div>
 
-          {/* Profile Status */}
+          {/* Profile status */}
           <div
             style={{
               marginTop: 24,
@@ -1133,22 +1237,44 @@ export default function CaregiverDashboardPage() {
               borderRadius: 8,
             }}
           >
-            <h4 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 12 }}>
+            <h4
+              style={{
+                color: "#e5e7eb",
+                marginTop: 0,
+                marginBottom: 12,
+              }}
+            >
               Profile Status
             </h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
                 <span
                   style={{
-                    color: profileData?.isApproved ? "#22c55e" : "#fbbf24",
+                    color: profileData?.isApproved
+                      ? "#22c55e"
+                      : "#fbbf24",
                   }}
                 >
-                  {profileData?.isApproved ? "✓" : "⏳"}
+                  ●
                 </span>
                 <span
                   style={{
                     fontSize: 13,
-                    color: profileData?.isApproved ? "#22c55e" : "#fbbf24",
+                    color: profileData?.isApproved
+                      ? "#22c55e"
+                      : "#fbbf24",
                   }}
                 >
                   {profileData?.isApproved
@@ -1165,28 +1291,46 @@ export default function CaregiverDashboardPage() {
                     margin: 0,
                   }}
                 >
-                  Your organization admin needs to approve your profile before
-                  you appear in listings
+                  Your organization admin needs to approve your profile
+                  before you appear in listings.
                 </p>
               )}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
                 <span
                   style={{
-                    color: profileData?.verified ? "#22c55e" : "#9ca3af",
+                    color: profileData?.verified
+                      ? "#22c55e"
+                      : "#9ca3af",
                   }}
                 >
-                  {profileData?.verified ? "✓" : "○"}
+                  ●
                 </span>
                 <span
                   style={{
                     fontSize: 13,
-                    color: profileData?.verified ? "#22c55e" : "#9ca3af",
+                    color: profileData?.verified
+                      ? "#22c55e"
+                      : "#9ca3af",
                   }}
                 >
                   ID verified
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
                 <span
                   style={{
                     color: profileData?.backgroundChecked
@@ -1194,7 +1338,7 @@ export default function CaregiverDashboardPage() {
                       : "#9ca3af",
                   }}
                 >
-                  {profileData?.backgroundChecked ? "✓" : "○"}
+                  ●
                 </span>
                 <span
                   style={{
@@ -1212,25 +1356,38 @@ export default function CaregiverDashboardPage() {
         </div>
       )}
 
-      {/* ========== EARNINGS TAB ========== */}
+      {/* EARNINGS TAB */}
       {activeTab === "earnings" && (
         <div>
           <div
             className="card"
             style={{ marginBottom: 16, background: "#0b1120" }}
           >
-            <h3 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 16 }}>
-              💰 Your Earnings
+            <h3
+              style={{
+                color: "#e5e7eb",
+                marginTop: 0,
+                marginBottom: 16,
+              }}
+            >
+              Your Earnings
             </h3>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(150px, 1fr))",
                 gap: 16,
               }}
             >
               <div>
-                <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "#9ca3af",
+                    margin: 0,
+                  }}
+                >
                   Total Earned
                 </p>
                 <p
@@ -1241,11 +1398,17 @@ export default function CaregiverDashboardPage() {
                     margin: 0,
                   }}
                 >
-                  ₹{earnings.total}
+                  {earnings.total}
                 </p>
               </div>
               <div>
-                <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "#9ca3af",
+                    margin: 0,
+                  }}
+                >
                   Your Balance
                 </p>
                 <p
@@ -1256,14 +1419,26 @@ export default function CaregiverDashboardPage() {
                     margin: 0,
                   }}
                 >
-                  ₹{Math.round(earnings.commissioned)}
+                  {Math.round(earnings.commissioned)}
                 </p>
-                <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>
-                  (After {COMMISSION_RATE}% commission)
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: "#6b7280",
+                    margin: 0,
+                  }}
+                >
+                  After {COMMISSION_RATE}% commission
                 </p>
               </div>
               <div>
-                <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "#9ca3af",
+                    margin: 0,
+                  }}
+                >
                   Completed Jobs
                 </p>
                 <p
@@ -1278,7 +1453,13 @@ export default function CaregiverDashboardPage() {
                 </p>
               </div>
               <div>
-                <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "#9ca3af",
+                    margin: 0,
+                  }}
+                >
                   Platform Fee
                 </p>
                 <p
@@ -1289,30 +1470,48 @@ export default function CaregiverDashboardPage() {
                     margin: 0,
                   }}
                 >
-                  ₹{Math.round((earnings.total * COMMISSION_RATE) / 100)}
+                  {Math.round(
+                    (earnings.total * COMMISSION_RATE) / 100
+                  )}
                 </p>
-                <p style={{ fontSize: 10, color: "#6b7280", margin: 0 }}>
-                  ({COMMISSION_RATE}%)
+                <p
+                  style={{
+                    fontSize: 10,
+                    color: "#6b7280",
+                    margin: 0,
+                  }}
+                >
+                  {COMMISSION_RATE}%
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Earnings Breakdown */}
-          <h4 style={{ color: "#e5e7eb", marginBottom: 12 }}>
+          <h4
+            style={{
+              color: "#e5e7eb",
+              marginBottom: 12,
+            }}
+          >
             Earnings Breakdown
           </h4>
-
-          {bookings.filter((b) => b.status === "completed").length === 0 ? (
+          {bookings.filter((b) => b.status === "completed").length ===
+          0 ? (
             <div className="empty-state">
-              <p style={{ color: "#9ca3af" }}>No completed jobs yet</p>
+              <p style={{ color: "#9ca3af" }}>
+                No completed jobs yet.
+              </p>
             </div>
           ) : (
             <div>
               {bookings
                 .filter((b) => b.status === "completed")
                 .map((b) => (
-                  <div key={b.id} className="card" style={{ marginBottom: 8 }}>
+                  <div
+                    key={b.id}
+                    className="card"
+                    style={{ marginBottom: 8 }}
+                  >
                     <div
                       style={{
                         display: "flex",
@@ -1322,14 +1521,22 @@ export default function CaregiverDashboardPage() {
                     >
                       <div>
                         <p
-                          style={{ margin: 0, fontSize: 13, color: "#e5e7eb" }}
+                          style={{
+                            margin: 0,
+                            fontSize: 13,
+                            color: "#e5e7eb",
+                          }}
                         >
                           <strong>{b.userName}</strong>
                         </p>
                         <p
-                          style={{ margin: 0, fontSize: 11, color: "#9ca3af" }}
+                          style={{
+                            margin: 0,
+                            fontSize: 11,
+                            color: "#9ca3af",
+                          }}
                         >
-                          {b.date} · {b.durationHours}h
+                          {b.date} • {b.durationHours}h
                         </p>
                       </div>
                       <div style={{ textAlign: "right" }}>
@@ -1341,13 +1548,19 @@ export default function CaregiverDashboardPage() {
                             fontWeight: "bold",
                           }}
                         >
-                          +₹
-                          {Math.round(b.vendorEarnings || b.totalAmount * 0.85)}
+                          {Math.round(
+                            b.vendorEarnings ??
+                              (b.totalAmount || 0) * 0.85
+                          )}
                         </p>
                         <p
-                          style={{ margin: 0, fontSize: 10, color: "#9ca3af" }}
+                          style={{
+                            margin: 0,
+                            fontSize: 10,
+                            color: "#9ca3af",
+                          }}
                         >
-                          (₹{b.totalAmount} - {COMMISSION_RATE}% fee)
+                          {b.totalAmount} - {COMMISSION_RATE}% fee
                         </p>
                       </div>
                     </div>
