@@ -50,8 +50,7 @@ export default function OrganizationDashboard() {
   const [addingService, setAddingService] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [editServiceLabel, setEditServiceLabel] = useState("");
-  const [editServiceCategory, setEditServiceCategory] =
-    useState("caregiver");
+  const [editServiceCategory, setEditServiceCategory] = useState("caregiver");
 
   // Blacklist
   const [orgBlacklist, setOrgBlacklist] = useState([]);
@@ -61,6 +60,16 @@ export default function OrganizationDashboard() {
   const [blacklistReason, setBlacklistReason] = useState("");
   const [blacklistDescription, setBlacklistDescription] = useState("");
   const [blacklisting, setBlacklisting] = useState(false);
+
+  // NEW: org profile editing
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editProfileData, setEditProfileData] = useState({
+    organizationName: "",
+    businessPhone: "",
+    businessAddress: "",
+    businessCity: "",
+    commissionRate: 15,
+  });
 
   // Load data
   useEffect(() => {
@@ -73,13 +82,23 @@ export default function OrganizationDashboard() {
         // Organization info
         const orgSnap = await getDoc(doc(db, "organizations", user.uid));
         if (orgSnap.exists()) {
-          setOrganizationData(orgSnap.data());
+          const data = orgSnap.data();
+          setOrganizationData(data);
+
+          // sync edit form with loaded data
+          setEditProfileData({
+            organizationName: data.organizationName || "",
+            businessPhone: data.businessPhone || "",
+            businessAddress: data.businessAddress || "",
+            businessCity: data.businessCity || "",
+            commissionRate: data.commissionRate ?? 15,
+          });
         }
 
-        // Caregivers (vendors)
+        // Caregivers (vendors linked to this org)
         const caregiversQuery = query(
           collection(db, "vendors"),
-          where("organizationId", "==", user.uid)
+          where("organizationId", "==", user.uid),
         );
         const caregiversSnap = await getDocs(caregiversQuery);
         const caregiversData = caregiversSnap.docs.map((d) => ({
@@ -93,7 +112,7 @@ export default function OrganizationDashboard() {
         if (caregiverIds.length > 0) {
           const bookingsQuery = query(
             collection(db, "bookings"),
-            where("caregiverId", "in", caregiverIds.slice(0, 10))
+            where("caregiverId", "in", caregiverIds.slice(0, 10)),
           );
           const bookingsSnap = await getDocs(bookingsQuery);
           const bookingsData = bookingsSnap.docs.map((d) => ({
@@ -116,7 +135,7 @@ export default function OrganizationDashboard() {
         // Organization blacklist
         const blacklistQueryRef = query(
           collection(db, "organizationBlacklist"),
-          where("organizationId", "==", user.uid)
+          where("organizationId", "==", user.uid),
         );
         const blacklistSnap = await getDocs(blacklistQueryRef);
         const blacklistData = blacklistSnap.docs.map((d) => ({
@@ -135,7 +154,7 @@ export default function OrganizationDashboard() {
     loadData();
   }, [user]);
 
-  // Add caregiver
+  // Add caregiver (always created as pending; approval is admin-only)
   const handleAddCaregiver = async (e) => {
     e.preventDefault();
     setError("");
@@ -145,7 +164,7 @@ export default function OrganizationDashboard() {
       const caregiverCred = await createUserWithEmailAndPassword(
         auth,
         caregiverEmail,
-        caregiverPassword
+        caregiverPassword,
       );
       const caregiverUid = caregiverCred.user.uid;
 
@@ -156,7 +175,7 @@ export default function OrganizationDashboard() {
         role: "caregiver",
         phone: caregiverPhone,
         createdAt: new Date().toISOString(),
-        isApproved: false, // org must approve
+        isApproved: false, // admin will approve
         isSuspended: false,
         profileComplete: true,
         organizationId: user.uid,
@@ -187,7 +206,7 @@ export default function OrganizationDashboard() {
         verified: false,
         backgroundChecked: false,
         isAvailable: true,
-        isApproved: false,
+        isApproved: false, // admin-only approval
         isSuspended: false,
         totalEarnings: 0,
         pendingEarnings: 0,
@@ -212,7 +231,7 @@ export default function OrganizationDashboard() {
       });
 
       alert(
-        "Caregiver added successfully! Don't forget to approve them."
+        "Caregiver added successfully! Approval will be handled by platform admin.",
       );
 
       // reset form
@@ -232,7 +251,7 @@ export default function OrganizationDashboard() {
       // reload caregivers
       const caregiversQuery = query(
         collection(db, "vendors"),
-        where("organizationId", "==", user.uid)
+        where("organizationId", "==", user.uid),
       );
       const caregiversSnap = await getDocs(caregiversQuery);
       const caregiversData = caregiversSnap.docs.map((d) => ({
@@ -252,72 +271,10 @@ export default function OrganizationDashboard() {
     }
   };
 
-  // Approve caregiver
-  const handleApproveCaregiver = async (caregiverId) => {
-    try {
-      await updateDoc(doc(db, "vendors", caregiverId), {
-        isApproved: true,
-        approvedAt: serverTimestamp(),
-        approvedBy: user.uid,
-        approvedByName: userDoc?.name || "",
-      });
-      await updateDoc(doc(db, "users", caregiverId), {
-        isApproved: true,
-      });
-      alert(
-        "Caregiver approved! They can now appear in listings and receive bookings."
-      );
-
-      const caregiversQuery = query(
-        collection(db, "vendors"),
-        where("organizationId", "==", user.uid)
-      );
-      const caregiversSnap = await getDocs(caregiversQuery);
-      const caregiversData = caregiversSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-      setCaregivers(caregiversData);
-    } catch (err) {
-      console.error("Error approving caregiver", err);
-      alert("Could not approve caregiver.");
-    }
-  };
-
-  // Reject caregiver
-  const handleRejectCaregiver = async (caregiverId) => {
-    const reason = window.prompt("Enter rejection reason");
-    if (!reason) return;
-    try {
-      await updateDoc(doc(db, "vendors", caregiverId), {
-        isApproved: false,
-        rejectionReason: reason,
-        rejectedAt: serverTimestamp(),
-      });
-      alert("Caregiver rejected.");
-
-      const caregiversQuery = query(
-        collection(db, "vendors"),
-        where("organizationId", "==", user.uid)
-      );
-      const caregiversSnap = await getDocs(caregiversQuery);
-      const caregiversData = caregiversSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-      setCaregivers(caregiversData);
-    } catch (err) {
-      console.error("Error rejecting caregiver", err);
-      alert("Could not reject caregiver.");
-    }
-  };
-
-  // Delete caregiver
+  // Delete caregiver (org can still remove their own caregivers)
   const handleDeleteCaregiver = async (caregiverId, caregiverNameToShow) => {
     if (
-      !window.confirm(
-        `Delete ${caregiverNameToShow}? This cannot be undone.`
-      )
+      !window.confirm(`Delete ${caregiverNameToShow}? This cannot be undone.`)
     ) {
       return;
     }
@@ -330,15 +287,10 @@ export default function OrganizationDashboard() {
       const currentCaregivers = orgSnap.data()?.caregivers || [];
       await updateDoc(orgRef, {
         caregivers: currentCaregivers.filter((id) => id !== caregiverId),
-        totalCaregivers: Math.max(
-          0,
-          (currentCaregivers.length || 1) - 1
-        ),
+        totalCaregivers: Math.max(0, (currentCaregivers.length || 1) - 1),
       });
 
-      setCaregivers((prev) =>
-        prev.filter((c) => c.id !== caregiverId)
-      );
+      setCaregivers((prev) => prev.filter((c) => c.id !== caregiverId));
       alert("Caregiver removed successfully.");
     } catch (err) {
       console.error("Error deleting caregiver", err);
@@ -476,21 +428,15 @@ export default function OrganizationDashboard() {
       });
 
       // suspend caregiver
-      await updateDoc(
-        doc(db, "vendors", selectedCaregiverToBlacklist.id),
-        {
-          isSuspended: true,
-          suspendedBy: user.uid,
-          suspendedReason: blacklistReason,
-          suspendedAt: serverTimestamp(),
-        }
-      );
-      await updateDoc(
-        doc(db, "users", selectedCaregiverToBlacklist.id),
-        {
-          isSuspended: true,
-        }
-      );
+      await updateDoc(doc(db, "vendors", selectedCaregiverToBlacklist.id), {
+        isSuspended: true,
+        suspendedBy: user.uid,
+        suspendedReason: blacklistReason,
+        suspendedAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, "users", selectedCaregiverToBlacklist.id), {
+        isSuspended: true,
+      });
 
       alert("Caregiver blacklisted and suspended successfully!");
       setShowBlacklistForm(false);
@@ -500,7 +446,7 @@ export default function OrganizationDashboard() {
 
       const caregiversQuery = query(
         collection(db, "vendors"),
-        where("organizationId", "==", user.uid)
+        where("organizationId", "==", user.uid),
       );
       const caregiversSnap = await getDocs(caregiversQuery);
       const caregiversData = caregiversSnap.docs.map((d) => ({
@@ -511,7 +457,7 @@ export default function OrganizationDashboard() {
 
       const blacklistQueryRef = query(
         collection(db, "organizationBlacklist"),
-        where("organizationId", "==", user.uid)
+        where("organizationId", "==", user.uid),
       );
       const blacklistSnap = await getDocs(blacklistQueryRef);
       const blacklistData = blacklistSnap.docs.map((d) => ({
@@ -530,7 +476,7 @@ export default function OrganizationDashboard() {
   const handleRemoveFromBlacklist = async (blacklistId, caregiverId) => {
     if (
       !window.confirm(
-        "Remove this caregiver from blacklist? They will be unsuspended."
+        "Remove this caregiver from blacklist? They will be unsuspended.",
       )
     ) {
       return;
@@ -552,7 +498,7 @@ export default function OrganizationDashboard() {
 
       const blacklistQueryRef = query(
         collection(db, "organizationBlacklist"),
-        where("organizationId", "==", user.uid)
+        where("organizationId", "==", user.uid),
       );
       const blacklistSnap = await getDocs(blacklistQueryRef);
       const blacklistData = blacklistSnap.docs.map((d) => ({
@@ -563,7 +509,7 @@ export default function OrganizationDashboard() {
 
       const caregiversQuery = query(
         collection(db, "vendors"),
-        where("organizationId", "==", user.uid)
+        where("organizationId", "==", user.uid),
       );
       const caregiversSnap = await getDocs(caregiversQuery);
       const caregiversData = caregiversSnap.docs.map((d) => ({
@@ -579,9 +525,7 @@ export default function OrganizationDashboard() {
 
   const toggleShift = (shift) => {
     if (caregiverShifts.includes(shift)) {
-      setCaregiverShifts(
-        caregiverShifts.filter((s) => s !== shift)
-      );
+      setCaregiverShifts(caregiverShifts.filter((s) => s !== shift));
     } else {
       setCaregiverShifts([...caregiverShifts, shift]);
     }
@@ -589,9 +533,7 @@ export default function OrganizationDashboard() {
 
   const toggleService = (serviceId) => {
     if (caregiverServices.includes(serviceId)) {
-      setCaregiverServices(
-        caregiverServices.filter((s) => s !== serviceId)
-      );
+      setCaregiverServices(caregiverServices.filter((s) => s !== serviceId));
     } else {
       setCaregiverServices([...caregiverServices, serviceId]);
     }
@@ -633,12 +575,10 @@ export default function OrganizationDashboard() {
             textAlign: "center",
           }}
         >
-          <h3 style={{ marginTop: 0, marginBottom: 8 }}>
-            Approval Pending
-          </h3>
+          <h3 style={{ marginTop: 0, marginBottom: 8 }}>Approval Pending</h3>
           <p style={{ margin: 0 }}>
-            Your organization is pending approval from Ghar Sathi team.
-            You&apos;ll be notified once approved.
+            Your organization is pending approval from Sewak team. You&apos;ll
+            be notified once approved.
           </p>
         </div>
 
@@ -653,8 +593,7 @@ export default function OrganizationDashboard() {
               margin: "8px 0",
             }}
           >
-            <strong>Name:</strong>{" "}
-            {organizationData?.organizationName}
+            <strong>Name:</strong> {organizationData?.organizationName}
           </p>
           <p
             style={{
@@ -680,7 +619,7 @@ export default function OrganizationDashboard() {
   }
 
   const completedBookings = bookings.filter(
-    (b) => b.status === "completed"
+    (b) => b.status === "completed",
   ).length;
   const totalRevenue = bookings
     .filter((b) => b.status === "completed")
@@ -689,9 +628,7 @@ export default function OrganizationDashboard() {
     .filter((b) => b.status === "completed")
     .reduce((sum, b) => sum + (b.vendorEarnings || 0), 0);
 
-  const orgServices = services.filter(
-    (s) => s.organizationId === user?.uid
-  );
+  const orgServices = services.filter((s) => s.organizationId === user?.uid);
   const globalServices = services.filter((s) => !s.organizationId);
 
   return (
@@ -708,20 +645,20 @@ export default function OrganizationDashboard() {
       >
         Manage your caregiver team, services, and track performance.
       </p>
-
       {error && <div className="error-message">{error}</div>}
-
       {/* Stats */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(150px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
           gap: 12,
           marginBottom: 24,
         }}
       >
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
           <p
             style={{
               fontSize: 12,
@@ -742,7 +679,10 @@ export default function OrganizationDashboard() {
             {caregivers.length}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
           <p
             style={{
               fontSize: 12,
@@ -760,14 +700,13 @@ export default function OrganizationDashboard() {
               margin: 0,
             }}
           >
-            {
-              caregivers.filter(
-                (c) => c.isAvailable && c.isApproved
-              ).length
-            }
+            {caregivers.filter((c) => c.isAvailable && c.isApproved).length}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
           <p
             style={{
               fontSize: 12,
@@ -788,7 +727,10 @@ export default function OrganizationDashboard() {
             {bookings.length}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
           <p
             style={{
               fontSize: 12,
@@ -809,7 +751,10 @@ export default function OrganizationDashboard() {
             {completedBookings}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
           <p
             style={{
               fontSize: 12,
@@ -830,7 +775,10 @@ export default function OrganizationDashboard() {
             {totalRevenue}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div
+          className="card"
+          style={{ background: "#0b1120", textAlign: "center" }}
+        >
           <p
             style={{
               fontSize: 12,
@@ -861,7 +809,6 @@ export default function OrganizationDashboard() {
           </p>
         </div>
       </div>
-
       {/* Tabs */}
       <div
         className="choice-buttons"
@@ -903,7 +850,6 @@ export default function OrganizationDashboard() {
           Profile
         </button>
       </div>
-
       {/* CAREGIVERS TAB */}
       {activeTab === "caregivers" && (
         <div>
@@ -915,9 +861,7 @@ export default function OrganizationDashboard() {
             }}
             style={{ marginBottom: 16 }}
           >
-            {showAddCaregiverForm
-              ? "Cancel"
-              : "Add New Caregiver"}
+            {showAddCaregiverForm ? "Cancel" : "Add New Caregiver"}
           </button>
 
           {showAddCaregiverForm && (
@@ -928,16 +872,11 @@ export default function OrganizationDashboard() {
               <h3 style={{ color: "#e5e7eb", marginTop: 0 }}>
                 Add New Caregiver
               </h3>
-              <form
-                onSubmit={handleAddCaregiver}
-                className="form"
-              >
+              <form onSubmit={handleAddCaregiver} className="form">
                 <label>Full Name</label>
                 <input
                   value={caregiverName}
-                  onChange={(e) =>
-                    setCaregiverName(e.target.value)
-                  }
+                  onChange={(e) => setCaregiverName(e.target.value)}
                   required
                   placeholder="Caregiver's full name"
                 />
@@ -946,9 +885,7 @@ export default function OrganizationDashboard() {
                 <input
                   type="email"
                   value={caregiverEmail}
-                  onChange={(e) =>
-                    setCaregiverEmail(e.target.value)
-                  }
+                  onChange={(e) => setCaregiverEmail(e.target.value)}
                   required
                   placeholder="caregiver@example.com"
                 />
@@ -957,9 +894,7 @@ export default function OrganizationDashboard() {
                 <input
                   type="password"
                   value={caregiverPassword}
-                  onChange={(e) =>
-                    setCaregiverPassword(e.target.value)
-                  }
+                  onChange={(e) => setCaregiverPassword(e.target.value)}
                   required
                   minLength={6}
                   placeholder="At least 6 characters"
@@ -969,9 +904,7 @@ export default function OrganizationDashboard() {
                 <input
                   type="tel"
                   value={caregiverPhone}
-                  onChange={(e) =>
-                    setCaregiverPhone(e.target.value)
-                  }
+                  onChange={(e) => setCaregiverPhone(e.target.value)}
                   placeholder="98XXXXXXXX"
                   maxLength={10}
                 />
@@ -979,9 +912,7 @@ export default function OrganizationDashboard() {
                 <label>Location</label>
                 <input
                   value={caregiverLocation}
-                  onChange={(e) =>
-                    setCaregiverLocation(e.target.value)
-                  }
+                  onChange={(e) => setCaregiverLocation(e.target.value)}
                   required
                   placeholder="e.g., Kathmandu"
                 />
@@ -989,19 +920,11 @@ export default function OrganizationDashboard() {
                 <label>Category</label>
                 <select
                   value={caregiverCategory}
-                  onChange={(e) =>
-                    setCaregiverCategory(e.target.value)
-                  }
+                  onChange={(e) => setCaregiverCategory(e.target.value)}
                 >
-                  <option value="caregiver">
-                    Care Giver
-                  </option>
-                  <option value="household">
-                    Household
-                  </option>
-                  <option value="both">
-                    Both Care Giver & Household
-                  </option>
+                  <option value="caregiver">Care Giver</option>
+                  <option value="household">Household</option>
+                  <option value="both">Both Care Giver & Household</option>
                 </select>
                 <p
                   style={{
@@ -1056,9 +979,7 @@ export default function OrganizationDashboard() {
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      setCaregiverWorkType("parttime")
-                    }
+                    onClick={() => setCaregiverWorkType("parttime")}
                     style={{
                       padding: "8px 16px",
                       borderRadius: 6,
@@ -1093,48 +1014,35 @@ export default function OrganizationDashboard() {
                         marginBottom: 12,
                       }}
                     >
-                      {["morning", "day", "night"].map(
-                        (shift) => (
-                          <button
-                            key={shift}
-                            type="button"
-                            onClick={() =>
-                              toggleShift(shift)
-                            }
-                            style={{
-                              padding: "6px 12px",
-                              borderRadius: 6,
-                              border:
-                                caregiverShifts.includes(
-                                  shift
-                                )
-                                  ? "none"
-                                  : "1px solid #1f2937",
-                              background:
-                                caregiverShifts.includes(
-                                  shift
-                                )
-                                  ? "#0ea5e9"
-                                  : "#111827",
-                              color:
-                                caregiverShifts.includes(
-                                  shift
-                                )
-                                  ? "#ffffff"
-                                  : "#e5e7eb",
-                              cursor: "pointer",
-                              fontSize: 12,
-                              fontWeight: 600,
-                            }}
-                          >
-                            {shift === "morning"
-                              ? "Morning"
-                              : shift === "day"
+                      {["morning", "day", "night"].map((shift) => (
+                        <button
+                          key={shift}
+                          type="button"
+                          onClick={() => toggleShift(shift)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 6,
+                            border: caregiverShifts.includes(shift)
+                              ? "none"
+                              : "1px solid #1f2937",
+                            background: caregiverShifts.includes(shift)
+                              ? "#0ea5e9"
+                              : "#111827",
+                            color: caregiverShifts.includes(shift)
+                              ? "#ffffff"
+                              : "#e5e7eb",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {shift === "morning"
+                            ? "Morning"
+                            : shift === "day"
                               ? "Day"
                               : "Night"}
-                          </button>
-                        )
-                      )}
+                        </button>
+                      ))}
                     </div>
                   </>
                 )}
@@ -1155,21 +1063,19 @@ export default function OrganizationDashboard() {
                         color: "#9ca3af",
                       }}
                     >
-                      No services available. Add services first
-                      in the Services tab.
+                      No services available. Add services first in the Services
+                      tab.
                     </p>
                   )}
                   {services
                     .filter((s) => {
                       if (caregiverCategory === "both") {
                         return (
-                          s.organizationId === user.uid ||
-                          !s.organizationId
+                          s.organizationId === user.uid || !s.organizationId
                         );
                       }
                       return (
-                        (s.organizationId === user.uid ||
-                          !s.organizationId) &&
+                        (s.organizationId === user.uid || !s.organizationId) &&
                         (s.category === caregiverCategory ||
                           s.category === "both")
                       );
@@ -1178,30 +1084,19 @@ export default function OrganizationDashboard() {
                       <button
                         key={service.id}
                         type="button"
-                        onClick={() =>
-                          toggleService(service.id)
-                        }
+                        onClick={() => toggleService(service.id)}
                         style={{
                           padding: "6px 12px",
                           borderRadius: 6,
-                          border:
-                            caregiverServices.includes(
-                              service.id
-                            )
-                              ? "none"
-                              : "1px solid #1f2937",
-                          background:
-                            caregiverServices.includes(
-                              service.id
-                            )
-                              ? "#10b981"
-                              : "#111827",
-                          color:
-                            caregiverServices.includes(
-                              service.id
-                            )
-                              ? "#ffffff"
-                              : "#e5e7eb",
+                          border: caregiverServices.includes(service.id)
+                            ? "none"
+                            : "1px solid #1f2937",
+                          background: caregiverServices.includes(service.id)
+                            ? "#10b981"
+                            : "#111827",
+                          color: caregiverServices.includes(service.id)
+                            ? "#ffffff"
+                            : "#e5e7eb",
                           cursor: "pointer",
                           fontSize: 12,
                           fontWeight: 600,
@@ -1211,27 +1106,24 @@ export default function OrganizationDashboard() {
                       </button>
                     ))}
                 </div>
-                {caregiverCategory === "both" &&
-                  services.length > 0 && (
-                    <p
-                      style={{
-                        fontSize: 11,
-                        color: "#0ea5e9",
-                        marginTop: -8,
-                      }}
-                    >
-                      Showing all available services (both
-                      caregiver and household).
-                    </p>
-                  )}
+                {caregiverCategory === "both" && services.length > 0 && (
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: "#0ea5e9",
+                      marginTop: -8,
+                    }}
+                  >
+                    Showing all available services (both caregiver and
+                    household).
+                  </p>
+                )}
 
                 <label>Hourly Rate</label>
                 <input
                   type="number"
                   value={caregiverHourlyRate}
-                  onChange={(e) =>
-                    setCaregiverHourlyRate(e.target.value)
-                  }
+                  onChange={(e) => setCaregiverHourlyRate(e.target.value)}
                   required
                   min={0}
                   placeholder="500"
@@ -1241,9 +1133,7 @@ export default function OrganizationDashboard() {
                 <input
                   type="number"
                   value={caregiverExperience}
-                  onChange={(e) =>
-                    setCaregiverExperience(e.target.value)
-                  }
+                  onChange={(e) => setCaregiverExperience(e.target.value)}
                   min={0}
                   placeholder="0"
                 />
@@ -1254,9 +1144,7 @@ export default function OrganizationDashboard() {
                   disabled={addingCaregiver}
                   style={{ marginTop: 16 }}
                 >
-                  {addingCaregiver
-                    ? "Adding Caregiver..."
-                    : "Add Caregiver"}
+                  {addingCaregiver ? "Adding Caregiver..." : "Add Caregiver"}
                 </button>
               </form>
             </div>
@@ -1265,18 +1153,15 @@ export default function OrganizationDashboard() {
           {caregivers.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon" />
-              <p className="empty-state-title">
-                No caregivers yet
-              </p>
+              <p className="empty-state-title">No caregivers yet</p>
               <p className="empty-state-text">
-                Add caregivers to your organization to start
-                receiving bookings.
+                Add caregivers to your organization to start receiving bookings.
               </p>
             </div>
           ) : (
             caregivers.map((caregiver) => {
               const isBlacklisted = orgBlacklist.some(
-                (b) => b.caregiverId === caregiver.id
+                (b) => b.caregiverId === caregiver.id,
               );
               return (
                 <div
@@ -1336,33 +1221,22 @@ export default function OrganizationDashboard() {
                         alignItems: "flex-end",
                       }}
                     >
-                      {caregiver.isApproved ? (
-                        <span
-                          style={{
-                            background: "#dcfce7",
-                            color: "#15803d",
-                            padding: "4px 8px",
-                            borderRadius: 4,
-                            fontSize: 11,
-                            fontWeight: 600,
-                          }}
-                        >
-                          Approved
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            background: "#fef3c7",
-                            color: "#92400e",
-                            padding: "4px 8px",
-                            borderRadius: 4,
-                            fontSize: 11,
-                            fontWeight: 600,
-                          }}
-                        >
-                          Pending Approval
-                        </span>
-                      )}
+                      <span
+                        style={{
+                          background: caregiver.isApproved
+                            ? "#dcfce7"
+                            : "#fef3c7",
+                          color: caregiver.isApproved ? "#15803d" : "#92400e",
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {caregiver.isApproved
+                          ? "Approved by Admin"
+                          : "Pending Admin Approval"}
+                      </span>
                       {caregiver.isAvailable ? (
                         <span
                           style={{
@@ -1421,8 +1295,8 @@ export default function OrganizationDashboard() {
                       {caregiver.category === "both"
                         ? "Both"
                         : caregiver.category === "caregiver"
-                        ? "Care Giver"
-                        : "Household"}
+                          ? "Care Giver"
+                          : "Household"}
                     </p>
                     <p style={{ margin: "0 0 6px 0" }}>
                       <strong>Work Type:</strong>{" "}
@@ -1436,16 +1310,13 @@ export default function OrganizationDashboard() {
                     </p>
                     <p style={{ margin: "0 0 6px 0" }}>
                       <strong>Services:</strong>{" "}
-                      {caregiver.servicesOffered?.join(", ") ||
-                        "None"}
+                      {caregiver.servicesOffered?.join(", ") || "None"}
                     </p>
                     <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>Hourly Rate:</strong>{" "}
-                      {caregiver.hourlyRate}/hour
+                      <strong>Hourly Rate:</strong> {caregiver.hourlyRate}/hour
                     </p>
                     <p style={{ margin: "0 0 6px 0" }}>
-                      <strong>Experience:</strong>{" "}
-                      {caregiver.experience} years
+                      <strong>Experience:</strong> {caregiver.experience} years
                     </p>
                     <p style={{ margin: 0 }}>
                       <strong>Jobs Completed:</strong>{" "}
@@ -1461,45 +1332,32 @@ export default function OrganizationDashboard() {
                       flexWrap: "wrap",
                     }}
                   >
-                    {!caregiver.isApproved &&
-                      !isBlacklisted && (
-                        <>
-                          <button
-                            className="btn btn-primary"
-                            onClick={() =>
-                              handleApproveCaregiver(
-                                caregiver.id
-                              )
-                            }
-                            style={{ flex: 1 }}
-                          >
-                            Approve Caregiver
-                          </button>
-                          <button
-                            className="btn btn-outline"
-                            onClick={() =>
-                              handleRejectCaregiver(
-                                caregiver.id
-                              )
-                            }
-                            style={{
-                              flex: 1,
-                              background: "#111827",
-                              color: "#e5e7eb",
-                              border: "1px solid #1f2937",
-                            }}
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
+                    {/* Read-only approval note for org */}
+                    <div
+                      style={{
+                        marginTop: 8,
+                        fontSize: 12,
+                        color: "#9ca3af",
+                        flexBasis: "100%",
+                      }}
+                    >
+                      Status:{" "}
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          color: caregiver.isApproved ? "#22c55e" : "#f59e0b",
+                        }}
+                      >
+                        {caregiver.isApproved
+                          ? "Approved by Admin"
+                          : "Pending Admin Approval"}
+                      </span>
+                    </div>
 
                     {caregiver.isApproved && !isBlacklisted && (
                       <button
                         className="btn btn-outline"
-                        onClick={() =>
-                          openBlacklistForm(caregiver)
-                        }
+                        onClick={() => openBlacklistForm(caregiver)}
                         style={{
                           flex: 1,
                           background: "#7f1d1d",
@@ -1516,7 +1374,7 @@ export default function OrganizationDashboard() {
                       onClick={() =>
                         handleDeleteCaregiver(
                           caregiver.id,
-                          caregiver.name || "this caregiver"
+                          caregiver.name || "this caregiver",
                         )
                       }
                       style={{
@@ -1535,19 +1393,15 @@ export default function OrganizationDashboard() {
           )}
         </div>
       )}
-
       {/* BOOKINGS TAB */}
       {activeTab === "bookings" && (
         <div>
           {bookings.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon" />
-              <p className="empty-state-title">
-                No bookings yet
-              </p>
+              <p className="empty-state-title">No bookings yet</p>
               <p className="empty-state-text">
-                Bookings will appear here when customers book your
-                caregivers.
+                Bookings will appear here when customers book your caregivers.
               </p>
             </div>
           ) : (
@@ -1582,8 +1436,7 @@ export default function OrganizationDashboard() {
                         marginTop: 4,
                       }}
                     >
-                      Customer: {booking.userName} (
-                      {booking.userPhone})
+                      Customer: {booking.userName} ({booking.userPhone})
                     </div>
                   </div>
                   <div>
@@ -1593,18 +1446,18 @@ export default function OrganizationDashboard() {
                           booking.status === "completed"
                             ? "#dcfce7"
                             : booking.status === "accepted"
-                            ? "#dbeafe"
-                            : booking.status === "pending"
-                            ? "#fef3c7"
-                            : "#fee2e2",
+                              ? "#dbeafe"
+                              : booking.status === "pending"
+                                ? "#fef3c7"
+                                : "#fee2e2",
                         color:
                           booking.status === "completed"
                             ? "#15803d"
                             : booking.status === "accepted"
-                            ? "#0369a1"
-                            : booking.status === "pending"
-                            ? "#92400e"
-                            : "#991b1b",
+                              ? "#0369a1"
+                              : booking.status === "pending"
+                                ? "#92400e"
+                                : "#991b1b",
                         padding: "4px 8px",
                         borderRadius: 4,
                         fontSize: 11,
@@ -1626,16 +1479,13 @@ export default function OrganizationDashboard() {
                   }}
                 >
                   <p style={{ margin: "0 0 6px 0" }}>
-                    <strong>Date:</strong>{" "}
-                    {booking.date || "NA"}
+                    <strong>Date:</strong> {booking.date || "NA"}
                   </p>
                   <p style={{ margin: "0 0 6px 0" }}>
-                    <strong>Time:</strong>{" "}
-                    {booking.time || "NA"}
+                    <strong>Time:</strong> {booking.time || "NA"}
                   </p>
                   <p style={{ margin: "0 0 6px 0" }}>
-                    <strong>Amount:</strong>{" "}
-                    {booking.totalAmount || 0}
+                    <strong>Amount:</strong> {booking.totalAmount || 0}
                   </p>
                   {booking.status === "completed" && (
                     <p
@@ -1645,9 +1495,7 @@ export default function OrganizationDashboard() {
                       }}
                     >
                       <strong>Earnings:</strong>{" "}
-                      {Math.round(
-                        booking.vendorEarnings || 0
-                      )}
+                      {Math.round(booking.vendorEarnings || 0)}
                     </p>
                   )}
                 </div>
@@ -1656,7 +1504,6 @@ export default function OrganizationDashboard() {
           )}
         </div>
       )}
-
       {/* SERVICES TAB */}
       {activeTab === "services" && (
         <div>
@@ -1679,17 +1526,12 @@ export default function OrganizationDashboard() {
               <h3 style={{ color: "#e5e7eb", marginTop: 0 }}>
                 Add New Service
               </h3>
-              <form
-                onSubmit={handleAddService}
-                className="form"
-              >
+              <form onSubmit={handleAddService} className="form">
                 <label>Service Name</label>
                 <input
                   type="text"
                   value={newServiceLabel}
-                  onChange={(e) =>
-                    setNewServiceLabel(e.target.value)
-                  }
+                  onChange={(e) => setNewServiceLabel(e.target.value)}
                   required
                   placeholder="e.g., Elderly Care"
                 />
@@ -1697,16 +1539,10 @@ export default function OrganizationDashboard() {
                 <label>Category</label>
                 <select
                   value={newServiceCategory}
-                  onChange={(e) =>
-                    setNewServiceCategory(e.target.value)
-                  }
+                  onChange={(e) => setNewServiceCategory(e.target.value)}
                 >
-                  <option value="caregiver">
-                    Care Giver
-                  </option>
-                  <option value="household">
-                    Household
-                  </option>
+                  <option value="caregiver">Care Giver</option>
+                  <option value="household">Household</option>
                   <option value="both">Both</option>
                 </select>
                 <p
@@ -1716,8 +1552,8 @@ export default function OrganizationDashboard() {
                     marginTop: 4,
                   }}
                 >
-                  Choose whether this service is for caregivers or
-                  household workers.
+                  Choose whether this service is for caregivers or household
+                  workers.
                 </p>
 
                 <button
@@ -1732,17 +1568,13 @@ export default function OrganizationDashboard() {
             </div>
           )}
 
-          <h4
-            style={{ color: "#e5e7eb", marginBottom: 12 }}
-          >
+          <h4 style={{ color: "#e5e7eb", marginBottom: 12 }}>
             Your Services ({orgServices.length})
           </h4>
           {orgServices.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon" />
-              <p className="empty-state-title">
-                No services yet
-              </p>
+              <p className="empty-state-title">No services yet</p>
               <p className="empty-state-text">
                 Add services that your caregivers can offer.
               </p>
@@ -1751,8 +1583,7 @@ export default function OrganizationDashboard() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(250px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
                 gap: 12,
               }}
             >
@@ -1763,25 +1594,15 @@ export default function OrganizationDashboard() {
                       <label>Service Name</label>
                       <input
                         value={editServiceLabel}
-                        onChange={(e) =>
-                          setEditServiceLabel(e.target.value)
-                        }
+                        onChange={(e) => setEditServiceLabel(e.target.value)}
                       />
                       <label>Category</label>
                       <select
                         value={editServiceCategory}
-                        onChange={(e) =>
-                          setEditServiceCategory(
-                            e.target.value
-                          )
-                        }
+                        onChange={(e) => setEditServiceCategory(e.target.value)}
                       >
-                        <option value="caregiver">
-                          Care Giver
-                        </option>
-                        <option value="household">
-                          Household
-                        </option>
+                        <option value="caregiver">Care Giver</option>
+                        <option value="household">Household</option>
                         <option value="both">Both</option>
                       </select>
                       <div
@@ -1805,9 +1626,7 @@ export default function OrganizationDashboard() {
                           onClick={() => {
                             setEditingService(null);
                             setEditServiceLabel("");
-                            setEditServiceCategory(
-                              "caregiver"
-                            );
+                            setEditServiceCategory("caregiver");
                           }}
                           style={{
                             flex: 1,
@@ -1841,8 +1660,8 @@ export default function OrganizationDashboard() {
                         {service.category === "both"
                           ? "Both"
                           : service.category === "caregiver"
-                          ? "Care Giver"
-                          : "Household"}
+                            ? "Care Giver"
+                            : "Household"}
                       </p>
                       <p
                         style={{
@@ -1853,14 +1672,10 @@ export default function OrganizationDashboard() {
                       >
                         ID: {service.id}
                       </p>
-                      <div
-                        style={{ display: "flex", gap: 8 }}
-                      >
+                      <div style={{ display: "flex", gap: 8 }}>
                         <button
                           className="btn btn-outline"
-                          onClick={() =>
-                            startEditService(service)
-                          }
+                          onClick={() => startEditService(service)}
                           style={{
                             flex: 1,
                             background: "#111827",
@@ -1873,10 +1688,7 @@ export default function OrganizationDashboard() {
                         <button
                           className="btn btn-outline"
                           onClick={() =>
-                            handleDeleteService(
-                              service.id,
-                              service.label
-                            )
+                            handleDeleteService(service.id, service.label)
                           }
                           style={{
                             flex: 1,
@@ -1924,8 +1736,7 @@ export default function OrganizationDashboard() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(200px, 1fr))",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
                   gap: 12,
                 }}
               >
@@ -1954,9 +1765,7 @@ export default function OrganizationDashboard() {
                         margin: "4px 0 0 0",
                       }}
                     >
-                      {service.category === "both"
-                        ? "Both"
-                        : service.category}
+                      {service.category === "both" ? "Both" : service.category}
                     </p>
                   </div>
                 ))}
@@ -1965,24 +1774,19 @@ export default function OrganizationDashboard() {
           )}
         </div>
       )}
-
       {/* BLACKLIST TAB */}
       {activeTab === "blacklist" && (
         <div>
-          <h3
-            style={{ color: "#e5e7eb", marginBottom: 12 }}
-          >
+          <h3 style={{ color: "#e5e7eb", marginBottom: 12 }}>
             Blacklisted Caregivers ({orgBlacklist.length})
           </h3>
           {orgBlacklist.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon" />
-              <p className="empty-state-title">
-                No blacklisted caregivers
-              </p>
+              <p className="empty-state-title">No blacklisted caregivers</p>
               <p className="empty-state-text">
-                Caregivers you blacklist will be suspended and
-                won&apos;t receive jobs.
+                Caregivers you blacklist will be suspended and won&apos;t
+                receive jobs.
               </p>
             </div>
           ) : (
@@ -2025,8 +1829,7 @@ export default function OrganizationDashboard() {
                         color: "#9ca3af",
                       }}
                     >
-                      Blacklisted by{" "}
-                      {blacklisted.blacklistedByName}
+                      Blacklisted by {blacklisted.blacklistedByName}
                     </div>
                     <div
                       style={{
@@ -2065,8 +1868,7 @@ export default function OrganizationDashboard() {
                   }}
                 >
                   <p style={{ margin: "0 0 6px 0" }}>
-                    <strong>Reason:</strong>{" "}
-                    {blacklisted.reason}
+                    <strong>Reason:</strong> {blacklisted.reason}
                   </p>
                   <p
                     style={{
@@ -2078,8 +1880,7 @@ export default function OrganizationDashboard() {
                       paddingLeft: 10,
                     }}
                   >
-                    <strong>Description:</strong>{" "}
-                    {blacklisted.description}
+                    <strong>Description:</strong> {blacklisted.description}
                   </p>
                 </div>
 
@@ -2088,7 +1889,7 @@ export default function OrganizationDashboard() {
                   onClick={() =>
                     handleRemoveFromBlacklist(
                       blacklisted.id,
-                      blacklisted.caregiverId
+                      blacklisted.caregiverId,
                     )
                   }
                   style={{
@@ -2106,130 +1907,319 @@ export default function OrganizationDashboard() {
         </div>
       )}
 
-      {/* PROFILE TAB */}
-      {activeTab === "profile" && (
-        <div>
+{/* PROFILE TAB ONLY */}
+{activeTab === "profile" && (
+      <div>
+        <div className="card" style={{ background: "#0b1120" }}>
           <div
-            className="card"
-            style={{ background: "#0b1120" }}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
           >
             <h3
               style={{
                 color: "#e5e7eb",
                 marginTop: 0,
+                marginBottom: 0,
               }}
             >
               Organization Information
             </h3>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#e5e7eb",
-                margin: "12px 0",
-              }}
+            <button
+              className="btn btn-outline"
+              onClick={() => setEditingProfile(true)}
             >
-              <strong>Organization Name:</strong>{" "}
-              {organizationData?.organizationName}
-            </p>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#e5e7eb",
-                margin: "12px 0",
-              }}
-            >
-              <strong>Admin Name:</strong>{" "}
-              {organizationData?.adminName}
-            </p>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#e5e7eb",
-                margin: "12px 0",
-              }}
-            >
-              <strong>Email:</strong>{" "}
-              {organizationData?.adminEmail}
-            </p>
-            {organizationData?.businessPhone && (
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#e5e7eb",
-                  margin: "12px 0",
-                }}
-              >
-                <strong>Phone:</strong>{" "}
-                {organizationData.businessPhone}
-              </p>
-            )}
-            {organizationData?.businessAddress && (
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#e5e7eb",
-                  margin: "12px 0",
-                }}
-              >
-                <strong>Address:</strong>{" "}
-                {organizationData.businessAddress},{" "}
-                {organizationData.businessCity}
-              </p>
-            )}
-            <p
-              style={{
-                fontSize: 13,
-                color: "#e5e7eb",
-                margin: "12px 0",
-              }}
-            >
-              <strong>Total Caregivers:</strong>{" "}
-              {organizationData?.totalCaregivers || 0}
-            </p>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#e5e7eb",
-                margin: "12px 0",
-              }}
-            >
-              <strong>Commission Rate:</strong>{" "}
-              {organizationData?.commissionRate ?? 15}%
-            </p>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#e5e7eb",
-                margin: "12px 0",
-              }}
-            >
-              <strong>Status:</strong>{" "}
-              {organizationData?.isApproved ? (
-                <span style={{ color: "#22c55e" }}>
-                  Approved
-                </span>
-              ) : (
-                <span style={{ color: "#fbbf24" }}>
-                  Pending Approval
-                </span>
-              )}
-            </p>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#e5e7eb",
-                margin: "12px 0",
-              }}
-            >
-              <strong>Joined:</strong>{" "}
-              {organizationData?.createdAt
-                ? new Date(
-                    organizationData.createdAt
-                  ).toLocaleDateString()
-                : "NA"}
-            </p>
+              ✏️ Edit Profile
+            </button>
           </div>
+
+          <p
+            style={{
+              fontSize: 13,
+              color: "#e5e7eb",
+              margin: "12px 0",
+            }}
+          >
+            <strong>Organization Name:</strong>{" "}
+            {organizationData?.organizationName}
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#e5e7eb",
+              margin: "12px 0",
+            }}
+          >
+            <strong>Admin Name:</strong> {organizationData?.adminName}
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#e5e7eb",
+              margin: "12px 0",
+            }}
+          >
+            <strong>Email:</strong> {organizationData?.adminEmail}
+          </p>
+          {organizationData?.businessPhone && (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#e5e7eb",
+                margin: "12px 0",
+              }}
+            >
+              <strong>Phone:</strong> {organizationData.businessPhone}
+            </p>
+          )}
+          {organizationData?.businessAddress && (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#e5e7eb",
+                margin: "12px 0",
+              }}
+            >
+              <strong>Address:</strong> {organizationData.businessAddress},{" "}
+              {organizationData.businessCity}
+            </p>
+          )}
+          <p
+            style={{
+              fontSize: 13,
+              color: "#e5e7eb",
+              margin: "12px 0",
+            }}
+          >
+            <strong>Total Caregivers:</strong>{" "}
+            {organizationData?.totalCaregivers || 0}
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#e5e7eb",
+              margin: "12px 0",
+            }}
+          >
+            <strong>Commission Rate:</strong>{" "}
+            {organizationData?.commissionRate ?? 15}%
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#e5e7eb",
+              margin: "12px 0",
+            }}
+          >
+            <strong>Status:</strong>{" "}
+            {organizationData?.isApproved ? (
+              <span style={{ color: "#22c55e" }}>Approved</span>
+            ) : (
+              <span style={{ color: "#fbbf24" }}>Pending Approval</span>
+            )}
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#e5e7eb",
+              margin: "12px 0",
+            }}
+          >
+            <strong>Joined:</strong>{" "}
+            {organizationData?.createdAt
+              ? new Date(organizationData.createdAt).toLocaleDateString()
+              : "NA"}
+          </p>
         </div>
+
+      
+        {editingProfile && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.7)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 60,
+            }}
+          >
+            <div
+              style={{
+                background: "#020617",
+                borderRadius: 8,
+                padding: 24,
+                maxWidth: 500,
+                width: "90%",
+                boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+                border: "1px solid #1f2937",
+                maxHeight: "90vh",
+                overflowY: "auto",
+              }}
+            >
+              <h3
+                style={{
+                  marginTop: 0,
+                  marginBottom: 16,
+                  color: "#e5e7eb",
+                }}
+              >
+                Edit organization profile
+              </h3>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setError("");
+                  try {
+                    const orgId = organizationData.organizationId || user.uid;
+
+                    await updateDoc(doc(db, "organizations", orgId), {
+                      organizationName: editProfileData.organizationName || "",
+                      businessPhone: editProfileData.businessPhone || "",
+                      businessAddress: editProfileData.businessAddress || "",
+                      businessCity: editProfileData.businessCity || "",
+                      commissionRate:
+                        Number(editProfileData.commissionRate) || 15,
+                      updatedAt: new Date().toISOString(),
+                    });
+
+                    if (organizationData.adminUid) {
+                      await updateDoc(
+                        doc(db, "users", organizationData.adminUid),
+                        {
+                          organizationName:
+                            editProfileData.organizationName || "",
+                          businessPhone: editProfileData.businessPhone || "",
+                          businessAddress:
+                            editProfileData.businessAddress || "",
+                          businessCity: editProfileData.businessCity || "",
+                        },
+                      );
+                    }
+
+                    setOrganizationData((prev) => ({
+                      ...prev,
+                      ...editProfileData,
+                      commissionRate:
+                        Number(editProfileData.commissionRate) || 15,
+                    }));
+
+                    setEditingProfile(false); // this hides the modal
+                    alert("Profile updated.");
+                  } catch (err) {
+                    console.error("Error updating organization profile", err);
+                    setError("Could not update profile.");
+                  }
+                }}
+                className="form"
+              >
+                {" "}
+                <label>Organization Name</label>
+                <input
+                  type="text"
+                  alue={editProfileData.organizationName}
+                  onChange={(e) =>
+                    setEditProfileData((prev) => ({
+                      ...prev,
+                      organizationName: e.target.value,
+                    }))
+                  }
+                  required
+                />
+                <label>Business Phone</label>
+                <input
+                  type="text"
+                  value={editProfileData.businessPhone}
+                  onChange={(e) =>
+                    setEditProfileData((prev) => ({
+                      ...prev,
+                      businessPhone: e.target.value,
+                    }))
+                  }
+                />
+                <label>City</label>
+                <input
+                  type="text"
+                  value={editProfileData.businessCity}
+                  onChange={(e) =>
+                    setEditProfileData((prev) => ({
+                      ...prev,
+                      businessCity: e.target.value,
+                    }))
+                  }
+                />
+                <label>Address</label>
+                <input
+                  type="text"
+                  value={editProfileData.businessAddress}
+                  onChange={(e) =>
+                    setEditProfileData((prev) => ({
+                      ...prev,
+                      businessAddress: e.target.value,
+                    }))
+                  }
+                />
+                <label>Commission Rate (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editProfileData.commissionRate}
+                  onChange={(e) =>
+                    setEditProfileData((prev) => ({
+                      ...prev,
+                      commissionRate: e.target.value,
+                    }))
+                  }
+                />
+                {error && (
+                  <p
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: "#fca5a5",
+                    }}
+                  >
+                    {error}
+                  </p>
+                )}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginTop: 16,
+                  }}
+                >
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ flex: 1 }}
+                  >
+                    Save changes
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => setEditingProfile(false)}
+                    style={{
+                      flex: 1,
+                      background: "#111827",
+                      color: "#e5e7eb",
+                      border: "1px solid #1f2937",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
       )}
 
       {/* Blacklist modal */}
@@ -2274,11 +2264,7 @@ export default function OrganizationDashboard() {
                 marginBottom: 16,
               }}
             >
-              Blacklist{" "}
-              <strong>
-                {selectedCaregiverToBlacklist.name}
-              </strong>
-              ?
+              Blacklist <strong>{selectedCaregiverToBlacklist.name}</strong>?
             </p>
             <div
               style={{
@@ -2291,53 +2277,34 @@ export default function OrganizationDashboard() {
                 border: "1px solid #fcd34d",
               }}
             >
-              <strong>Warning:</strong> This will suspend the
-              caregiver and prevent them from receiving new jobs.
-              Use only for serious violations.
+              <strong>Warning:</strong> This will suspend the caregiver and
+              prevent them from receiving new jobs. Use only for serious
+              violations.
             </div>
-            <form
-              onSubmit={handleBlacklistCaregiver}
-              className="form"
-            >
+            <form onSubmit={handleBlacklistCaregiver} className="form">
               <label>Reason</label>
               <select
                 value={blacklistReason}
-                onChange={(e) =>
-                  setBlacklistReason(e.target.value)
-                }
+                onChange={(e) => setBlacklistReason(e.target.value)}
                 required
               >
                 <option value="">Select a reason</option>
                 <option value="Unprofessional behavior">
                   Unprofessional behavior
                 </option>
-                <option value="Poor performance">
-                  Poor performance
-                </option>
-                <option value="Frequent absences">
-                  Frequent absences
-                </option>
-                <option value="Customer complaints">
-                  Customer complaints
-                </option>
-                <option value="Violation of policy">
-                  Violation of policy
-                </option>
-                <option value="Theft or fraud">
-                  Theft or fraud
-                </option>
-                <option value="Safety concerns">
-                  Safety concerns
-                </option>
+                <option value="Poor performance">Poor performance</option>
+                <option value="Frequent absences">Frequent absences</option>
+                <option value="Customer complaints">Customer complaints</option>
+                <option value="Violation of policy">Violation of policy</option>
+                <option value="Theft or fraud">Theft or fraud</option>
+                <option value="Safety concerns">Safety concerns</option>
                 <option value="Other">Other</option>
               </select>
 
               <label>Description</label>
               <textarea
                 value={blacklistDescription}
-                onChange={(e) =>
-                  setBlacklistDescription(e.target.value)
-                }
+                onChange={(e) => setBlacklistDescription(e.target.value)}
                 required
                 placeholder="Provide detailed information about the issue..."
                 rows={4}
@@ -2361,9 +2328,7 @@ export default function OrganizationDashboard() {
                     border: "none",
                   }}
                 >
-                  {blacklisting
-                    ? "Blacklisting..."
-                    : "Blacklist Caregiver"}
+                  {blacklisting ? "Blacklisting..." : "Blacklist Caregiver"}
                 </button>
                 <button
                   type="button"

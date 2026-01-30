@@ -12,9 +12,8 @@ import { useAuth } from "./AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export default function UserProfilePage() {
-  const { user, userDoc } = useAuth(); // ✅ FIXED - Added userDoc
+  const { user, userDoc } = useAuth(); 
   const navigate = useNavigate();
-
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -168,7 +167,7 @@ export default function UserProfilePage() {
 
       // Redirect to browse page after 1.5 seconds
       setTimeout(() => {
-        navigate("/user");
+        navigate("/browse");
       }, 1500);
     } catch (err) {
       console.error("Error saving profile:", err);

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import AuthPage from "./AuthPage";
 import UserProfilePage from "./UserProfilePage";
@@ -15,14 +15,16 @@ import Header from "./components/Header";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebaseConfig";
 import "./App.css";
+import logoSewak from "./logoSewak.jpeg";
 
 function App() {
   const { user, loading, userRole, userDoc } = useAuth();
   const [selectedCaregiver, setSelectedCaregiver] = useState(null);
   const [showMyBookings, setShowMyBookings] = useState(false);
-  const [userCategory, setUserCategory] = useState("both");
+  const [userCategory, setUserCategory] = useState("");
   const [userWorkType, setUserWorkType] = useState("");
   const [userShift, setUserShift] = useState("");
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
@@ -34,12 +36,38 @@ function App() {
     }
   };
 
-  if (loading)
+  useEffect(() => {
+    if (!user || !userRole) return;
+
+    const path = window.location.pathname;
+
+    // Only auto-redirect from neutral pages
+    if (path === "/" || path === "/browse" || path === "/auth") {
+      if (userRole === "org_admin") {
+        navigate("/organization/profile", { replace: true });
+      } else if (userRole === "user") {
+        navigate("/user/profile", { replace: true });
+      }
+    }
+  }, [user, userRole, navigate]);
+
+  // Global loading state while Firebase auth initializes
+  if (loading) {
     return (
       <div style={{ textAlign: "center", paddingTop: 50, color: "#9ca3af" }}>
         <p>Loading...</p>
       </div>
     );
+  }
+
+  // Prevent routing until Firestore userRole is known
+  if (user && !userRole) {
+    return (
+      <div style={{ textAlign: "center", paddingTop: 50, color: "#9ca3af" }}>
+        <p>Loading your dashboard...</p>
+      </div>
+    );
+  }
 
   // NOT LOGGED IN - PUBLIC ROUTES
   if (!user) {
@@ -51,11 +79,24 @@ function App() {
             <div className="app-shell">
               <div className="app-card">
                 <div className="app-header">
-                  <div>
-                    <h1 className="app-title">Ghar Sathi</h1>
-                    <p className="app-subtitle">
-                      Find trusted caregivers for your family
-                    </p>
+                  <div
+                    className="header-logo"
+                    onClick={() => navigate("/")}
+                    style={{
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <img
+                      src={logoSewak}
+                      alt="Sewak"
+                      style={{ height: 40, width: "auto" }}
+                    />
+                    <h1 style={{ margin: 0, color: "#0ea5e9", fontSize: 22 }}>
+                      Sewak
+                    </h1>
                   </div>
                   <div className="app-header-actions">
                     <button
@@ -72,21 +113,27 @@ function App() {
                   <div className="choice-buttons">
                     <button
                       type="button"
-                      className={`choice-btn ${userCategory === "both" ? "active" : ""}`}
+                      className={`choice-btn ${
+                        userCategory === "both" ? "active" : ""
+                      }`}
                       onClick={() => setUserCategory("both")}
                     >
                       👥 Both
                     </button>
                     <button
                       type="button"
-                      className={`choice-btn ${userCategory === "caregiver" ? "active" : ""}`}
+                      className={`choice-btn ${
+                        userCategory === "caregiver" ? "active" : ""
+                      }`}
                       onClick={() => setUserCategory("caregiver")}
                     >
                       🏥 Care Giver
                     </button>
                     <button
                       type="button"
-                      className={`choice-btn ${userCategory === "household" ? "active" : ""}`}
+                      className={`choice-btn ${
+                        userCategory === "household" ? "active" : ""
+                      }`}
                       onClick={() => setUserCategory("household")}
                     >
                       🏠 Household
@@ -99,7 +146,9 @@ function App() {
                   <div className="choice-buttons">
                     <button
                       type="button"
-                      className={`choice-btn ${userWorkType === "full_time" ? "active" : ""}`}
+                      className={`choice-btn ${
+                        userWorkType === "full_time" ? "active" : ""
+                      }`}
                       onClick={() => {
                         setUserWorkType("full_time");
                         setUserShift("");
@@ -109,7 +158,9 @@ function App() {
                     </button>
                     <button
                       type="button"
-                      className={`choice-btn ${userWorkType === "part_time" ? "active" : ""}`}
+                      className={`choice-btn ${
+                        userWorkType === "part_time" ? "active" : ""
+                      }`}
                       onClick={() => setUserWorkType("part_time")}
                     >
                       ⏰ Part time
@@ -125,10 +176,16 @@ function App() {
                         <button
                           key={s}
                           type="button"
-                          className={`choice-btn ${userShift === s ? "active" : ""}`}
+                          className={`choice-btn ${
+                            userShift === s ? "active" : ""
+                          }`}
                           onClick={() => setUserShift(s)}
                         >
-                          {s === "morning" ? "🌅 Morning" : s === "day" ? "☀️ Day" : "🌙 Night"}
+                          {s === "morning"
+                            ? "🌅 Morning"
+                            : s === "day"
+                              ? "☀️ Day"
+                              : "🌙 Night"}
                         </button>
                       ))}
                     </div>
@@ -140,6 +197,7 @@ function App() {
                   preselectedWorkType={userWorkType}
                   preselectedShift={userShift}
                   userCategory={userCategory}
+                  onChangeUserCategory={setUserCategory}
                   requireLogin={true}
                 />
               </div>
@@ -147,17 +205,25 @@ function App() {
           }
         />
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/caregiver/reportuser" element={<CaregiverReportUserPage />} />
+        <Route
+          path="/caregiver/reportuser"
+          element={<CaregiverReportUserPage />}
+        />
         <Route path="*" element={<Navigate to="/browse" replace />} />
       </Routes>
     );
   }
 
-  // LOGGED IN - CHECK PROFILE COMPLETION FOR USERS
+  // LOGGED IN - FORCE PROFILE COMPLETION FOR NORMAL USERS
   if (userRole === "user" && !userDoc?.profileComplete) {
     return (
       <>
-        <Header user={user} userRole={userRole} userDoc={userDoc} onLogout={handleLogout} />
+        <Header
+          user={user}
+          userRole={userRole}
+          userDoc={userDoc}
+          onLogout={handleLogout}
+        />
         <Routes>
           <Route path="/user/profile" element={<UserProfilePage />} />
           <Route path="*" element={<Navigate to="/user/profile" replace />} />
@@ -166,12 +232,17 @@ function App() {
     );
   }
 
-  // LOGGED IN - ROLE-BASED ROUTES
+  // LOGGED IN - ROUTES BY ROLE
   return (
     <>
-      <Header user={user} userRole={userRole} userDoc={userDoc} onLogout={handleLogout} />
+      <Header
+        user={user}
+        userRole={userRole}
+        userDoc={userDoc}
+        onLogout={handleLogout}
+      />
       <Routes>
-        {/* USER/CUSTOMER ROUTES */}
+        {/* USER ROUTES */}
         {userRole === "user" && (
           <>
             <Route path="/user/profile" element={<UserProfilePage />} />
@@ -183,7 +254,7 @@ function App() {
                     <div className="app-card">
                       <div className="app-header">
                         <div>
-                          <h1 className="app-title">Ghar Sathi – Booking</h1>
+                          <h1 className="app-title">Sewak – Booking</h1>
                           <p className="app-subtitle">
                             Confirm service details
                           </p>
@@ -230,7 +301,7 @@ function App() {
                     <div className="app-card">
                       <div className="app-header">
                         <div>
-                          <h1 className="app-title">Ghar Sathi</h1>
+                          <h1 className="app-title">Sewak</h1>
                           <p className="app-subtitle">
                             Find trusted caregivers
                           </p>
@@ -250,21 +321,27 @@ function App() {
                         <div className="choice-buttons">
                           <button
                             type="button"
-                            className={`choice-btn ${userCategory === "both" ? "active" : ""}`}
+                            className={`choice-btn ${
+                              userCategory === "both" ? "active" : ""
+                            }`}
                             onClick={() => setUserCategory("both")}
                           >
                             👥 Both
                           </button>
                           <button
                             type="button"
-                            className={`choice-btn ${userCategory === "caregiver" ? "active" : ""}`}
+                            className={`choice-btn ${
+                              userCategory === "caregiver" ? "active" : ""
+                            }`}
                             onClick={() => setUserCategory("caregiver")}
                           >
                             🏥 Care Giver
                           </button>
                           <button
                             type="button"
-                            className={`choice-btn ${userCategory === "household" ? "active" : ""}`}
+                            className={`choice-btn ${
+                              userCategory === "household" ? "active" : ""
+                            }`}
                             onClick={() => setUserCategory("household")}
                           >
                             🏠 Household
@@ -277,7 +354,9 @@ function App() {
                         <div className="choice-buttons">
                           <button
                             type="button"
-                            className={`choice-btn ${userWorkType === "full_time" ? "active" : ""}`}
+                            className={`choice-btn ${
+                              userWorkType === "full_time" ? "active" : ""
+                            }`}
                             onClick={() => {
                               setUserWorkType("full_time");
                               setUserShift("");
@@ -287,7 +366,9 @@ function App() {
                           </button>
                           <button
                             type="button"
-                            className={`choice-btn ${userWorkType === "part_time" ? "active" : ""}`}
+                            className={`choice-btn ${
+                              userWorkType === "part_time" ? "active" : ""
+                            }`}
                             onClick={() => setUserWorkType("part_time")}
                           >
                             ⏰ Part time
@@ -303,10 +384,16 @@ function App() {
                               <button
                                 key={s}
                                 type="button"
-                                className={`choice-btn ${userShift === s ? "active" : ""}`}
+                                className={`choice-btn ${
+                                  userShift === s ? "active" : ""
+                                }`}
                                 onClick={() => setUserShift(s)}
                               >
-                                {s === "morning" ? "🌅 Morning" : s === "day" ? "☀️ Day" : "🌙 Night"}
+                                {s === "morning"
+                                  ? "🌅 Morning"
+                                  : s === "day"
+                                    ? "☀️ Day"
+                                    : "🌙 Night"}
                               </button>
                             ))}
                           </div>
@@ -318,6 +405,7 @@ function App() {
                         preselectedWorkType={userWorkType}
                         preselectedShift={userShift}
                         userCategory={userCategory}
+                        onChangeUserCategory={setUserCategory}
                         requireLogin={false}
                       />
                     </div>
@@ -371,7 +459,10 @@ function App() {
         )}
 
         {/* Report user page */}
-        <Route path="/caregiver/reportuser" element={<CaregiverReportUserPage />} />
+        <Route
+          path="/caregiver/reportuser"
+          element={<CaregiverReportUserPage />}
+        />
 
         {/* Fallback redirects */}
         <Route

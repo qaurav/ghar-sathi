@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Header.css";
+import logoSewak from '../logoSewak.jpeg'
 
 export default function Header({ user, userRole, userDoc, onLogout }) {
   const navigate = useNavigate();
@@ -53,13 +54,18 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
     <header className="header">
       <div className="header-container">
         {/* Logo */}
-        <div
-          className="header-logo"
-          onClick={() => handleNavigate("/")}
-          style={{ cursor: "pointer" }}
-        >
-          <h1 style={{ margin: 0, color: "#0ea5e9", fontSize: 24 }}>Ghar Sathi</h1>
-        </div>
+       <div
+  className="header-logo"
+  onClick={() => handleNavigate("/")}
+  style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}
+>
+  <img
+    src={logoSewak}
+    alt="Sewak"
+    style={{ height: 40, width: "auto" }}
+  />
+  <h1 style={{ margin: 0, color: "#0ea5e9", fontSize: 22 }}>Sewak</h1>
+</div>
 
         {/* User Menu */}
         <div className="header-menu">

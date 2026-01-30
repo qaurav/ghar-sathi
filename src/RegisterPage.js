@@ -1,7 +1,9 @@
+// src/RegisterPage.js (updated)
 import React, { useState } from "react";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebaseConfig";
+import { saveOrganizationRecord } from "./saveOrganizationRecord"; // NEW import
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -17,13 +19,9 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Create user in Firebase Auth
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Update display name
       await updateProfile(cred.user, { displayName: name });
 
-      // Prepare user data
       let userData = {
         uid: cred.user.uid,
         name,
@@ -34,44 +32,39 @@ export default function RegisterPage() {
         isSuspended: false,
       };
 
-      // If caregiver, add vendor fields
-      if (role === "caregiver") {
+      // If self‑registered organization admin
+      if (role === "org_admin") {
         userData = {
           ...userData,
-          category: "caregiver",
-          services: [],
-          servicesOffered: [],
-          workType: "part_time",
-          shifts: [],
-          location: "",
-          bio: "",
-          experience: 0,
-          jobsCompleted: 0,
-          rating: 5,
-          reviewCount: 0,
-          hourlyRate: 0,
-          verified: false,
-          backgroundChecked: false,
-          totalEarnings: 0,
-          pendingEarnings: 0,
-          vendorId: cred.user.uid,
-          phone: "",
-          isAvailable: true,
-          satisfactionRate: 95,
+          profileComplete: false,
+          isApproved: false,
+          organizationName: "",
+          businessPhone: "",
+          businessAddress: "",
+          businessCity: "",
         };
 
-        // Create vendor profile
-        await setDoc(doc(db, "vendors", cred.user.uid), userData);
+        // NEW: create basic organizations doc so admin dashboard can see this org
+        await saveOrganizationRecord({
+          orgUid: cred.user.uid,
+          organizationName: "",
+          adminName: name,
+          adminEmail: email,
+          businessPhone: "",
+          businessAddress: "",
+          businessCity: "",
+        });
       }
 
       // Create user document
       await setDoc(doc(db, "users", cred.user.uid), userData);
 
-      // Redirect handled by AuthContext
+      await signOut(auth);
+      window.location.href = "/auth";
+      // Redirect handled by AuthContext (org_admin -> /organization)
     } catch (err) {
       console.error("Registration error:", err);
-      
-      // Handle specific errors
+
       if (err.code === "auth/email-already-in-use") {
         setError("This email is already registered. Please log in instead.");
       } else if (err.code === "auth/weak-password") {
@@ -89,9 +82,11 @@ export default function RegisterPage() {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <h2 style={{ color: "#e5e7eb", marginBottom: 8 }}>Create your account</h2>
+        <h2 style={{ color: "#e5e7eb", marginBottom: 8 }}>
+          Create your account
+        </h2>
         <p style={{ color: "#9ca3af", fontSize: 14, marginBottom: 20 }}>
-          Join Ghar Sathi as a user or service provider
+          Join Sewak as a user or organization
         </p>
 
         {error && (
@@ -138,9 +133,13 @@ export default function RegisterPage() {
           />
 
           <label>I am registering as a...</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)} required>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            required
+          >
             <option value="user">👨‍👩‍👧 Family / User (Hiring)</option>
-            <option value="caregiver">👩‍💼 Caregiver / Service Provider</option>
+            <option value="org_admin">🏢 Organization (Service Provider)</option>
           </select>
 
           <button
@@ -153,7 +152,14 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: 16, textAlign: "center", fontSize: 12, color: "#9ca3af" }}>
+        <div
+          style={{
+            marginTop: 16,
+            textAlign: "center",
+            fontSize: 12,
+            color: "#9ca3af",
+          }}
+        >
           Already have an account?{" "}
           <button
             type="button"

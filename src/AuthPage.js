@@ -126,7 +126,7 @@ export default function AuthPage() {
   return (
     <div className="auth-shell">
       <div className="auth-hero">
-        <h1 className="auth-title">Ghar Sathi</h1>
+        <h1 className="auth-title">Sewak</h1>
         <p className="auth-tagline">
           Book trusted caregivers and household help in a few clicks.
         </p>
@@ -143,7 +143,7 @@ export default function AuthPage() {
         <p>
           {mode === "login"
             ? "Sign in to manage your bookings or organization."
-            : "Join Ghar Sathi as a customer or partner organization."}
+            : "Join Sewak as a customer or partner organization."}
         </p>
 
         {error && <div className="error-message">{error}</div>}
@@ -189,7 +189,7 @@ export default function AuthPage() {
                 </div>
                 <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
                   {selectedRole === "user" && "Browse and book trusted caregivers for your family"}
-                  {selectedRole === "org_admin" && "Partner with Ghar Sathi and manage your caregiver team"}
+                  {selectedRole === "org_admin" && "Partner with Sewak and manage your caregiver team"}
                 </p>
               </div>
 

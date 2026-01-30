@@ -383,24 +383,6 @@ export default function BookingFormPage({ caregiver, onBooked }) {
               </span>
             </p>
           </div>
-          <div
-            style={{
-              paddingTop: 12,
-              borderTop: "1px solid #1f2937",
-              fontSize: 12,
-              color: "#9ca3af",
-            }}
-          >
-            <p style={{ margin: "0 0 4px 0" }}>
-              Platform Commission (15%):{" "}
-              <span style={{ color: "#fbbf24" }}>-₹{Math.round(platformCommission)}</span>
-            </p>
-            <p style={{ margin: 0, marginTop: 8, paddingTop: 8, borderTop: "1px solid #1f2937" }}>
-              <strong style={{ color: "#e5e7eb" }}>
-                Caregiver Receives: ₹{Math.round(vendorReceives)}
-              </strong>
-            </p>
-          </div>
         </div>
 
         {/* Payment Method Selection */}

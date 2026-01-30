@@ -41,7 +41,7 @@ export default function LoginPage() {
       <div className="auth-card">
         <h2 style={{ color: "#e5e7eb", marginBottom: 8 }}>Welcome back</h2>
         <p style={{ color: "#9ca3af", fontSize: 14, marginBottom: 20 }}>
-          Sign in to continue to Ghar Sathi
+          Sign in to continue to Sewak
         </p>
 
         {error && (
