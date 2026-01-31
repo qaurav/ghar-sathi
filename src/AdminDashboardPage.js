@@ -646,37 +646,32 @@ export default function AdminDashboardPage() {
   });
 
   const getServicesForCategory = (category) => {
-  if (!category) return [];
+    if (!category) return [];
 
-  const cat = category.toLowerCase();
+    const cat = category.toLowerCase();
 
-  // If category includes both caregiver and household, show all
-  if (cat.includes("both")) {
+    // If category includes both caregiver and household, show all
+    if (cat.includes("both")) {
+      return services;
+    }
+
+    // caregiver-only
+    if (cat.includes("caregiver") || cat.includes("care giver")) {
+      return services.filter(
+        (s) => s.category === "caregiver" || s.category === "both",
+      );
+    }
+
+    // household-only
+    if (cat.includes("household") || cat.includes("house hold")) {
+      return services.filter(
+        (s) => s.category === "household" || s.category === "both",
+      );
+    }
+
+    // default: all
     return services;
-  }
-
-  // caregiver-only
-  if (cat.includes("caregiver") || cat.includes("care giver")) {
-    return services.filter(
-      (s) =>
-        s.category === "caregiver" ||
-        s.category === "both"
-    );
-  }
-
-  // household-only
-  if (cat.includes("household") || cat.includes("house hold")) {
-    return services.filter(
-      (s) =>
-        s.category === "household" ||
-        s.category === "both"
-    );
-  }
-
-  // default: all
-  return services;
-};
-
+  };
 
   const filteredOrganizations = organizations.filter((org) => {
     const term = searchOrg.toLowerCase();
@@ -743,8 +738,7 @@ export default function AdminDashboardPage() {
           marginBottom: "16px",
         }}
       >
-        Sewak Platform Management - Full control over all platform
-        activities.
+        Sewak Platform Management - Full control over all platform activities.
       </p>
 
       {/* Tabs */}
@@ -905,7 +899,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <div style={{ fontSize: "12px", color: "#9ca3af" }}>
                       <span style={{ fontWeight: 600 }}>Address</span>:{" "}
-                      {org.businessAddress || "NA"}, {org.businessCity || ""}
+                      {org.businessAddress || ""}, {org.businessCity || ""}
                     </div>
                   </div>
 
@@ -2069,209 +2063,220 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-     {/* Edit Caregiver Modal */}
-{editingCaregiver && (
-  <div className="modal-backdrop">
-    <div className="modal">
-      <h2>Edit Caregiver</h2>
-      <p
-        style={{
-          fontSize: "12px",
-          color: "#9ca3af",
-          marginBottom: "12px",
-        }}
-      >
-        Update caregiver details. Email and password cannot be changed
-        here.
-      </p>
+      {/* Edit Caregiver Modal (Admin) */}
+      {editingCaregiver && (
+        <div className="modal-backdrop">
+          <div className="modal" style={{ maxWidth: 640 }}>
+            <h2 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 4 }}>
+              Edit caregiver
+            </h2>
+            <p
+              style={{
+                fontSize: 12,
+                color: "#9ca3af",
+                marginTop: 0,
+                marginBottom: 16,
+              }}
+            >
+              Update caregiver details. Email and login credentials are managed
+              separately.
+            </p>
 
-      <form onSubmit={handleSaveCaregiverEdits}>
-        {/* Name */}
-        <div className="form-group">
-          <label>Name</label>
-          <input
-            type="text"
-            value={editCaregiverData.name}
-            onChange={(e) =>
-              setEditCaregiverData((prev) => ({
-                ...prev,
-                name: e.target.value,
-              }))
-            }
-            required
-          />
-        </div>
+            <form onSubmit={handleSaveCaregiverEdits} className="form">
+              {/* Name + Location */}
+              <div className="row">
+                <div className="col">
+                  <label>Name</label>
+                  <input
+                    type="text"
+                    value={editCaregiverData.name}
+                    onChange={(e) =>
+                      setEditCaregiverData((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="col">
+                  <label>Location</label>
+                  <select
+                    value={editCaregiverData.location}
+                    onChange={(e) =>
+                      setEditCaregiverData((prev) => ({
+                        ...prev,
+                        location: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Select location</option>
+                    <option value="Kathmandu">Kathmandu</option>
+                    <option value="Lalitpur">Lalitpur</option>
+                    <option value="Bhaktapur">Bhaktapur</option>
+                  </select>
+                </div>
+              </div>
 
-        {/* Location dropdown */}
-        <div className="form-group">
-          <label>Location</label>
-          <select
-            value={editCaregiverData.location}
-            onChange={(e) =>
-              setEditCaregiverData((prev) => ({
-                ...prev,
-                location: e.target.value,
-              }))
-            }
-          >
-            <option value="">Select location</option>
-            <option value="kathmandu">Kathmandu</option>
-            <option value="lalitpur">Lalitpur</option>
-            <option value="bhaktapur">Bhaktapur</option>
-            {/* add more locations as needed */}
-          </select>
-        </div>
+              {/* Rate + Work type */}
+              <div className="row">
+                <div className="col">
+                  <label>Hourly rate (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editCaregiverData.hourlyRate}
+                    onChange={(e) =>
+                      setEditCaregiverData((prev) => ({
+                        ...prev,
+                        hourlyRate: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="col">
+                  <label>Work type</label>
+                  <select
+                    value={editCaregiverData.workType}
+                    onChange={(e) =>
+                      setEditCaregiverData((prev) => ({
+                        ...prev,
+                        workType: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Select</option>
+                    <option value="Full Time">Full Time</option>
+                    <option value="Part Time">Part Time</option>
+                  </select>
+                </div>
+              </div>
 
-        {/* Hourly rate */}
-        <div className="form-group">
-          <label>Hourly Rate (₹)</label>
-          <input
-            type="number"
-            min="0"
-            value={editCaregiverData.hourlyRate}
-            onChange={(e) =>
-              setEditCaregiverData((prev) => ({
-                ...prev,
-                hourlyRate: e.target.value,
-              }))
-            }
-          />
-        </div>
-
-        {/* Work type dropdown */}
-        <div className="form-group">
-          <label>Work Type</label>
-          <select
-            value={editCaregiverData.workType}
-            onChange={(e) =>
-              setEditCaregiverData((prev) => ({
-                ...prev,
-                workType: e.target.value,
-              }))
-            }
-          >
-            <option value="">Select work type</option>
-            <option value="full_time">Full Time</option>
-            <option value="part_time">Part Time</option>
-          </select>
-        </div>
-
-        {/* Category dropdown */}
-        <div className="form-group">
-          <label>Category</label>
-          <select
-            value={editCaregiverData.category}
-            onChange={(e) =>
-              setEditCaregiverData((prev) => ({
-                ...prev,
-                category: e.target.value,
-                // reset services when category changes
-                services: [],
-              }))
-            }
-          >
-            <option value="">Select category</option>
-            <option value="caregiver">Caregiver</option>
-            <option value="household">Household</option>
-            <option value="both">Both</option>
-          </select>
-        </div>
-
-        {/* Services checkboxes */}
-        <div className="form-group">
-          <label>Services</label>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: "4px 12px",
-            }}
-          >
-            {getServicesForCategory(editCaregiverData.category).map(
-              (service) => {
-                const id = service.id || service.serviceName;
-                const label = service.label || service.serviceName;
-
-                const checked = editCaregiverData.services.includes(label);
-
-                return (
-                  <label
-                    key={id}
+              {/* Category */}
+              <div className="row">
+                <div className="col">
+                  <label>Category</label>
+                  <select
+                    value={editCaregiverData.category}
+                    onChange={(e) =>
+                      setEditCaregiverData((prev) => ({
+                        ...prev,
+                        category: e.target.value,
+                        services: [],
+                      }))
+                    }
+                  >
+                    <option value="">Select category</option>
+                    <option value="caregiver">Caregiver</option>
+                    <option value="household">Household</option>
+                    <option value="both">Both</option>
+                  </select>
+                  <p
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      fontSize: "13px",
-                      color: "#e5e7eb",
+                      fontSize: 11,
+                      color: "#9ca3af",
+                      marginTop: 4,
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) => {
-                        setEditCaregiverData((prev) => {
-                          const current = prev.services || [];
-                          if (e.target.checked) {
-                            return {
-                              ...prev,
-                              services: [...current, label],
-                            };
-                          }
-                          return {
-                            ...prev,
-                            services: current.filter((s) => s !== label),
-                          };
-                        });
-                      }}
-                    />
-                    {label}
-                  </label>
-                );
-              },
-            )}
+                    Services list below will update based on this category.
+                  </p>
+                </div>
+              </div>
+
+              {/* Services checkboxes */}
+              <div className="form-group">
+                <label>Services</label>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                    gap: "4px 12px",
+                  }}
+                >
+                  {getServicesForCategory(editCaregiverData.category).map(
+                    (service) => {
+                      const id = service.id || service.serviceName;
+                      const label = service.label || service.serviceName;
+                      const checked =
+                        editCaregiverData.services.includes(label);
+
+                      return (
+                        <label
+                          key={id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 13,
+                            color: "#e5e7eb",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setEditCaregiverData((prev) => {
+                                const current = prev.services || [];
+                                if (e.target.checked) {
+                                  return {
+                                    ...prev,
+                                    services: [...current, label],
+                                  };
+                                }
+                                return {
+                                  ...prev,
+                                  services: current.filter((s) => s !== label),
+                                };
+                              });
+                            }}
+                          />
+                          {label}
+                        </label>
+                      );
+                    },
+                  )}
+                </div>
+              </div>
+
+              {/* Experience */}
+              <div className="form-group">
+                <label>Experience</label>
+                <input
+                  type="text"
+                  placeholder="e.g., 5 years"
+                  value={editCaregiverData.experience}
+                  onChange={(e) =>
+                    setEditCaregiverData((prev) => ({
+                      ...prev,
+                      experience: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 8,
+                  marginTop: 16,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setEditingCaregiver(null)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save changes
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        {/* Experience */}
-        <div className="form-group">
-          <label>Experience</label>
-          <input
-            type="text"
-            placeholder="e.g., 5 years"
-            value={editCaregiverData.experience}
-            onChange={(e) =>
-              setEditCaregiverData((prev) => ({
-                ...prev,
-                experience: e.target.value,
-              }))
-            }
-          />
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: "8px",
-            marginTop: "16px",
-          }}
-        >
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => setEditingCaregiver(null)}
-          >
-            Cancel
-          </button>
-          <button type="submit" className="btn btn-primary">
-            Save Changes
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
-
+      )}
 
       {/* Edit Organization Modal - only when organizations tab is active */}
       {activeTab === "organizations" && editingOrg && (
@@ -2370,9 +2375,24 @@ export default function AdminDashboardPage() {
       {/* Create Organization Modal */}
       {showAddOrgForm && (
         <div className="modal-backdrop">
-          <div className="modal">
-            <h3>Create organization</h3>
-            <form onSubmit={handleCreateOrganization}>
+          <div className="modal" style={{ maxWidth: 640 }}>
+            <h2 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 4 }}>
+              Create new organization
+            </h2>
+            <p
+              style={{
+                fontSize: 12,
+                color: "#9ca3af",
+                marginTop: 0,
+                marginBottom: 16,
+              }}
+            >
+              This will create an organization admin account and link it to a
+              new organization record in the system.
+            </p>
+
+            <form onSubmit={handleCreateOrganization} className="form">
+              {/* Org + Admin names */}
               <div className="row">
                 <div className="col">
                   <label>Organization name</label>
@@ -2380,18 +2400,21 @@ export default function AdminDashboardPage() {
                     value={newOrgName}
                     onChange={(e) => setNewOrgName(e.target.value)}
                     required
+                    placeholder="e.g., Ghar Sathi Care Pvt. Ltd."
                   />
                 </div>
                 <div className="col">
-                  <label>Admin name</label>
+                  <label>Admin full name</label>
                   <input
                     value={newOrgAdminName}
                     onChange={(e) => setNewOrgAdminName(e.target.value)}
                     required
+                    placeholder="e.g., Sita Sharma"
                   />
                 </div>
               </div>
 
+              {/* Admin credentials */}
               <div className="row">
                 <div className="col">
                   <label>Admin email</label>
@@ -2400,25 +2423,40 @@ export default function AdminDashboardPage() {
                     value={newOrgEmail}
                     onChange={(e) => setNewOrgEmail(e.target.value)}
                     required
+                    placeholder="admin@example.com"
                   />
                 </div>
                 <div className="col">
-                  <label>Admin password</label>
+                  <label>Temporary password</label>
                   <input
                     type="password"
                     value={newOrgPassword}
                     onChange={(e) => setNewOrgPassword(e.target.value)}
                     required
+                    minLength={6}
+                    placeholder="At least 6 characters"
                   />
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: "#9ca3af",
+                      marginTop: 4,
+                    }}
+                  >
+                    Share this password with the admin. They can change it
+                    later.
+                  </p>
                 </div>
               </div>
 
+              {/* Contact / location */}
               <div className="row">
                 <div className="col">
                   <label>Business phone</label>
                   <input
                     value={newOrgPhone}
                     onChange={(e) => setNewOrgPhone(e.target.value)}
+                    placeholder="98XXXXXXXX"
                   />
                 </div>
                 <div className="col">
@@ -2426,35 +2464,48 @@ export default function AdminDashboardPage() {
                   <input
                     value={newOrgCity}
                     onChange={(e) => setNewOrgCity(e.target.value)}
+                    placeholder="e.g., Kathmandu"
                   />
                 </div>
               </div>
 
-              <div>
-                <label>Address</label>
-                <input
-                  value={newOrgAddress}
-                  onChange={(e) => setNewOrgAddress(e.target.value)}
-                />
-              </div>
+              <label>Business address</label>
+              <input
+                value={newOrgAddress}
+                onChange={(e) => setNewOrgAddress(e.target.value)}
+                placeholder="Street, area"
+              />
 
-              <div>
-                <label>Commission rate (%)</label>
-                <input
-                  type="number"
-                  value={newOrgCommission}
-                  onChange={(e) =>
-                    setNewOrgCommission(Number(e.target.value) || 15)
-                  }
-                />
+              {/* Commission */}
+              <div className="row" style={{ marginTop: 8 }}>
+                <div className="col">
+                  <label>Commission rate (%)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={newOrgCommission}
+                    onChange={(e) =>
+                      setNewOrgCommission(Number(e.target.value) || 15)
+                    }
+                  />
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: "#9ca3af",
+                      marginTop: 4,
+                    }}
+                  >
+                    Platform fee applied to bookings for this organization.
+                  </p>
+                </div>
               </div>
 
               {error && (
                 <p
                   style={{
-                    marginTop: "8px",
+                    marginTop: 8,
+                    fontSize: 12,
                     color: "#fca5a5",
-                    fontSize: "12px",
                   }}
                 >
                   {error}
@@ -2465,14 +2516,17 @@ export default function AdminDashboardPage() {
                 style={{
                   display: "flex",
                   justifyContent: "flex-end",
-                  gap: "8px",
-                  marginTop: "16px",
+                  gap: 8,
+                  marginTop: 16,
                 }}
               >
                 <button
                   type="button"
                   className="btn btn-outline"
-                  onClick={() => setShowAddOrgForm(false)}
+                  onClick={() => {
+                    setShowAddOrgForm(false);
+                    setError("");
+                  }}
                 >
                   Cancel
                 </button>
@@ -2490,44 +2544,69 @@ export default function AdminDashboardPage() {
       )}
 
       {/* Add SuperAdmin Modal */}
+      {/* Add SuperAdmin Modal */}
       {showAddSuperAdminForm && (
         <div className="modal-backdrop">
-          <div className="modal">
-            <h3>Add SuperAdmin</h3>
-            <form onSubmit={handleCreateSuperAdmin}>
-              <div>
-                <label>Name</label>
-                <input
-                  value={newSuperAdminName}
-                  onChange={(e) => setNewSuperAdminName(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label>Email</label>
-                <input
-                  type="email"
-                  value={newSuperAdminEmail}
-                  onChange={(e) => setNewSuperAdminEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label>Password</label>
-                <input
-                  type="password"
-                  value={newSuperAdminPassword}
-                  onChange={(e) => setNewSuperAdminPassword(e.target.value)}
-                  required
-                />
-              </div>
+          <div className="modal" style={{ maxWidth: 520 }}>
+            <h2 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 4 }}>
+              Add new SuperAdmin
+            </h2>
+            <p
+              style={{
+                fontSize: 12,
+                color: "#9ca3af",
+                marginTop: 0,
+                marginBottom: 16,
+              }}
+            >
+              SuperAdmins have full control over organizations, caregivers,
+              services, and settings. Assign this role carefully.
+            </p>
+
+            <form onSubmit={handleCreateSuperAdmin} className="form">
+              <label>Full name</label>
+              <input
+                value={newSuperAdminName}
+                onChange={(e) => setNewSuperAdminName(e.target.value)}
+                required
+                placeholder="e.g., Platform Owner"
+              />
+
+              <label>Email</label>
+              <input
+                type="email"
+                value={newSuperAdminEmail}
+                onChange={(e) => setNewSuperAdminEmail(e.target.value)}
+                required
+                placeholder="owner@example.com"
+              />
+
+              <label>Temporary password</label>
+              <input
+                type="password"
+                value={newSuperAdminPassword}
+                onChange={(e) => setNewSuperAdminPassword(e.target.value)}
+                required
+                minLength={6}
+                placeholder="At least 6 characters"
+              />
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "#9ca3af",
+                  marginTop: 4,
+                }}
+              >
+                Share this password with the SuperAdmin. They can change it
+                after first login.
+              </p>
 
               {error && (
                 <p
                   style={{
-                    marginTop: "8px",
+                    marginTop: 8,
+                    fontSize: 12,
                     color: "#fca5a5",
-                    fontSize: "12px",
                   }}
                 >
                   {error}
@@ -2538,14 +2617,17 @@ export default function AdminDashboardPage() {
                 style={{
                   display: "flex",
                   justifyContent: "flex-end",
-                  gap: "8px",
-                  marginTop: "16px",
+                  gap: 8,
+                  marginTop: 16,
                 }}
               >
                 <button
                   type="button"
                   className="btn btn-outline"
-                  onClick={() => setShowAddSuperAdminForm(false)}
+                  onClick={() => {
+                    setShowAddSuperAdminForm(false);
+                    setError("");
+                  }}
                 >
                   Cancel
                 </button>

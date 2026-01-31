@@ -20,7 +20,12 @@ const getServiceNameFromVendorData = (serviceString) => {
   return serviceString;
 };
 
-// Caregiver card
+// Normalize servicesOffered entries (your vendors store IDs or labels)
+const normalizeServiceId = (s) =>
+  (s || "")
+    .trim()
+    .toLowerCase();
+
 function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
   const getInitials = (name) =>
     (name || "C")
@@ -160,13 +165,17 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
           {caregiver.category === "caregiver"
             ? "🏥 Care giver"
             : caregiver.category === "household"
-              ? "🏠 Household"
-              : "👥 Both"}
+            ? "🏠 Household"
+            : "👥 Both"}
         </p>
 
         <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
           <span style={{ color: "#9ca3af" }}>Work type:</span>{" "}
-          {caregiver.workType === "full_time" ? "💼 Full time" : "⏰ Part time"}
+          {caregiver.workType === "fulltime"
+            ? "💼 Full time"
+            : caregiver.workType === "parttime"
+            ? "⏰ Part time"
+            : "Not specified"}
         </p>
 
         <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
@@ -325,7 +334,7 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
         </div>
       )}
 
-      {/* Actions – WhatsApp only if hasPaid */}
+      {/* Actions */}
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <button
           className="btn btn-primary"
@@ -358,7 +367,6 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
   );
 }
 
-// Main list page
 export default function CaregiverListPage({
   onSelectCaregiver,
   preselectedWorkType = "",
@@ -366,21 +374,17 @@ export default function CaregiverListPage({
   userCategory = "",
   onChangeUserCategory,
   requireLogin = false,
-  hasPaid = false, // NEW: pass true once booking is paid
+  hasPaid = false,
 }) {
   const [caregivers, setCaregivers] = useState([]);
   const [loading, setLoading] = useState(true);
-  // const [userCategory, setUserCategory] = useState(initialCategory);
   const [searchTerm, setSearchTerm] = useState("");
   const [serviceFilter, setServiceFilter] = useState("");
-  const [workTypeFilter, setWorkTypeFilter] = useState(
-    preselectedWorkType || "",
-  );
+  const [workTypeFilter, setWorkTypeFilter] = useState(preselectedWorkType || "");
   const [shiftFilter, setShiftFilter] = useState(preselectedShift || "");
   const [locationFilter, setLocationFilter] = useState("");
   const [services, setServices] = useState([]);
 
-  // keep dropdowns in sync with props from App.js
   useEffect(() => {
     if (preselectedWorkType) setWorkTypeFilter(preselectedWorkType);
   }, [preselectedWorkType]);
@@ -389,7 +393,7 @@ export default function CaregiverListPage({
     if (preselectedShift) setShiftFilter(preselectedShift);
   }, [preselectedShift]);
 
-  // Load caregivers
+  // Load caregivers (approved + not suspended)
   useEffect(() => {
     const load = async () => {
       try {
@@ -409,7 +413,7 @@ export default function CaregiverListPage({
     load();
   }, []);
 
-  // Load services
+  // Load services (used for dropdown)
   useEffect(() => {
     const loadServices = async () => {
       try {
@@ -423,21 +427,21 @@ export default function CaregiverListPage({
     loadServices();
   }, []);
 
-  // 1) Service dropdown options depend on employee category
+  // Service dropdown options depend on userCategory
   const visibleServices = services.filter((s) => {
     if (!userCategory || userCategory === "both") return true;
     if (s.category === "both") return true;
     return s.category === userCategory;
   });
 
-  // 2) Caregiver list filters also depend on employee category
+  // Apply all filters
   const filtered = caregivers.filter((c) => {
-    if (userCategory === "caregiver" && c.category !== "caregiver")
-      return false;
-    if (userCategory === "household" && c.category !== "household")
-      return false;
-    if (userCategory === "both" && c.category !== "both") return false;
+    // Category filter: “both” should show everyone
+    if (userCategory === "caregiver" && c.category !== "caregiver") return false;
+    if (userCategory === "household" && c.category !== "household") return false;
+    // if userCategory is "both" or "", we do not restrict c.category
 
+    // Search
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       if (
@@ -448,11 +452,22 @@ export default function CaregiverListPage({
       }
     }
 
+    // Availability
     if (c.isAvailable === false) return false;
-    if (serviceFilter && !(c.servicesOffered || []).includes(serviceFilter))
-      return false;
+
+    // Service filter: compare normalized IDs
+    if (serviceFilter) {
+      const offered = (c.servicesOffered || []).map(normalizeServiceId);
+      if (!offered.includes(normalizeServiceId(serviceFilter))) return false;
+    }
+
+    // Work type filter – your vendors store "full_time" / "part_time"
     if (workTypeFilter && c.workType !== workTypeFilter) return false;
+
+    // Shift filter
     if (shiftFilter && !(c.shifts || []).includes(shiftFilter)) return false;
+
+    // Location filter
     if (
       locationFilter &&
       (c.location || "").toLowerCase() !== locationFilter.toLowerCase()
@@ -477,10 +492,10 @@ export default function CaregiverListPage({
     userCategory === "caregiver"
       ? "Care giver"
       : userCategory === "household"
-        ? "Household"
-        : userCategory === "both"
-          ? "Both"
-          : "All";
+      ? "Household"
+      : userCategory === "both"
+      ? "Both"
+      : "All";
 
   return (
     <div>
@@ -488,18 +503,16 @@ export default function CaregiverListPage({
       <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>
         <span>Home</span> &gt; <span>{categoryLabel}</span> &gt;{" "}
         <span>
-          {workTypeFilter === "full_time"
+          {workTypeFilter === "fulltime"
             ? "Full time"
-            : workTypeFilter === "part_time"
-              ? "Part time"
-              : "Any"}
+            : workTypeFilter === "parttime"
+            ? "Part time"
+            : "Any"}
         </span>{" "}
         &gt; <span>Caregivers</span>
       </div>
 
-      <h2 className="section-title">
-        Available caregivers ({filtered.length})
-      </h2>
+      <h2 className="section-title">Available caregivers ({filtered.length})</h2>
 
       {/* Search bar */}
       <div style={{ marginBottom: 16 }}>
@@ -524,7 +537,7 @@ export default function CaregiverListPage({
       {/* Dropdown filters */}
       <div className="row" style={{ marginBottom: 16 }}>
         <div className="col">
-          <label> Category</label>
+          <label>Category</label>
           <select
             value={userCategory}
             onChange={(e) =>
@@ -539,9 +552,10 @@ export default function CaregiverListPage({
               color: "#e5e7eb",
             }}
           >
-            <option value="both">Both (Caregiver & Household)</option>
+            <option value="">All</option>
             <option value="caregiver">Care giver</option>
             <option value="household">Household</option>
+            <option value="both">Both (Caregiver & Household)</option>
           </select>
         </div>
 
@@ -560,8 +574,8 @@ export default function CaregiverListPage({
             }}
           >
             <option value="">Any</option>
-            <option value="full_time">Full time</option>
-            <option value="part_time">Part time</option>
+            <option value="fulltime">Full time</option>
+            <option value="parttime">Part time</option>
           </select>
         </div>
 
@@ -607,6 +621,34 @@ export default function CaregiverListPage({
           />
         </div>
       </div>
+
+      {/* Service filter dropdown (optional, if you use it in UI) */}
+      {/* 
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", fontSize: 13, color: "#e5e7eb" }}>
+          Service
+        </label>
+        <select
+          value={serviceFilter}
+          onChange={(e) => setServiceFilter(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "8px 12px",
+            borderRadius: "6px",
+            border: "1px solid #1f2937",
+            background: "#111827",
+            color: "#e5e7eb",
+          }}
+        >
+          <option value="">Any</option>
+          {visibleServices.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label || s.serviceName}
+            </option>
+          ))}
+        </select>
+      </div>
+      */}
 
       {/* Featured section */}
       {featured.length > 0 && (
