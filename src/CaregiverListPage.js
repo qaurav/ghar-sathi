@@ -461,7 +461,7 @@ export default function CaregiverListPage({
       if (!offered.includes(normalizeServiceId(serviceFilter))) return false;
     }
 
-    // Work type filter – your vendors store "full_time" / "part_time"
+    // Work type filter – your vendors store "fulltime" / "parttime"
     if (workTypeFilter && c.workType !== workTypeFilter) return false;
 
     // Shift filter
@@ -579,7 +579,7 @@ export default function CaregiverListPage({
           </select>
         </div>
 
-        {workTypeFilter === "part_time" && (
+        {workTypeFilter === "parttime" && (
           <div className="col">
             <label>Shift</label>
             <select

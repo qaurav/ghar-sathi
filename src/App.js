@@ -147,10 +147,10 @@ function App() {
                     <button
                       type="button"
                       className={`choice-btn ${
-                        userWorkType === "full_time" ? "active" : ""
+                        userWorkType === "fulltime" ? "active" : ""
                       }`}
                       onClick={() => {
-                        setUserWorkType("full_time");
+                        setUserWorkType("fulltime");
                         setUserShift("");
                       }}
                     >
@@ -159,16 +159,16 @@ function App() {
                     <button
                       type="button"
                       className={`choice-btn ${
-                        userWorkType === "part_time" ? "active" : ""
+                        userWorkType === "parttime" ? "active" : ""
                       }`}
-                      onClick={() => setUserWorkType("part_time")}
+                      onClick={() => setUserWorkType("parttime")}
                     >
                       ⏰ Part time
                     </button>
                   </div>
                 </div>
 
-                {userWorkType === "part_time" && (
+                {userWorkType === "parttime" && (
                   <div className="choice-group">
                     <h4>Preferred shift</h4>
                     <div className="choice-buttons">
@@ -355,10 +355,10 @@ function App() {
                           <button
                             type="button"
                             className={`choice-btn ${
-                              userWorkType === "full_time" ? "active" : ""
+                              userWorkType === "fulltime" ? "active" : ""
                             }`}
                             onClick={() => {
-                              setUserWorkType("full_time");
+                              setUserWorkType("fulltime");
                               setUserShift("");
                             }}
                           >
@@ -367,16 +367,16 @@ function App() {
                           <button
                             type="button"
                             className={`choice-btn ${
-                              userWorkType === "part_time" ? "active" : ""
+                              userWorkType === "parttime" ? "active" : ""
                             }`}
-                            onClick={() => setUserWorkType("part_time")}
+                            onClick={() => setUserWorkType("parttime")}
                           >
                             ⏰ Part time
                           </button>
                         </div>
                       </div>
 
-                      {userWorkType === "part_time" && (
+                      {userWorkType === "parttime" && (
                         <div className="choice-group">
                           <h4>Preferred shift</h4>
                           <div className="choice-buttons">

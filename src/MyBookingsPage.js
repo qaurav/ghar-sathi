@@ -271,7 +271,7 @@ export default function MyBookingsPage() {
             {/* Work Type */}
             <div style={{ marginTop: 10 }}>
               <p style={{ fontSize: 13, color: "#cbd5f5", marginBottom: 4 }}>
-                <strong>Work Type:</strong> {b.caregiverWorkType === "full_time" ? "💼 Full Time" : "⏰ Part Time"}
+                <strong>Work Type:</strong> {b.caregiverWorkType === "fulltime" ? "💼 Full Time" : "⏰ Part Time"}
               </p>
             </div>
 

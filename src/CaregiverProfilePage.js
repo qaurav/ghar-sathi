@@ -15,7 +15,7 @@ export default function CaregiverProfilePage() {
   const [bio, setBio] = useState("");
   const [category, setCategory] = useState("caregiver");
   const [isAvailable, setIsAvailable] = useState(true);
-  const [workType, setWorkType] = useState("full_time");
+  const [workType, setWorkType] = useState("fulltime");
   const [shifts, setShifts] = useState([]);
   const [servicesOffered, setServicesOffered] = useState([]);
   const [availableServices, setAvailableServices] = useState([]);
@@ -51,7 +51,7 @@ export default function CaregiverProfilePage() {
           setBio(data.bio || "");
           setCategory(data.category || "caregiver");
           setIsAvailable(data.isAvailable ?? true);
-          setWorkType(data.workType || "full_time");
+          setWorkType(data.workType || "fulltime");
           setShifts(data.shifts || []);
           setServicesOffered(data.servicesOffered || []);
           setHourlyRate(data.hourlyRate || 0);
@@ -101,7 +101,7 @@ export default function CaregiverProfilePage() {
     }
 
     try {
-      const finalShifts = workType === "part_time" ? shifts : [];
+      const finalShifts = workType === "parttime" ? shifts : [];
 
       const ref = doc(db, "vendors", user.uid);
       const payload = {
@@ -268,40 +268,40 @@ export default function CaregiverProfilePage() {
           <button
             type="button"
             onClick={() => {
-              setWorkType("full_time");
+              setWorkType("fulltime");
               setShifts([]);
             }}
             style={{
               padding: "8px 16px",
               borderRadius: "6px",
-              border: workType === "full_time" ? "none" : "1px solid #1f2937",
-              background: workType === "full_time" ? "#0ea5e9" : "#020617",
-              color: workType === "full_time" ? "white" : "#e5e7eb",
+              border: workType === "fulltime" ? "none" : "1px solid #1f2937",
+              background: workType === "fulltime" ? "#0ea5e9" : "#020617",
+              color: workType === "fulltime" ? "white" : "#e5e7eb",
               cursor: "pointer",
-              fontWeight: workType === "full_time" ? "600" : "500",
+              fontWeight: workType === "fulltime" ? "600" : "500",
             }}
           >
                         💼 Full time
           </button>
           <button
             type="button"
-            onClick={() => setWorkType("part_time")}
+            onClick={() => setWorkType("parttime")}
             style={{
               padding: "8px 16px",
               borderRadius: "6px",
-              border: workType === "part_time" ? "none" : "1px solid #1f2937",
-              background: workType === "part_time" ? "#fbbf24" : "#020617",
-              color: workType === "part_time" ? "black" : "#e5e7eb",
+              border: workType === "parttime" ? "none" : "1px solid #1f2937",
+              background: workType === "parttime" ? "#fbbf24" : "#020617",
+              color: workType === "parttime" ? "black" : "#e5e7eb",
               cursor: "pointer",
-              fontWeight: workType === "part_time" ? "600" : "500",
+              fontWeight: workType === "parttime" ? "600" : "500",
             }}
           >
             ⏰ Part time
           </button>
         </div>
 
-        {/* ONLY show shifts for part-time */}
-        {workType === "part_time" && (
+        {/* ONLY show shifts for parttime */}
+        {workType === "parttime" && (
           <>
             <label style={{ marginTop: 12 }}>Preferred shifts</label>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
