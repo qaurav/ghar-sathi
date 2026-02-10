@@ -509,20 +509,40 @@ export default function AdminDashboardPage() {
 
   const handleApproveOrganization = async (orgId) => {
     try {
+      console.log("Approving organization:", orgId);
+      
+      // Update organization document
       await updateDoc(doc(db, "organizations", orgId), {
         isApproved: true,
         approvedAt: serverTimestamp(),
         approvedBy: "superadmin",
       });
-      await updateDoc(doc(db, "users", orgId), {
-        isApproved: true,
-      });
+      console.log("Organization approved in Firestore");
+
+      // Try to update user document if it exists
+      try {
+        await updateDoc(doc(db, "users", orgId), {
+          isApproved: true,
+        });
+        console.log("User document updated");
+      } catch (userErr) {
+        console.warn("Could not update user document (may not exist):", userErr);
+        // This is not critical - continue anyway
+      }
+
       alert("Organization approved successfully!");
-      const orgSnap = await getDocs(collection(db, "organizations"));
-      setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      
+      // Reload organizations list
+      try {
+        const orgSnap = await getDocs(collection(db, "organizations"));
+        setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch (reloadErr) {
+        console.error("Error reloading organizations:", reloadErr);
+      }
     } catch (err) {
-      console.error("Error approving organization", err);
-      alert("Could not approve organization.");
+      console.error("Error approving organization:", err);
+      console.error("Error details:", err.message, err.code);
+      alert(`Could not approve organization: ${err.message}`);
     }
   };
 
@@ -530,35 +550,62 @@ export default function AdminDashboardPage() {
     const reason = window.prompt("Enter rejection reason");
     if (!reason) return;
     try {
+      console.log("Rejecting organization:", orgId);
       await updateDoc(doc(db, "organizations", orgId), {
         isApproved: false,
         rejectionReason: reason,
         rejectedAt: serverTimestamp(),
       });
       alert("Organization rejected.");
-      const orgSnap = await getDocs(collection(db, "organizations"));
-      setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      
+      // Reload organizations list
+      try {
+        const orgSnap = await getDocs(collection(db, "organizations"));
+        setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch (reloadErr) {
+        console.error("Error reloading organizations:", reloadErr);
+      }
     } catch (err) {
-      console.error("Error rejecting organization", err);
-      alert("Could not reject organization.");
+      console.error("Error rejecting organization:", err);
+      console.error("Error details:", err.message, err.code);
+      alert(`Could not reject organization: ${err.message}`);
     }
   };
 
   const handleSuspendOrganization = async (orgId, isSuspended) => {
     try {
+      console.log("Suspending organization:", orgId);
+      const newSuspendedStatus = !isSuspended;
+      
       await updateDoc(doc(db, "organizations", orgId), {
-        isSuspended: !isSuspended,
-        suspendedAt: !isSuspended ? serverTimestamp() : null,
+        isSuspended: newSuspendedStatus,
+        suspendedAt: newSuspendedStatus ? serverTimestamp() : null,
       });
-      await updateDoc(doc(db, "users", orgId), {
-        isSuspended: !isSuspended,
-      });
-      alert(`Organization ${!isSuspended ? "suspended" : "unsuspended"}.`);
-      const orgSnap = await getDocs(collection(db, "organizations"));
-      setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      
+      // Try to update user document if it exists
+      try {
+        await updateDoc(doc(db, "users", orgId), {
+          isSuspended: newSuspendedStatus,
+        });
+        console.log("User document updated");
+      } catch (userErr) {
+        console.warn("Could not update user document (may not exist):", userErr);
+        // This is not critical - continue anyway
+      }
+
+      alert(`Organization ${newSuspendedStatus ? "suspended" : "unsuspended"}.`);
+      
+      // Reload organizations list
+      try {
+        const orgSnap = await getDocs(collection(db, "organizations"));
+        setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch (reloadErr) {
+        console.error("Error reloading organizations:", reloadErr);
+      }
     } catch (err) {
-      console.error("Error updating organization", err);
-      alert("Could not update organization.");
+      console.error("Error updating organization:", err);
+      console.error("Error details:", err.message, err.code);
+      alert(`Could not update organization: ${err.message}`);
     }
   };
 
