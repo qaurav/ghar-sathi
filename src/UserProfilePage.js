@@ -12,7 +12,7 @@ import { useAuth } from "./AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export default function UserProfilePage() {
-  const { user, userDoc } = useAuth(); 
+  const { user, userDoc, refreshUserDoc } = useAuth(); 
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -165,9 +165,12 @@ export default function UserProfilePage() {
       setImageFile(null); // Clear file after successful upload
       setSuccess("Profile saved successfully!");
 
-      // Redirect to browse page after 1.5 seconds
+      // Refresh user context to update profileComplete status
+      await refreshUserDoc();
+
+      // Redirect to caregiver browsing page after 1.5 seconds
       setTimeout(() => {
-        navigate("/browse");
+        navigate("/user");
       }, 1500);
     } catch (err) {
       console.error("Error saving profile:", err);
