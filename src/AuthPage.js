@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebaseConfig";
 import "./AuthPage.css";
@@ -13,6 +13,7 @@ export default function AuthPage() {
   const [organizationName, setOrganizationName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,6 +24,7 @@ export default function AuthPage() {
       if (mode === "login") {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
+        console.log("Auth: register flow started", { email, selectedRole, fullName, organizationName });
         if (!selectedRole) {
           setError("Please select a role");
           setLoading(false);
@@ -36,7 +38,14 @@ export default function AuthPage() {
           return;
         }
 
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        let cred;
+        try {
+          cred = await createUserWithEmailAndPassword(auth, email, password);
+          console.log("Auth: created user", cred.user.uid);
+        } catch (createErr) {
+          console.error("Auth: createUser failed", createErr);
+          throw createErr;
+        }
 
         let userData = {
           uid: cred.user.uid,
@@ -80,7 +89,8 @@ export default function AuthPage() {
           };
 
           // Create organization document
-          await setDoc(doc(db, "organizations", cred.user.uid), {
+          try {
+            await setDoc(doc(db, "organizations", cred.user.uid), {
             organizationId: cred.user.uid,
             organizationName: organizationName.trim(),
             adminUid: cred.user.uid,
@@ -94,13 +104,38 @@ export default function AuthPage() {
             isApproved: false,
             verified: false,
             createdAt: new Date().toISOString(),
-          });
+            });
+            console.log("Firestore: organization document written:", cred.user.uid);
+          } catch (orgErr) {
+            console.error("Firestore: organization write failed", orgErr);
+            throw orgErr;
+          }
         }
 
         // NOTE: Individual caregivers CANNOT sign up directly
         // They must be added by organization admins
 
-        await setDoc(doc(db, "users", cred.user.uid), userData);
+        try {
+          await setDoc(doc(db, "users", cred.user.uid), userData);
+          console.log("Firestore: user document written:", cred.user.uid, userData);
+        } catch (userErr) {
+          console.error("Firestore: user write failed", userErr);
+          throw userErr;
+        }
+
+        // After successful registration, sign the user out so they can sign in manually.
+        // This avoids showing a stuck "Loading your dashboard..." state while role is resolved.
+        try {
+          await signOut(auth);
+          console.log("Auth: signed out after registration");
+        } catch (signOutErr) {
+          console.error("Auth: signOut failed", signOutErr);
+        }
+
+        setSuccess("Registration complete. Please sign in to continue.");
+        setMode("login");
+        setEmail("");
+        setPassword("");
       }
     } catch (err) {
       console.error("Auth error:", err);
@@ -147,6 +182,7 @@ export default function AuthPage() {
         </p>
 
         {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
 
         <form className="form" onSubmit={handleSubmit}>
           {mode === "register" && (
@@ -161,7 +197,35 @@ export default function AuthPage() {
                   placeholder="Your full name"
                 />
               </div>
+            </>
+          )}
 
+          <div>
+            <label>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="your@email.com"
+            />
+          </div>
+
+          <div>
+            <label>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              placeholder={mode === "login" ? "Your password" : "At least 6 characters"}
+            />
+          </div>
+
+          {/* Move role selection (I want to register as) after password */}
+          {mode === "register" && (
+            <>
               <div>
                 <label>I want to register as</label>
                 <div className="role-selection">
@@ -208,29 +272,6 @@ export default function AuthPage() {
               )}
             </>
           )}
-
-          <div>
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="your@email.com"
-            />
-          </div>
-
-          <div>
-            <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              placeholder={mode === "login" ? "Your password" : "At least 6 characters"}
-            />
-          </div>
 
           <button
             type="submit"

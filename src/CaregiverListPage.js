@@ -373,6 +373,8 @@ export default function CaregiverListPage({
   preselectedShift = "",
   userCategory = "",
   onChangeUserCategory,
+  onChangeWorkType,
+  onChangeShift,
   requireLogin = false,
   hasPaid = false,
 }) {
@@ -526,9 +528,9 @@ export default function CaregiverListPage({
             width: "100%",
             padding: "10px 12px",
             borderRadius: "6px",
-            border: "1px solid #1f2937",
-            background: "#111827",
-            color: "#e5e7eb",
+            border: "1px solid #cbd5e1",
+            background: "#ffffff",
+            color: "#0f2847",
             outline: "none",
           }}
         />
@@ -547,9 +549,9 @@ export default function CaregiverListPage({
               width: "100%",
               padding: "8px 12px",
               borderRadius: "6px",
-              border: "1px solid #1f2937",
-              background: "#111827",
-              color: "#e5e7eb",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              color: "#0f2847",
             }}
           >
             <option value="">All</option>
@@ -563,14 +565,18 @@ export default function CaregiverListPage({
           <label>Work type</label>
           <select
             value={workTypeFilter}
-            onChange={(e) => setWorkTypeFilter(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setWorkTypeFilter(v);
+              if (onChangeWorkType) onChangeWorkType(v);
+            }}
             style={{
               width: "100%",
               padding: "8px 12px",
               borderRadius: "6px",
-              border: "1px solid #1f2937",
-              background: "#111827",
-              color: "#e5e7eb",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              color: "#0f2847",
             }}
           >
             <option value="">Any</option>
@@ -584,14 +590,18 @@ export default function CaregiverListPage({
             <label>Shift</label>
             <select
               value={shiftFilter}
-              onChange={(e) => setShiftFilter(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setShiftFilter(v);
+                if (onChangeShift) onChangeShift(v);
+              }}
               style={{
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: "6px",
-                border: "1px solid #1f2937",
-                background: "#111827",
-                color: "#e5e7eb",
+                border: "1px solid #cbd5e1",
+                background: "#ffffff",
+                color: "#0f2847",
               }}
             >
               <option value="">Any</option>
@@ -614,9 +624,9 @@ export default function CaregiverListPage({
               width: "100%",
               padding: "8px 12px",
               borderRadius: "6px",
-              border: "1px solid #1f2937",
-              background: "#111827",
-              color: "#e5e7eb",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              color: "#0f2847",
             }}
           />
         </div>
@@ -712,13 +722,15 @@ export default function CaregiverListPage({
               setWorkTypeFilter("");
               setShiftFilter("");
               setLocationFilter("");
+              if (onChangeWorkType) onChangeWorkType("");
+              if (onChangeShift) onChangeShift("");
             }}
             style={{
               padding: "10px 16px",
               borderRadius: "6px",
-              border: "1px solid #1f2937",
-              background: "#111827",
-              color: "#e5e7eb",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              color: "#1e40af",
               cursor: "pointer",
               marginTop: 12,
             }}

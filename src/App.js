@@ -198,6 +198,8 @@ function App() {
                   preselectedShift={userShift}
                   userCategory={userCategory}
                   onChangeUserCategory={setUserCategory}
+                  onChangeWorkType={setUserWorkType}
+                  onChangeShift={setUserShift}
                   requireLogin={true}
                 />
               </div>
@@ -406,6 +408,8 @@ function App() {
                         preselectedShift={userShift}
                         userCategory={userCategory}
                         onChangeUserCategory={setUserCategory}
+                        onChangeWorkType={setUserWorkType}
+                        onChangeShift={setUserShift}
                         requireLogin={false}
                       />
                     </div>
