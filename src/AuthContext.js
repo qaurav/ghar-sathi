@@ -22,7 +22,28 @@ export const AuthProvider = ({ children }) => {
   const refreshUserDoc = async () => {
     if (!user) return;
     try {
-      const docSnap = await getDoc(doc(db, "users", user.uid));
+      let docSnap;
+      
+      // Try to determine the collection based on current role
+      if (userRole === "org_admin") {
+        docSnap = await getDoc(doc(db, "organizations", user.uid));
+      } else if (userRole === "caregiver") {
+        docSnap = await getDoc(doc(db, "vendors", user.uid));
+      } else {
+        docSnap = await getDoc(doc(db, "users", user.uid));
+      }
+      
+      // If not found in primary collection, try other collections
+      if (!docSnap.exists()) {
+        docSnap = await getDoc(doc(db, "users", user.uid));
+      }
+      if (!docSnap.exists()) {
+        docSnap = await getDoc(doc(db, "organizations", user.uid));
+      }
+      if (!docSnap.exists()) {
+        docSnap = await getDoc(doc(db, "vendors", user.uid));
+      }
+      
       if (docSnap.exists()) {
         const data = docSnap.data();
         setUserRole(data.role);
@@ -39,7 +60,22 @@ export const AuthProvider = ({ children }) => {
       setUser(u);
       if (u) {
         try {
-          const docSnap = await getDoc(doc(db, "users", u.uid));
+          // Try fetching from users collection first
+          let docSnap = await getDoc(doc(db, "users", u.uid));
+          let collection_name = "users";
+          
+          // If not found in users, try organizations
+          if (!docSnap.exists()) {
+            docSnap = await getDoc(doc(db, "organizations", u.uid));
+            collection_name = "organizations";
+          }
+          
+          // If not found in organizations, try vendors
+          if (!docSnap.exists()) {
+            docSnap = await getDoc(doc(db, "vendors", u.uid));
+            collection_name = "vendors";
+          }
+          
           if (docSnap.exists()) {
             const data = docSnap.data();
             setUserRole(data.role);

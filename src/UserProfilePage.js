@@ -23,6 +23,7 @@ export default function UserProfilePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [shouldNavigate, setShouldNavigate] = useState(false);
 
   // Profile picture upload
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -61,6 +62,14 @@ export default function UserProfilePage() {
 
     loadProfile();
   }, [user]);
+
+  // Watch for profile completion and navigate
+  useEffect(() => {
+    if (shouldNavigate && userDoc?.profileComplete) {
+      console.log("Profile complete, navigating to browse");
+      navigate("/user");
+    }
+  }, [userDoc?.profileComplete, shouldNavigate, navigate]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -167,11 +176,9 @@ export default function UserProfilePage() {
 
       // Refresh user context to update profileComplete status
       await refreshUserDoc();
-
-      // Redirect to caregiver browsing page after 1.5 seconds
-      setTimeout(() => {
-        navigate("/user");
-      }, 1500);
+      
+      // Set flag to trigger navigation when userDoc updates
+      setShouldNavigate(true);
     } catch (err) {
       console.error("Error saving profile:", err);
       setError(err.message || "Could not save profile. Please try again.");

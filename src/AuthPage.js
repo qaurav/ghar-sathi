@@ -96,6 +96,9 @@ export default function AuthPage() {
             adminUid: cred.user.uid,
             adminName: fullName,
             adminEmail: email,
+            businessPhone: "",
+            businessAddress: "",
+            businessCity: "",
             caregivers: [], // Array of caregiver UIDs under this org
             totalCaregivers: 0,
             totalEarnings: 0,
@@ -103,6 +106,8 @@ export default function AuthPage() {
             commissionRate: 15,
             isApproved: false,
             verified: false,
+            profileComplete: false,
+            role: "org_admin",
             createdAt: new Date().toISOString(),
             });
             console.log("Firestore: organization document written:", cred.user.uid);

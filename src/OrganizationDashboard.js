@@ -613,6 +613,33 @@ export default function OrganizationDashboard() {
           >
             <strong>Email:</strong> {organizationData?.adminEmail}
           </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              margin: "8px 0",
+            }}
+          >
+            <strong>Phone:</strong> {organizationData?.businessPhone || "-"}
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              margin: "8px 0",
+            }}
+          >
+            <strong>Address:</strong> {organizationData?.businessAddress || "-"}
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              margin: "8px 0",
+            }}
+          >
+            <strong>City:</strong> {organizationData?.businessCity || "-"}
+          </p>
         </div>
       </div>
     );

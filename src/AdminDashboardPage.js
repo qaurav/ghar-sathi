@@ -9,7 +9,6 @@ import {
   setDoc,
   deleteDoc,
   serverTimestamp,
-  addDoc,
   query,
   where,
 } from "firebase/firestore";
@@ -117,91 +116,158 @@ export default function AdminDashboardPage() {
       try {
         // Organizations
         setLoadingOrganizations(true);
-        const orgSnap = await getDocs(collection(db, "organizations"));
-        const orgsData = orgSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-        setOrganizations(orgsData);
+        try {
+          const orgSnap = await getDocs(collection(db, "organizations"));
+          const orgsData = orgSnap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+          setOrganizations(orgsData);
+        } catch (err) {
+          console.error("Error loading organizations:", err);
+          setOrganizations([]);
+        }
         setLoadingOrganizations(false);
 
         // Vendors
         setLoadingVendors(true);
-        const vendorSnap = await getDocs(collection(db, "vendors"));
-        const vendorsData = vendorSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-        setVendors(vendorsData);
+        try {
+          const vendorSnap = await getDocs(collection(db, "vendors"));
+          const vendorsData = vendorSnap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+          setVendors(vendorsData);
+        } catch (err) {
+          console.error("Error loading vendors:", err);
+          setVendors([]);
+        }
         setLoadingVendors(false);
 
         // Bookings
         setLoadingBookings(true);
-        const bookingSnap = await getDocs(collection(db, "bookings"));
-        const bookingsData = bookingSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-        setBookings(bookingsData);
+        let bookingsData = [];
+        try {
+          const bookingSnap = await getDocs(collection(db, "bookings"));
+          bookingsData = bookingSnap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+          setBookings(bookingsData);
+        } catch (err) {
+          console.error("Error loading bookings:", err);
+          setBookings([]);
+        }
         setLoadingBookings(false);
 
         // Services
-        const servicesSnap = await getDocs(collection(db, "services"));
-        const servicesData = servicesSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-        setServices(servicesData);
+        try {
+          const servicesSnap = await getDocs(collection(db, "services"));
+          const servicesData = servicesSnap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+          setServices(servicesData);
+        } catch (err) {
+          console.error("Error loading services:", err);
+          setServices([]);
+        }
 
         // Blacklist reports
-        const reportsSnap = await getDocs(collection(db, "blacklistReports"));
-        setBlacklistReports(
-          reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-        );
+        try {
+          const reportsSnap = await getDocs(collection(db, "blacklistReports"));
+          setBlacklistReports(
+            reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+          );
+        } catch (err) {
+          console.error("Error loading blacklist reports:", err);
+          setBlacklistReports([]);
+        }
 
         // Blacklist
-        const blacklistSnap = await getDocs(collection(db, "blacklist"));
-        setBlacklist(
-          blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-        );
+        try {
+          const blacklistSnap = await getDocs(collection(db, "blacklist"));
+          setBlacklist(
+            blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+          );
+        } catch (err) {
+          console.error("Error loading blacklist:", err);
+          setBlacklist([]);
+        }
 
         // SuperAdmins
-        const usersSnap = await getDocs(collection(db, "users"));
-        const allUsers = usersSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-        setSuperAdmins(allUsers.filter((u) => u.role === "superadmin"));
+        try {
+          const usersSnap = await getDocs(collection(db, "users"));
+          const allUsers = usersSnap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+          setSuperAdmins(allUsers.filter((u) => u.role === "superadmin"));
+        } catch (err) {
+          console.error("Error loading superadmins:", err);
+          setSuperAdmins([]);
+        }
 
         // Global commission
-        const settingsSnap = await getDoc(doc(db, "settings", "commission"));
-        if (settingsSnap.exists()) {
-          setGlobalCommissionRate(settingsSnap.data().rate ?? 15);
+        try {
+          const settingsSnap = await getDoc(doc(db, "settings", "commission"));
+          if (settingsSnap.exists()) {
+            setGlobalCommissionRate(settingsSnap.data().rate ?? 15);
+          }
+        } catch (err) {
+          console.error("Error loading commission settings:", err);
+        }
+
+        // Get the most recent data for analytics
+        let latestOrgsData = [];
+        let latestVendorsData = [];
+        let latestBookingsData = bookingsData;
+        try {
+          const orgSnap = await getDocs(collection(db, "organizations"));
+          latestOrgsData = orgSnap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+        } catch (err) {
+          console.error("Error reloading organizations for analytics:", err);
+        }
+
+        try {
+          const vendorSnap = await getDocs(collection(db, "vendors"));
+          latestVendorsData = vendorSnap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+        } catch (err) {
+          console.error("Error reloading vendors for analytics:", err);
         }
 
         // Analytics
-        const totalRevenueCalc = bookingsData
+        const totalRevenueCalc = latestBookingsData
           .filter((b) => b.status === "completed")
           .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-        const platformEarningsCalc = bookingsData
+        const platformEarningsCalc = latestBookingsData
           .filter((b) => b.status === "completed")
           .reduce((sum, b) => sum + (b.platformCommission || 0), 0);
 
         setAnalytics({
-          totalOrganizations: orgsData.length,
-          approvedOrganizations: orgsData.filter((o) => o.isApproved).length,
-          totalCaregivers: vendorsData.length,
-          approvedCaregivers: vendorsData.filter((v) => v.isApproved).length,
-          totalBookings: bookingsData.length,
-          completedBookings: bookingsData.filter(
+          totalOrganizations: latestOrgsData.length,
+          approvedOrganizations: latestOrgsData.filter((o) => o.isApproved).length,
+          totalCaregivers: latestVendorsData.length,
+          approvedCaregivers: latestVendorsData.filter((v) => v.isApproved).length,
+          totalBookings: latestBookingsData.length,
+          completedBookings: latestBookingsData.filter(
             (b) => b.status === "completed",
           ).length,
           totalRevenue: totalRevenueCalc,
           platformEarnings: platformEarningsCalc,
         });
+
+        setError(""); // Clear any previous errors
       } catch (err) {
-        console.error("Error loading data", err);
-        setError("Could not load admin dashboard data.");
+        console.error("Unexpected error loading admin dashboard data:", err);
+        console.error("Error details:", err.message, err.code);
+        setError(`Could not load admin dashboard data: ${err.message}`);
       }
     };
 

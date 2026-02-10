@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import AuthPage from "./AuthPage";
 import UserProfilePage from "./UserProfilePage";
+import OrganizationProfilePage from "./OrganizationProfilePage";
 import CaregiverProfilePage from "./CaregiverProfilePage";
 import CaregiverDashboardPage from "./CaregiverDashboardPage";
 import CaregiverListPage from "./CaregiverListPage";
@@ -234,6 +235,24 @@ function App() {
     );
   }
 
+  // LOGGED IN - FORCE PROFILE COMPLETION FOR ORGANIZATIONS
+  if (userRole === "org_admin" && !userDoc?.profileComplete) {
+    return (
+      <>
+        <Header
+          user={user}
+          userRole={userRole}
+          userDoc={userDoc}
+          onLogout={handleLogout}
+        />
+        <Routes>
+          <Route path="/organization/profile" element={<OrganizationProfilePage />} />
+          <Route path="*" element={<Navigate to="/organization/profile" replace />} />
+        </Routes>
+      </>
+    );
+  }
+
   // LOGGED IN - ROUTES BY ROLE
   return (
     <>
@@ -422,16 +441,19 @@ function App() {
 
         {/* ORGANIZATION ADMIN ROUTES */}
         {userRole === "org_admin" && (
-          <Route
-            path="/organization/*"
-            element={
-              <div className="app-shell">
-                <div className="app-card">
-                  <OrganizationDashboard />
+          <>
+            <Route path="/organization/profile" element={<OrganizationProfilePage />} />
+            <Route
+              path="/organization/*"
+              element={
+                <div className="app-shell">
+                  <div className="app-card">
+                    <OrganizationDashboard />
+                  </div>
                 </div>
-              </div>
-            }
-          />
+              }
+            />
+          </>
         )}
 
         {/* CAREGIVER ROUTES */}
