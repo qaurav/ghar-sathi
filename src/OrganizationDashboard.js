@@ -2105,7 +2105,7 @@ export default function OrganizationDashboard() {
                   try {
                     const orgId = organizationData.organizationId || user.uid;
 
-                    await updateDoc(doc(db, "organizations", orgId), {
+                    await setDoc(doc(db, "organizations", orgId), {
                       organizationName: editProfileData.organizationName || "",
                       businessPhone: editProfileData.businessPhone || "",
                       businessAddress: editProfileData.businessAddress || "",
@@ -2113,7 +2113,7 @@ export default function OrganizationDashboard() {
                       commissionRate:
                         Number(editProfileData.commissionRate) || 15,
                       updatedAt: new Date().toISOString(),
-                    });
+                    }, { merge: true });
 
                     if (organizationData.adminUid) {
                       await updateDoc(
@@ -2149,7 +2149,7 @@ export default function OrganizationDashboard() {
                 <label>Organization Name</label>
                 <input
                   type="text"
-                  alue={editProfileData.organizationName}
+                  value={editProfileData.organizationName}
                   onChange={(e) =>
                     setEditProfileData((prev) => ({
                       ...prev,

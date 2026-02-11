@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { useAuth } from "./AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -26,28 +26,14 @@ export default function OrganizationProfilePage() {
   }, [userDoc?.profileComplete, shouldNavigate, navigate]);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) return;
-
-      try {
-        const docSnap = await getDoc(doc(db, "organizations", user.uid));
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setOrganizationName(data.organizationName || "");
-          setBusinessPhone(data.businessPhone || "");
-          setBusinessAddress(data.businessAddress || "");
-          setBusinessCity(data.businessCity || "");
-        }
-      } catch (err) {
-        console.error("Error loading organization profile:", err);
-        setError("Could not load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProfile();
-  }, [user]);
+    if (userDoc) {
+      setOrganizationName(userDoc.organizationName || "");
+      setBusinessPhone(userDoc.businessPhone || "");
+      setBusinessAddress(userDoc.businessAddress || "");
+      setBusinessCity(userDoc.businessCity || "");
+    }
+    setLoading(false);
+  }, [userDoc]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -69,16 +55,15 @@ export default function OrganizationProfilePage() {
     try {
       setSubmitting(true);
 
-      // Update Firestore - preserve the role field
-      await updateDoc(doc(db, "organizations", user.uid), {
+      // Update Firestore (use setDoc with merge to create if doesn't exist)
+      await setDoc(doc(db, "organizations", user.uid), {
         organizationName,
         businessPhone,
         businessAddress,
         businessCity,
         profileComplete: true,
-        role: userDoc?.role || "org_admin", // Preserve/ensure role is set
         updatedAt: new Date().toISOString(),
-      });
+      }, { merge: true });
 
       setSuccess("Profile saved successfully!");
 

@@ -1,0 +1,106 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper to check if user is superadmin (from users collection)
+    function isSuperAdmin() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc.exists && userDoc.data.role == 'superadmin';
+    }
+
+    // Helper to check if accessing own document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Helper to check if user is org_admin accessing their own org
+    function isOrgOwner(orgId) {
+      return request.auth.uid == orgId;
+    }
+
+    // Helper to check if user is org_admin
+    function isOrgAdmin() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc.exists && userDoc.data.role == 'org_admin';
+    }
+
+    // Users collection - users can read/write their own, superadmin can manage all
+    match /users/{userId} {
+      allow read: if request.auth != null && (isOwner(userId) || isSuperAdmin());
+      allow write: if request.auth != null && (isOwner(userId) || isSuperAdmin());
+    }
+
+    // Organizations collection - org_admin owns their org, superadmin full access
+    match /organizations/{orgId} {
+      allow read: if request.auth != null && (isOrgOwner(orgId) || isSuperAdmin());
+      allow write: if request.auth != null && (isOrgOwner(orgId) || isSuperAdmin());
+    }
+
+    // Vendors (caregivers) - authenticated can read approved ones, caregivers own their profile
+    match /vendors/{vendorId} {
+      allow read: if request.auth != null && 
+        (isOwner(vendorId) || 
+         isSuperAdmin() || 
+         (isOrgOwner(resource.data.organizationId)) ||
+         (isOrgAdmin() && resource.data.organizationId == request.auth.uid) ||
+         (resource.data.isApproved == true && resource.data.isSuspended == false));
+      allow write: if request.auth != null && (isOwner(vendorId) || isSuperAdmin());
+    }
+
+    // Bookings - users can access their own, caregivers their own, org_admin/owner their caregivers' bookings
+    match /bookings/{bookingId} {
+      allow read: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         resource.data.caregiverId == request.auth.uid ||
+         (exists(/databases/$(database)/documents/vendors/$(resource.data.caregiverId)) && 
+          isOrgOwner(get(/databases/$(database)/documents/vendors/$(resource.data.caregiverId)).data.organizationId)) ||
+         (isOrgAdmin() && exists(/databases/$(database)/documents/vendors/$(resource.data.caregiverId)) && 
+          get(/databases/$(database)/documents/vendors/$(resource.data.caregiverId)).data.organizationId == request.auth.uid) ||
+         isSuperAdmin());
+      allow write: if request.auth != null && 
+        (resource.data.userId == request.auth.uid || 
+         resource.data.caregiverId == request.auth.uid || 
+         isSuperAdmin());
+    }
+
+    // Services - all authenticated can read, superadmin can manage
+    match /services/{serviceId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isSuperAdmin();
+    }
+
+    // Caregiver Reports - caregivers can create/read their own, superadmin full access
+    match /caregiverReports/{reportId} {
+      allow read: if request.auth != null && 
+        (resource.data.reportedBy == request.auth.uid || isSuperAdmin());
+      allow create: if request.auth != null && 
+        request.resource.data.reportedBy == request.auth.uid;
+      allow write: if request.auth != null && isSuperAdmin();
+    }
+
+    // Blacklist Reports - anyone can create, superadmin manages
+    match /blacklistReports/{reportId} {
+      allow create: if request.auth != null;
+      allow read, write: if request.auth != null && isSuperAdmin();
+    }
+
+    // Blacklist - superadmin only
+    match /blacklist/{userId} {
+      allow read, write: if request.auth != null && isSuperAdmin();
+    }
+
+    // Organization Blacklist - org_admin/owner manages their own, handle both existing and new docs
+    match /organizationBlacklist/{blacklistId} {
+      allow read: if request.auth != null && 
+        (isOrgOwner(resource.data.organizationId) || resource.data.organizationId == request.auth.uid || isSuperAdmin());
+      allow create: if request.auth != null && 
+        (isOrgOwner(request.resource.data.organizationId) || request.resource.data.organizationId == request.auth.uid || isSuperAdmin());
+      allow write: if request.auth != null && 
+        (isOrgOwner(resource.data.organizationId) || resource.data.organizationId == request.auth.uid || isSuperAdmin());
+    }
+
+    // Settings - superadmin only
+    match /settings/{settingId} {
+      allow read, write: if request.auth != null && isSuperAdmin();
+    }
+  }
+}

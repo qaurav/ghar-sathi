@@ -44,12 +44,33 @@ export const AuthProvider = ({ children }) => {
         docSnap = await getDoc(doc(db, "vendors", user.uid));
       }
       
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setUserRole(data.role);
-        setUserDoc(data);
-        setUserData(data);
-      }
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUserRole(data.role);
+
+            // For org_admin, also fetch organization data and merge
+            if (data.role === "org_admin") {
+              try {
+                const orgSnap = await getDoc(doc(db, "organizations", user.uid));
+                if (orgSnap.exists()) {
+                  const orgData = orgSnap.data();
+                  const mergedData = { ...data, ...orgData };
+                  setUserDoc(mergedData);
+                  setUserData(mergedData);
+                } else {
+                  setUserDoc(data);
+                  setUserData(data);
+                }
+              } catch (err) {
+                console.error("Error fetching organization data:", err);
+                setUserDoc(data);
+                setUserData(data);
+              }
+            } else {
+              setUserDoc(data);
+              setUserData(data);
+            }
+          }
     } catch (err) {
       console.error("Error refreshing user data:", err);
     }
@@ -79,8 +100,29 @@ export const AuthProvider = ({ children }) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
             setUserRole(data.role);
-            setUserDoc(data);
-            setUserData(data);
+            
+            // For org_admin, also fetch organization data and merge
+            if (data.role === "org_admin") {
+              try {
+                const orgSnap = await getDoc(doc(db, "organizations", u.uid));
+                if (orgSnap.exists()) {
+                  const orgData = orgSnap.data();
+                  const mergedData = { ...data, ...orgData };
+                  setUserDoc(mergedData);
+                  setUserData(mergedData);
+                } else {
+                  setUserDoc(data);
+                  setUserData(data);
+                }
+              } catch (err) {
+                console.error("Error fetching organization data:", err);
+                setUserDoc(data);
+                setUserData(data);
+              }
+            } else {
+              setUserDoc(data);
+              setUserData(data);
+            }
           }
         } catch (err) {
           console.error("Error fetching user data:", err);

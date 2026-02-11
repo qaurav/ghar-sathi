@@ -42,15 +42,29 @@ function App() {
 
     const path = window.location.pathname;
 
-    // Only auto-redirect from neutral pages
-    if (path === "/" || path === "/browse" || path === "/auth") {
-      if (userRole === "org_admin") {
+    if (userRole === "org_admin") {
+      // If profile is complete but on profile page, redirect to dashboard
+      if (userDoc?.profileComplete && path === "/organization/profile") {
+        navigate("/organization/dashboard", { replace: true });
+      } 
+      // If profile is incomplete but on dashboard, redirect to profile
+      else if (!userDoc?.profileComplete && path === "/organization/dashboard") {
         navigate("/organization/profile", { replace: true });
-      } else if (userRole === "user") {
+      }
+      // If on neutral pages, redirect based on profile status
+      else if (path === "/" || path === "/browse" || path === "/auth") {
+        if (userDoc?.profileComplete) {
+          navigate("/organization/dashboard", { replace: true });
+        } else {
+          navigate("/organization/profile", { replace: true });
+        }
+      }
+    } else if (userRole === "user") {
+      if (path === "/" || path === "/browse" || path === "/auth") {
         navigate("/user/profile", { replace: true });
       }
     }
-  }, [user, userRole, navigate]);
+  }, [user, userRole, userDoc?.profileComplete, navigate]);
 
   // Global loading state while Firebase auth initializes
   if (loading) {
