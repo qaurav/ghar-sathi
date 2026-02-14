@@ -37,7 +37,7 @@ export async function saveOrganizationRecord({
       totalBookings: 0,
       totalEarnings: 0,
       createdAt: new Date().toISOString(),
-      createdBy: "org_admin",
+      createdBy: "orgadmin",
       isSuspended: false,
     });
   } else {

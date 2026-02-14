@@ -42,7 +42,7 @@ function App() {
 
     const path = window.location.pathname;
 
-    if (userRole === "org_admin") {
+    if (userRole === "orgadmin") {
       // If profile is complete but on profile page, redirect to dashboard
       if (userDoc?.profileComplete && path === "/organization/profile") {
         navigate("/organization/dashboard", { replace: true });
@@ -250,7 +250,7 @@ function App() {
   }
 
   // LOGGED IN - FORCE PROFILE COMPLETION FOR ORGANIZATIONS
-  if (userRole === "org_admin" && !userDoc?.profileComplete) {
+  if (userRole === "orgadmin" && !userDoc?.profileComplete) {
     return (
       <>
         <Header
@@ -454,7 +454,7 @@ function App() {
         )}
 
         {/* ORGANIZATION ADMIN ROUTES */}
-        {userRole === "org_admin" && (
+        {userRole === "orgadmin" && (
           <>
             <Route path="/organization/profile" element={<OrganizationProfilePage />} />
             <Route
@@ -510,7 +510,7 @@ function App() {
           element={
             userRole === "superadmin" ? (
               <Navigate to="/superadmin" replace />
-            ) : userRole === "org_admin" ? (
+            ) : userRole === "orgadmin" ? (
               <Navigate to="/organization" replace />
             ) : userRole === "caregiver" ? (
               <Navigate to="/caregiver" replace />

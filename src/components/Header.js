@@ -14,7 +14,7 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
         return "👨‍👩‍👧";
       case "caregiver":
         return "👩‍💼";
-      case "org_admin":
+      case "orgadmin":
         return "🏢";
       case "superadmin":
         return "🔐";
@@ -29,7 +29,7 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
         return "Customer";
       case "caregiver":
         return "Caregiver";
-      case "org_admin":
+      case "orgadmin":
         return "Organization";
       case "superadmin":
         return "SuperAdmin";
@@ -97,7 +97,7 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
                       🏢 {userDoc.organizationName}
                     </p>
                   )}
-                  {userRole === "org_admin" && userDoc?.organizationName && (
+                  {userRole === "orgadmin" && userDoc?.organizationName && (
                     <p style={{ margin: "4px 0 0 0", color: "#9ca3af", fontSize: 11 }}>
                       🏢 {userDoc.organizationName}
                     </p>
@@ -143,7 +143,7 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
                 )}
 
                 {/* Navigation Items - Organization Admin */}
-                {userRole === "org_admin" && (
+                {userRole === "orgadmin" && (
                   <>
                     <button
                       className="dropdown-item"

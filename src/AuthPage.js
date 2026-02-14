@@ -31,8 +31,8 @@ export default function AuthPage() {
           return;
         }
 
-        // Validate organization name for org_admin
-        if (selectedRole === "org_admin" && !organizationName.trim()) {
+        // Validate organization name for orgadmin
+        if (selectedRole === "orgadmin" && !organizationName.trim()) {
           setError("Please enter your organization/company name");
           setLoading(false);
           return;
@@ -70,7 +70,7 @@ export default function AuthPage() {
         }
 
         // ORGANIZATION ADMIN (Partner Vendor)
-        if (selectedRole === "org_admin") {
+        if (selectedRole === "orgadmin") {
           userData = {
             ...userData,
             organizationName: organizationName.trim(),
@@ -107,7 +107,7 @@ export default function AuthPage() {
             isApproved: false,
             verified: false,
             profileComplete: false,
-            role: "org_admin",
+            role: "orgadmin",
             createdAt: new Date().toISOString(),
             });
             console.log("Firestore: organization document written:", cred.user.uid);
@@ -249,21 +249,21 @@ export default function AuthPage() {
                     <input
                       type="radio"
                       name="role"
-                      value="org_admin"
-                      checked={selectedRole === "org_admin"}
-                      onChange={() => setSelectedRole("org_admin")}
+                      value="orgadmin"
+                      checked={selectedRole === "orgadmin"}
+                      onChange={() => setSelectedRole("orgadmin")}
                     />
                     <span>🏢 Organization/Company (Provide caregivers)</span>
                   </label>
                 </div>
                 <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
                   {selectedRole === "user" && "Browse and book trusted caregivers for your family"}
-                  {selectedRole === "org_admin" && "Partner with Sewak and manage your caregiver team"}
+                  {selectedRole === "orgadmin" && "Partner with Sewak and manage your caregiver team"}
                 </p>
               </div>
 
-              {/* Organization Name - Only for org_admin */}
-              {selectedRole === "org_admin" && (
+              {/* Organization Name - Only for orgadmin */}
+              {selectedRole === "orgadmin" && (
                 <div>
                   <label>Organization/Company Name</label>
                   <input

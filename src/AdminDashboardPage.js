@@ -1,5 +1,4 @@
-// src/AdminDashboardPage.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   collection,
   getDocs,
@@ -11,29 +10,36 @@ import {
   serverTimestamp,
   query,
   where,
+  addDoc,
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+} from "firebase/auth";
 import { db, auth } from "./firebaseConfig";
-import "./OrganizationDashboard.css";
 import { saveOrganizationRecord } from "./saveOrganizationRecord";
+import "./OrganizationDashboard.css";
 
 export default function AdminDashboardPage() {
-  const [activeTab, setActiveTab] = useState("organizations");
+  // ============ AUTH STATE ============
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [permissionsError, setPermissionsError] = useState("");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // Organizations
+  // ============ UI STATE ============
+  const [activeTab, setActiveTab] = useState("organizations");
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // ============ ORGANIZATIONS ============
   const [organizations, setOrganizations] = useState([]);
   const [loadingOrganizations, setLoadingOrganizations] = useState(true);
   const [orgStatusFilter, setOrgStatusFilter] = useState("all");
   const [searchOrg, setSearchOrg] = useState("");
   const [selectedOrg, setSelectedOrg] = useState(null);
 
-  // Org details modal caregivers list
-  const [orgCaregivers, setOrgCaregivers] = useState([]);
-
-  // Edit organization modal
-  const [editingOrg, setEditingOrg] = useState(null);
-
-  // Add Organization Form
   const [showAddOrgForm, setShowAddOrgForm] = useState(false);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgAdminName, setNewOrgAdminName] = useState("");
@@ -45,58 +51,70 @@ export default function AdminDashboardPage() {
   const [newOrgCommission, setNewOrgCommission] = useState(15);
   const [addingOrg, setAddingOrg] = useState(false);
 
-  // Add SuperAdmin Form
+  const [editingOrg, setEditingOrg] = useState(null);
+  const [editOrgName, setEditOrgName] = useState("");
+  const [editOrgAdminName, setEditOrgAdminName] = useState("");
+  const [editOrgEmail, setEditOrgEmail] = useState("");
+  const [editOrgPhone, setEditOrgPhone] = useState("");
+  const [editOrgAddress, setEditOrgAddress] = useState("");
+  const [editOrgCity, setEditOrgCity] = useState("");
+  const [editOrgCommission, setEditOrgCommission] = useState(15);
+  const [showEditOrgModal, setShowEditOrgModal] = useState(false);
+  const [showOrgPasswordModal, setShowOrgPasswordModal] = useState(false);
+  const [orgPasswordOrg, setOrgPasswordOrg] = useState(null);
+  const [orgNewPassword, setOrgNewPassword] = useState("");
+
+  // ============ CAREGIVERS ============
+  const [vendors, setVendors] = useState([]);
+  const [orgCaregivers, setOrgCaregivers] = useState([]);
+  const [showOrgCaregiversModal, setShowOrgCaregiversModal] = useState(false);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+  const [vendorStatusFilter, setVendorStatusFilter] = useState("all");
+  const [searchVendor, setSearchVendor] = useState("");
+  const [showCaregiverPasswordModal, setShowCaregiverPasswordModal] =
+    useState(false);
+  const [caregiverPasswordUser, setCaregiverPasswordUser] = useState(null);
+  const [caregiverNewPassword, setCaregiverNewPassword] = useState("");
+
+  const [showCaregiverBlacklistModal, setShowCaregiverBlacklistModal] =
+    useState(false);
+  const [caregiverBlacklistUser, setCaregiverBlacklistUser] = useState(null);
+  const [caregiverBlacklistReason, setCaregiverBlacklistReason] = useState("");
+
+  // ============ SUPER ADMINS ============
+  const [superAdmins, setSuperAdmins] = useState([]);
   const [showAddSuperAdminForm, setShowAddSuperAdminForm] = useState(false);
   const [newSuperAdminName, setNewSuperAdminName] = useState("");
   const [newSuperAdminEmail, setNewSuperAdminEmail] = useState("");
   const [newSuperAdminPassword, setNewSuperAdminPassword] = useState("");
   const [addingSuperAdmin, setAddingSuperAdmin] = useState(false);
 
-  // Vendors/Caregivers
-  const [vendors, setVendors] = useState([]);
-  const [loadingVendors, setLoadingVendors] = useState(true);
-  const [vendorStatusFilter, setVendorStatusFilter] = useState("all");
-  const [searchVendor, setSearchVendor] = useState("");
-
-  // Edit caregiver modal
-  const [editingCaregiver, setEditingCaregiver] = useState(null);
-  const [editCaregiverData, setEditCaregiverData] = useState({
-    name: "",
-    location: "",
-    hourlyRate: "",
-    workType: "",
-    category: "",
-    services: [],
-    experience: "",
-  });
-
-  // Bookings
+  // ============ BOOKINGS ============
   const [bookings, setBookings] = useState([]);
-  const [loadingBookings, setLoadingBookings] = useState(true);
+  const [loadingBookings, setLoadingBookings] = useState(false);
   const [bookingStatusFilter, setBookingStatusFilter] = useState("");
   const [bookingDateFilter, setBookingDateFilter] = useState("");
 
-  // Services
+  // ============ SERVICES ============
   const [services, setServices] = useState([]);
   const [newServiceLabel, setNewServiceLabel] = useState("");
   const [newServiceCategory, setNewServiceCategory] = useState("caregiver");
   const [editingService, setEditingService] = useState(null);
   const [editServiceLabel, setEditServiceLabel] = useState("");
-  const [editServiceCategory, setEditServiceCategory] = useState("caregiver");
 
-  // Blacklist Reports
+  // ============ BLACKLIST ============
   const [blacklistReports, setBlacklistReports] = useState([]);
   const [blacklistFilter, setBlacklistFilter] = useState("pending");
   const [blacklist, setBlacklist] = useState([]);
+  const [showOrgBlacklistModal, setShowOrgBlacklistModal] = useState(false);
+  const [orgBlacklistOrg, setOrgBlacklistOrg] = useState(null);
+  const [orgBlacklistReason, setOrgBlacklistReason] = useState("");
 
-  // Settings
+  // ============ SETTINGS ============
   const [globalCommissionRate, setGlobalCommissionRate] = useState(15);
   const [editingCommission, setEditingCommission] = useState(false);
 
-  // SuperAdmins list
-  const [superAdmins, setSuperAdmins] = useState([]);
-
-  // Analytics
+  // ============ ANALYTICS ============
   const [analytics, setAnalytics] = useState({
     totalOrganizations: 0,
     approvedOrganizations: 0,
@@ -108,172 +126,264 @@ export default function AdminDashboardPage() {
     platformEarnings: 0,
   });
 
-  const [error, setError] = useState("");
+  // ============ LOAD ALL DATA ============
+  const calculateAnalytics = useCallback(async () => {
+    try {
+      const vendorSnap = await getDocs(collection(db, "vendors"));
+      const vendorsData = vendorSnap.docs.map((d) => d.data());
 
-  // Load all data
-  useEffect(() => {
-    const loadAllData = async () => {
-      try {
-        // Organizations
-        setLoadingOrganizations(true);
-        try {
-          const orgSnap = await getDocs(collection(db, "organizations"));
-          const orgsData = orgSnap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          }));
-          setOrganizations(orgsData);
-        } catch (err) {
-          console.error("Error loading organizations:", err);
-          setOrganizations([]);
-        }
-        setLoadingOrganizations(false);
+      const bookingSnap = await getDocs(collection(db, "bookings"));
+      const bookingsData = bookingSnap.docs.map((d) => d.data());
 
-        // Vendors
-        setLoadingVendors(true);
-        try {
-          const vendorSnap = await getDocs(collection(db, "vendors"));
-          const vendorsData = vendorSnap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          }));
-          setVendors(vendorsData);
-        } catch (err) {
-          console.error("Error loading vendors:", err);
-          setVendors([]);
-        }
-        setLoadingVendors(false);
+      const totalRevenue = bookingsData
+        .filter((b) => b.status === "completed")
+        .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
 
-        // Bookings
-        setLoadingBookings(true);
-        let bookingsData = [];
-        try {
-          const bookingSnap = await getDocs(collection(db, "bookings"));
-          bookingsData = bookingSnap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          }));
-          setBookings(bookingsData);
-        } catch (err) {
-          console.error("Error loading bookings:", err);
-          setBookings([]);
-        }
-        setLoadingBookings(false);
+      const platformEarnings = bookingsData
+        .filter((b) => b.status === "completed")
+        .reduce((sum, b) => sum + (b.platformCommission || 0), 0);
 
-        // Services
-        try {
-          const servicesSnap = await getDocs(collection(db, "services"));
-          const servicesData = servicesSnap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          }));
-          setServices(servicesData);
-        } catch (err) {
-          console.error("Error loading services:", err);
-          setServices([]);
-        }
-
-        // Blacklist reports
-        try {
-          const reportsSnap = await getDocs(collection(db, "blacklistReports"));
-          setBlacklistReports(
-            reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-          );
-        } catch (err) {
-          console.error("Error loading blacklist reports:", err);
-          setBlacklistReports([]);
-        }
-
-        // Blacklist
-        try {
-          const blacklistSnap = await getDocs(collection(db, "blacklist"));
-          setBlacklist(
-            blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-          );
-        } catch (err) {
-          console.error("Error loading blacklist:", err);
-          setBlacklist([]);
-        }
-
-        // SuperAdmins
-        try {
-          const usersSnap = await getDocs(collection(db, "users"));
-          const allUsers = usersSnap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          }));
-          setSuperAdmins(allUsers.filter((u) => u.role === "superadmin"));
-        } catch (err) {
-          console.error("Error loading superadmins:", err);
-          setSuperAdmins([]);
-        }
-
-        // Global commission
-        try {
-          const settingsSnap = await getDoc(doc(db, "settings", "commission"));
-          if (settingsSnap.exists()) {
-            setGlobalCommissionRate(settingsSnap.data().rate ?? 15);
-          }
-        } catch (err) {
-          console.error("Error loading commission settings:", err);
-        }
-
-        // Get the most recent data for analytics
-        let latestOrgsData = [];
-        let latestVendorsData = [];
-        let latestBookingsData = bookingsData;
-        try {
-          const orgSnap = await getDocs(collection(db, "organizations"));
-          latestOrgsData = orgSnap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          }));
-        } catch (err) {
-          console.error("Error reloading organizations for analytics:", err);
-        }
-
-        try {
-          const vendorSnap = await getDocs(collection(db, "vendors"));
-          latestVendorsData = vendorSnap.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          }));
-        } catch (err) {
-          console.error("Error reloading vendors for analytics:", err);
-        }
-
-        // Analytics
-        const totalRevenueCalc = latestBookingsData
-          .filter((b) => b.status === "completed")
-          .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-        const platformEarningsCalc = latestBookingsData
-          .filter((b) => b.status === "completed")
-          .reduce((sum, b) => sum + (b.platformCommission || 0), 0);
-
-        setAnalytics({
-          totalOrganizations: latestOrgsData.length,
-          approvedOrganizations: latestOrgsData.filter((o) => o.isApproved).length,
-          totalCaregivers: latestVendorsData.length,
-          approvedCaregivers: latestVendorsData.filter((v) => v.isApproved).length,
-          totalBookings: latestBookingsData.length,
-          completedBookings: latestBookingsData.filter(
-            (b) => b.status === "completed",
-          ).length,
-          totalRevenue: totalRevenueCalc,
-          platformEarnings: platformEarningsCalc,
-        });
-
-        setError(""); // Clear any previous errors
-      } catch (err) {
-        console.error("Unexpected error loading admin dashboard data:", err);
-        console.error("Error details:", err.message, err.code);
-        setError(`Could not load admin dashboard data: ${err.message}`);
-      }
-    };
-
-    loadAllData();
+      setAnalytics({
+        totalOrganizations: organizations.length,
+        approvedOrganizations: organizations.filter((o) => o.isApproved).length,
+        totalCaregivers: vendorsData.length,
+        approvedCaregivers: vendorsData.filter((v) => v.isApproved).length,
+        totalBookings: bookingsData.length,
+        completedBookings: bookingsData.filter((b) => b.status === "completed")
+          .length,
+        totalRevenue,
+        platformEarnings,
+      });
+  } catch (err) {
+    console.error("Unexpected error loading dashboard:", err);
+    setError("Failed to load dashboard data");
+    setLoadingOrganizations(false);
+  }
   }, []);
 
+  const loadAllData = useCallback(async () => {
+    try {
+      // Organizations
+      try {
+        setLoadingOrganizations(true);
+        const orgSnap = await getDocs(collection(db, "organizations"));
+        const orgsData = orgSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setOrganizations(orgsData);
+        setLoadingOrganizations(false);
+      } catch (err) {
+        console.error("Error loading organizations:", err);
+        setError("Failed to load organizations");
+      } finally {
+        setLoadingOrganizations(false);
+      }
+
+      // Vendors
+      setLoadingVendors(true);
+      try {
+        const vendorSnap = await getDocs(collection(db, "vendors"));
+        const vendorsData = vendorSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        setVendors(vendorsData);
+      } catch (err) {
+        console.error("Error loading vendors:", err);
+        setError("Failed to load caregivers");
+      } finally {
+        setLoadingVendors(false);
+      }
+
+      // Bookings
+      setLoadingBookings(true);
+      try {
+        const bookingSnap = await getDocs(collection(db, "bookings"));
+        const bookingsData = bookingSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        setBookings(bookingsData);
+      } catch (err) {
+        console.error("Error loading bookings:", err);
+        setError("Failed to load bookings");
+      } finally {
+        setLoadingBookings(false);
+      }
+
+      // Services
+      try {
+        const servicesSnap = await getDocs(collection(db, "services"));
+        const servicesData = servicesSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        setServices(servicesData);
+      } catch (err) {
+        console.error("Error loading services:", err);
+      }
+
+      // Blacklist reports
+      try {
+        const reportsSnap = await getDocs(collection(db, "blacklistReports"));
+        setBlacklistReports(
+          reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+        );
+      } catch (err) {
+        console.error("Error loading blacklist reports:", err);
+      }
+
+      // Blacklist
+      try {
+        const blacklistSnap = await getDocs(collection(db, "blacklist"));
+        setBlacklist(
+          blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+        );
+      } catch (err) {
+        console.error("Error loading blacklist:", err);
+      }
+
+      // Superadmins
+      try {
+        const usersSnap = await getDocs(collection(db, "users"));
+        const allUsers = usersSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        const superAdminList = allUsers.filter((u) => u.role === "superadmin");
+        setSuperAdmins(superAdminList);
+      } catch (err) {
+        console.error("Error loading superadmins:", err);
+        setError("Failed to load superadmins: " + err.message);
+      }
+
+      // Commission
+      try {
+        const settingsSnap = await getDoc(doc(db, "settings", "commission"));
+        if (settingsSnap.exists()) {
+          setGlobalCommissionRate(settingsSnap.data().rate || 15);
+        }
+      } catch (err) {
+        console.error("Error loading commission settings:", err);
+      }
+
+      // Analytics
+      await calculateAnalytics();
+    } catch (err) {
+      console.error("Unexpected error loading dashboard:", err);
+      setError("Failed to load dashboard data");
+    }
+  }, [calculateAnalytics]);
+
+  // ============ EFFECT: AUTH CHECK ============
+  useEffect(() => {
+    let cancelled = false;
+
+    setLoadingAuth(true);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user || cancelled) {
+        setPermissionsError("Please log in to access the Admin Dashboard.");
+        setCurrentUser(null);
+        setUserRole(null);
+        setIsSuperAdmin(false);
+        setLoadingAuth(false);
+        return;
+      }
+
+      setCurrentUser(user);
+
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+
+        if (!userDoc.exists() || cancelled) {
+          setPermissionsError(
+            "User profile not found. Please contact support.",
+          );
+          setIsSuperAdmin(false);
+          setLoadingAuth(false);
+          return;
+        }
+
+        const userData = userDoc.data();
+        setUserRole(userData.role);
+
+        if (userData.role !== "superadmin") {
+          setPermissionsError(
+            `Access Denied: You are logged in as "${userData.role}". Only superadmin accounts can access this dashboard.`,
+          );
+          setIsSuperAdmin(false);
+          setLoadingAuth(false);
+          return;
+        }
+
+        setIsSuperAdmin(true);
+        setPermissionsError("");
+        setLoadingAuth(false);
+
+        await loadAllData();
+      } catch (err) {
+        console.error("Error verifying user role:", err);
+        setPermissionsError(`Permission verification failed: ${err.message}`);
+        setIsSuperAdmin(false);
+        setLoadingAuth(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [auth, loadAllData]);
+
+  // ============ CREATE FIRST SUPERADMIN (OPTIONAL) ============
+  const createFirstSuperAdminIfNeeded = async () => {
+    try {
+      const usersSnap = await getDocs(collection(db, "users"));
+      const allUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const superAdminList = allUsers.filter((u) => u.role === "superadmin");
+
+      if (superAdminList.length === 0) {
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          "admin@gharsathi.com",
+          "admin123",
+        );
+        const uid = userCredential.user.uid;
+
+        const userData = {
+          uid,
+          name: "Super Admin",
+          email: "admin@gharsathi.com",
+          role: "superadmin",
+          createdAt: new Date().toISOString(),
+          isApproved: true,
+          isSuspended: false,
+          profileComplete: true,
+          permissions: [
+            "read",
+            "write",
+            "delete",
+            "approve_vendors",
+            "manage_admins",
+          ],
+        };
+
+        await setDoc(doc(db, "users", uid), userData);
+
+        setSuccessMessage(
+          "First superadmin account created! Please log in with admin@gharsathi.com / admin123",
+        );
+        setTimeout(() => setSuccessMessage(""), 10000);
+      } else {
+        setError(
+          "Superadmin accounts exist. Please log in with a superadmin account.",
+        );
+      }
+    } catch (error) {
+      console.error("Error creating first superadmin:", error);
+      setError("Failed to initialize superadmin: " + error.message);
+    }
+  };
+
+  // ============ HANDLERS: ORGANIZATIONS ============
   const handleOrgClick = async (org) => {
     setSelectedOrg(org);
     try {
@@ -283,45 +393,10 @@ export default function AdminDashboardPage() {
       );
       const snap = await getDocs(q);
       setOrgCaregivers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setShowOrgCaregiversModal(true);
     } catch (err) {
-      console.error("Error loading caregivers", err);
-    }
-  };
-
-  const handleApproveCaregiverClick = async (caregiverId) => {
-    try {
-      await updateDoc(doc(db, "vendors", caregiverId), {
-        isApproved: true,
-        approvedAt: serverTimestamp(),
-        approvedBy: "superadmin",
-      });
-      await updateDoc(doc(db, "users", caregiverId), {
-        isApproved: true,
-      });
-      alert("Caregiver approved!");
-      if (selectedOrg) {
-        await handleOrgClick(selectedOrg);
-      }
-    } catch (err) {
-      console.error("Error approving caregiver", err);
-    }
-  };
-
-  const handleRejectCaregiverClick = async (caregiverId) => {
-    const reason = window.prompt("Enter rejection reason");
-    if (!reason) return;
-    try {
-      await updateDoc(doc(db, "vendors", caregiverId), {
-        isApproved: false,
-        rejectionReason: reason,
-        rejectedAt: serverTimestamp(),
-      });
-      alert("Caregiver rejected!");
-      if (selectedOrg) {
-        await handleOrgClick(selectedOrg);
-      }
-    } catch (err) {
-      console.error("Error rejecting caregiver", err);
+      console.error("Error loading organization caregivers:", err);
+      setError("Failed to load caregivers");
     }
   };
 
@@ -329,6 +404,7 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     setError("");
     setAddingOrg(true);
+
     try {
       const orgCred = await createUserWithEmailAndPassword(
         auth,
@@ -341,7 +417,7 @@ export default function AdminDashboardPage() {
         uid: orgUid,
         name: newOrgAdminName,
         email: newOrgEmail,
-        role: "org_admin",
+        role: "orgadmin",
         organizationName: newOrgName,
         organizationId: orgUid,
         businessPhone: newOrgPhone,
@@ -351,9 +427,8 @@ export default function AdminDashboardPage() {
         isApproved: true,
         isSuspended: false,
         profileComplete: true,
-        createdBy: "superadmin",
+        createdBy: currentUser?.email || "system",
       };
-
       await setDoc(doc(db, "users", orgUid), userData);
 
       await saveOrganizationRecord({
@@ -370,10 +445,10 @@ export default function AdminDashboardPage() {
         commissionRate: Number(newOrgCommission) || 15,
         isApproved: true,
         verified: true,
-        createdBy: "superadmin",
+        createdBy: currentUser?.email || "system",
       });
 
-      alert("Organization created successfully!");
+      setSuccessMessage("Organization created successfully!");
       setNewOrgName("");
       setNewOrgAdminName("");
       setNewOrgEmail("");
@@ -384,165 +459,192 @@ export default function AdminDashboardPage() {
       setNewOrgCommission(15);
       setShowAddOrgForm(false);
 
-      const orgSnap = await getDocs(collection(db, "organizations"));
-      setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      await loadAllData();
     } catch (err) {
-      console.error("Error creating organization", err);
-      if (err.code === "auth/email-already-in-use") {
-        setError("This email is already registered.");
-      } else {
-        setError(err.message || "Could not create organization.");
+      console.error("Error creating organization:", err);
+      setError("Failed to create organization: " + err.message);
+    }
+    setAddingOrg(false);
+  };
+
+  const handleStartEditOrg = (org) => {
+    setEditingOrg(org);
+    setEditOrgName(org.organizationName || "");
+    setEditOrgAdminName(org.adminName || "");
+    setEditOrgEmail(org.email || org.adminEmail || "");
+    setEditOrgPhone(org.businessPhone || org.phone || "");
+    setEditOrgAddress(org.businessAddress || org.address || "");
+    setEditOrgCity(org.businessCity || org.city || "");
+    setEditOrgCommission(org.commissionRate ?? 15);
+    setShowEditOrgModal(true);
+  };
+
+  const handleCancelEditOrg = () => {
+    setEditingOrg(null);
+    setShowEditOrgModal(false);
+  };
+
+  const handleUpdateOrganization = async (e) => {
+    e.preventDefault();
+    if (!editingOrg) return;
+    setError("");
+
+    try {
+      await updateDoc(doc(db, "organizations", editingOrg.id), {
+        organizationName: editOrgName,
+        adminName: editOrgAdminName,
+        email: editOrgEmail,
+        businessPhone: editOrgPhone,
+        businessAddress: editOrgAddress,
+        businessCity: editOrgCity,
+        commissionRate: Number(editOrgCommission) || 15,
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUser?.email || "system",
+      });
+
+      try {
+        await updateDoc(doc(db, "users", editingOrg.id), {
+          organizationName: editOrgName,
+          name: editOrgAdminName,
+          email: editOrgEmail,
+          businessPhone: editOrgPhone,
+          businessAddress: editOrgAddress,
+          businessCity: editOrgCity,
+          updatedAt: serverTimestamp(),
+          updatedBy: currentUser?.email || "system",
+        });
+      } catch (userErr) {
+        console.warn(
+          "Org user doc not updated (may not exist with same id):",
+          userErr,
+        );
       }
-    } finally {
-      setAddingOrg(false);
+
+      setSuccessMessage("Organization updated successfully!");
+      setEditingOrg(null);
+      setShowEditOrgModal(false);
+      await loadAllData();
+    } catch (err) {
+      console.error("Error updating organization", err);
+      setError("Failed to update organization: " + err.message);
     }
   };
 
-  const handleCreateSuperAdmin = async (e) => {
-    e.preventDefault();
-    setError("");
-    setAddingSuperAdmin(true);
-    try {
-      const cred = await createUserWithEmailAndPassword(
-        auth,
-        newSuperAdminEmail,
-        newSuperAdminPassword,
-      );
-      const superAdminUid = cred.user.uid;
-
-      const userData = {
-        uid: superAdminUid,
-        name: newSuperAdminName,
-        email: newSuperAdminEmail,
-        role: "superadmin",
-        createdAt: new Date().toISOString(),
-        isApproved: true,
-        isSuspended: false,
-        profileComplete: true,
-        createdBy: "superadmin",
-      };
-
-      await setDoc(doc(db, "users", superAdminUid), userData);
-      alert("SuperAdmin created successfully!");
-
-      setNewSuperAdminName("");
-      setNewSuperAdminEmail("");
-      setNewSuperAdminPassword("");
-      setShowAddSuperAdminForm(false);
-
-      const usersSnap = await getDocs(collection(db, "users"));
-      const allUsers = usersSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-      setSuperAdmins(allUsers.filter((u) => u.role === "superadmin"));
-    } catch (err) {
-      console.error("Error creating superadmin", err);
-      if (err.code === "auth/email-already-in-use") {
-        setError("This email is already registered.");
-      } else {
-        setError(err.message || "Could not create superadmin.");
-      }
-    } finally {
-      setAddingSuperAdmin(false);
-    }
+  const handleOpenOrgPasswordModal = (org) => {
+    setOrgPasswordOrg(org);
+    setOrgNewPassword("");
+    setShowOrgPasswordModal(true);
   };
 
-  const handleAddService = async (e) => {
+  const handleSubmitOrgPasswordChange = async (e) => {
     e.preventDefault();
-    setError("");
-    if (!newServiceLabel.trim()) {
-      setError("Please enter a service name.");
-      return;
-    }
+    if (!orgPasswordOrg || !orgPasswordOrg.email || !orgNewPassword) return;
+
     try {
-      const id = newServiceLabel.trim().toLowerCase().replace(/\s+/g, "_");
-      await setDoc(doc(db, "services", id), {
-        label: newServiceLabel.trim(),
-        serviceName: newServiceLabel.trim(),
-        category: newServiceCategory,
+      await addDoc(collection(db, "adminPasswordResets"), {
+        targetEmail: orgPasswordOrg.email,
+        targetUserId: orgPasswordOrg.id,
+        newPassword: orgNewPassword,
         createdAt: serverTimestamp(),
-        createdBy: "superadmin",
+        requestedBy: currentUser?.email || "superadmin",
+        role: "orgadmin",
       });
-      setNewServiceLabel("");
-      setNewServiceCategory("caregiver");
-      alert("Service added!");
-      const servicesSnap = await getDocs(collection(db, "services"));
-      setServices(servicesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+
+      setSuccessMessage(
+        "Password reset request created. Backend admin function must apply the change.",
+      );
+      setShowOrgPasswordModal(false);
+      setOrgPasswordOrg(null);
+      setOrgNewPassword("");
     } catch (err) {
-      console.error("Error adding service", err);
-      setError("Could not add service.");
+      console.error("Error creating password reset request:", err);
+      setError("Failed to create password reset request: " + err.message);
     }
   };
 
-  const handleUpdateService = async (e) => {
+  const handleOpenOrgBlacklistModal = (org) => {
+    setOrgBlacklistOrg(org);
+    setOrgBlacklistReason("");
+    setShowOrgBlacklistModal(true);
+  };
+
+  const handleSubmitOrgBlacklist = async (e) => {
     e.preventDefault();
-    if (!editingService) return;
-    try {
-      await updateDoc(doc(db, "services", editingService.id), {
-        label: editServiceLabel.trim(),
-        serviceName: editServiceLabel.trim(),
-        category: editServiceCategory,
-      });
-      alert("Service updated!");
-      setEditingService(null);
-      const servicesSnap = await getDocs(collection(db, "services"));
-      setServices(servicesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.error("Error updating service", err);
-      alert("Could not update service.");
-    }
-  };
+    if (!orgBlacklistOrg) return;
 
-  const handleDeleteService = async (serviceId, label) => {
-    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
     try {
-      await deleteDoc(doc(db, "services", serviceId));
-      alert("Service deleted!");
-      const servicesSnap = await getDocs(collection(db, "services"));
-      setServices(servicesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const org = orgBlacklistOrg;
+
+      await updateDoc(doc(db, "organizations", org.id), {
+        isBlacklisted: true,
+        blacklistedAt: serverTimestamp(),
+        blacklistedBy: currentUser?.email || "superadmin",
+        blacklistReason: orgBlacklistReason || "Blacklisted by superadmin",
+      });
+
+      await addDoc(collection(db, "blacklist"), {
+        userId: org.id,
+        userType: "organization",
+        reason: orgBlacklistReason || "Blacklisted by superadmin",
+        addedAt: serverTimestamp(),
+        approvedBy: currentUser?.email || "superadmin",
+      });
+
+      const q = query(
+        collection(db, "vendors"),
+        where("organizationId", "==", org.id),
+      );
+      const snap = await getDocs(q);
+
+      for (const d of snap.docs) {
+        const caregiverId = d.id;
+
+        await updateDoc(doc(db, "vendors", caregiverId), {
+          isBlacklisted: true,
+          blacklistedAt: serverTimestamp(),
+          blacklistedBy: currentUser?.email || "superadmin",
+          blacklistReason:
+            orgBlacklistReason ||
+            `Organization ${org.organizationName} blacklisted`,
+        });
+
+        await addDoc(collection(db, "blacklist"), {
+          userId: caregiverId,
+          userType: "caregiver",
+          reason:
+            orgBlacklistReason ||
+            `Organization ${org.organizationName} blacklisted`,
+          addedAt: serverTimestamp(),
+          approvedBy: currentUser?.email || "superadmin",
+        });
+      }
+
+      setSuccessMessage(
+        "Organization and all its caregivers have been blacklisted.",
+      );
+      setShowOrgBlacklistModal(false);
+      setOrgBlacklistOrg(null);
+      setOrgBlacklistReason("");
+      await loadAllData();
     } catch (err) {
-      console.error("Error deleting service", err);
-      alert("Could not delete service.");
+      console.error("Error blacklisting organization:", err);
+      setError("Failed to blacklist organization: " + err.message);
     }
   };
 
   const handleApproveOrganization = async (orgId) => {
     try {
-      console.log("Approving organization:", orgId);
-      
-      // Update organization document
       await updateDoc(doc(db, "organizations", orgId), {
         isApproved: true,
+        verified: true,
         approvedAt: serverTimestamp(),
-        approvedBy: "superadmin",
+        approvedBy: currentUser?.email || "superadmin",
       });
-      console.log("Organization approved in Firestore");
-
-      // Try to update user document if it exists
-      try {
-        await updateDoc(doc(db, "users", orgId), {
-          isApproved: true,
-        });
-        console.log("User document updated");
-      } catch (userErr) {
-        console.warn("Could not update user document (may not exist):", userErr);
-        // This is not critical - continue anyway
-      }
-
-      alert("Organization approved successfully!");
-      
-      // Reload organizations list
-      try {
-        const orgSnap = await getDocs(collection(db, "organizations"));
-        setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      } catch (reloadErr) {
-        console.error("Error reloading organizations:", reloadErr);
-      }
+      setSuccessMessage("Organization approved!");
+      await loadAllData();
     } catch (err) {
       console.error("Error approving organization:", err);
-      console.error("Error details:", err.message, err.code);
-      alert(`Could not approve organization: ${err.message}`);
+      setError("Failed to approve organization: " + err.message);
     }
   };
 
@@ -550,2209 +652,2770 @@ export default function AdminDashboardPage() {
     const reason = window.prompt("Enter rejection reason");
     if (!reason) return;
     try {
-      console.log("Rejecting organization:", orgId);
       await updateDoc(doc(db, "organizations", orgId), {
+        isApproved: false,
+        verified: false,
+        rejectionReason: reason,
+        rejectedAt: serverTimestamp(),
+        rejectedBy: currentUser?.email || "superadmin",
+      });
+      setSuccessMessage("Organization rejected!");
+      await loadAllData();
+    } catch (err) {
+      console.error("Error rejecting organization:", err);
+      setError("Failed to reject organization: " + err.message);
+    }
+  };
+
+  // ============ HANDLERS: CAREGIVERS ============
+  const handleApproveCaregiverClick = async (caregiverId) => {
+    try {
+      await updateDoc(doc(db, "vendors", caregiverId), {
+        isApproved: true,
+        approvedAt: serverTimestamp(),
+        approvedBy: currentUser?.email || "superadmin",
+      });
+      try {
+        await updateDoc(doc(db, "users", caregiverId), { isApproved: true });
+      } catch {
+        // users doc may not exist
+      }
+      setSuccessMessage("Caregiver approved successfully!");
+      if (selectedOrg) await handleOrgClick(selectedOrg);
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error approving caregiver:", err);
+      setError("Failed to approve caregiver: " + err.message);
+    }
+  };
+
+  const handleRejectCaregiverClick = async (caregiverId) => {
+    const reason = window.prompt("Enter rejection reason:");
+    if (!reason) return;
+
+    try {
+      await updateDoc(doc(db, "vendors", caregiverId), {
         isApproved: false,
         rejectionReason: reason,
         rejectedAt: serverTimestamp(),
+        rejectedBy: currentUser?.email || "superadmin",
       });
-      alert("Organization rejected.");
-      
-      // Reload organizations list
-      try {
-        const orgSnap = await getDocs(collection(db, "organizations"));
-        setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      } catch (reloadErr) {
-        console.error("Error reloading organizations:", reloadErr);
-      }
+      setSuccessMessage("Caregiver rejected!");
+      if (selectedOrg) await handleOrgClick(selectedOrg);
+      setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
-      console.error("Error rejecting organization:", err);
-      console.error("Error details:", err.message, err.code);
-      alert(`Could not reject organization: ${err.message}`);
+      console.error("Error rejecting caregiver:", err);
+      setError("Failed to reject caregiver: " + err.message);
     }
   };
 
-  const handleSuspendOrganization = async (orgId, isSuspended) => {
-    try {
-      console.log("Suspending organization:", orgId);
-      const newSuspendedStatus = !isSuspended;
-      
-      await updateDoc(doc(db, "organizations", orgId), {
-        isSuspended: newSuspendedStatus,
-        suspendedAt: newSuspendedStatus ? serverTimestamp() : null,
-      });
-      
-      // Try to update user document if it exists
-      try {
-        await updateDoc(doc(db, "users", orgId), {
-          isSuspended: newSuspendedStatus,
-        });
-        console.log("User document updated");
-      } catch (userErr) {
-        console.warn("Could not update user document (may not exist):", userErr);
-        // This is not critical - continue anyway
-      }
-
-      alert(`Organization ${newSuspendedStatus ? "suspended" : "unsuspended"}.`);
-      
-      // Reload organizations list
-      try {
-        const orgSnap = await getDocs(collection(db, "organizations"));
-        setOrganizations(orgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      } catch (reloadErr) {
-        console.error("Error reloading organizations:", reloadErr);
-      }
-    } catch (err) {
-      console.error("Error updating organization:", err);
-      console.error("Error details:", err.message, err.code);
-      alert(`Could not update organization: ${err.message}`);
-    }
+  const handleStartEditCaregiver = (caregiver) => {
+    setSelectedOrg(null);
+    setOrgCaregivers([caregiver]);
+    // You can extend this to open a dedicated edit modal if needed.
   };
 
-  const handleBlacklistUser = async (reportId, userId) => {
-    try {
-      const report = blacklistReports.find((r) => r.id === reportId);
-      if (!report) return;
-      await setDoc(doc(db, "blacklist", userId), {
-        userName: report.userName,
-        userId,
-        reason: report.reason,
-        description: report.description,
-        reportedBy: report.reportedBy,
-        reportedByName: report.reportedByName,
-        blacklistedAt: serverTimestamp(),
-      });
-      await updateDoc(doc(db, "blacklistReports", reportId), {
-        status: "blacklisted",
-      });
-      alert("User blacklisted successfully!");
-      const reportsSnap = await getDocs(collection(db, "blacklistReports"));
-      setBlacklistReports(
-        reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-      );
-      const blacklistSnap = await getDocs(collection(db, "blacklist"));
-      setBlacklist(blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.error("Error blacklisting user", err);
-      alert("Could not blacklist user.");
-    }
+  const handleOpenCaregiverPasswordModal = (caregiver) => {
+    setCaregiverPasswordUser(caregiver);
+    setCaregiverNewPassword("");
+    setShowCaregiverPasswordModal(true);
   };
 
-  const handleRejectReport = async (reportId) => {
-    try {
-      await updateDoc(doc(db, "blacklistReports", reportId), {
-        status: "rejected",
-      });
-      alert("Report rejected.");
-      const reportsSnap = await getDocs(collection(db, "blacklistReports"));
-      setBlacklistReports(
-        reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-      );
-    } catch (err) {
-      console.error("Error rejecting report", err);
-      alert("Could not reject report.");
-    }
-  };
-
-  const handleRemoveFromBlacklist = async (userId) => {
-    if (!window.confirm("Remove this user from blacklist?")) return;
-    try {
-      await deleteDoc(doc(db, "blacklist", userId));
-      alert("User removed from blacklist.");
-      const blacklistSnap = await getDocs(collection(db, "blacklist"));
-      setBlacklist(blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.error("Error removing from blacklist", err);
-      alert("Could not remove from blacklist.");
-    }
-  };
-
-  // Edit caregiver: open modal with data
-  const handleEditCaregiver = (vendor) => {
-    setEditingCaregiver(vendor);
-    setEditCaregiverData({
-      name: vendor.name || "",
-      location: vendor.location || "",
-      hourlyRate: vendor.hourlyRate != null ? String(vendor.hourlyRate) : "",
-      workType: vendor.workType || "",
-      category: vendor.category || "",
-      services: Array.isArray(vendor.services)
-        ? vendor.services
-        : vendor.services
-          ? String(vendor.services)
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [],
-      experience: vendor.experience || "",
-    });
-  };
-
-  const handleSaveCaregiverEdits = async (e) => {
+  const handleSubmitCaregiverPasswordChange = async (e) => {
     e.preventDefault();
-    if (!editingCaregiver) return;
+    if (
+      !caregiverPasswordUser?.id ||
+      !caregiverPasswordUser?.email ||
+      !caregiverNewPassword
+    ) {
+      return;
+    }
 
     try {
-      const hourlyRate = Number(editCaregiverData.hourlyRate) || 0;
-
-      await updateDoc(doc(db, "vendors", editingCaregiver.id), {
-        name: editCaregiverData.name,
-        location: editCaregiverData.location,
-        hourlyRate,
-        workType: editCaregiverData.workType,
-        category: editCaregiverData.category,
-        services: editCaregiverData.services, // already array
-        experience: editCaregiverData.experience,
+      await addDoc(collection(db, "adminPasswordResets"), {
+        targetEmail: caregiverPasswordUser.email,
+        targetUserId: caregiverPasswordUser.id,
+        newPassword: caregiverNewPassword,
+        createdAt: serverTimestamp(),
+        requestedBy: currentUser?.email || "superadmin",
+        role: "caregiver",
       });
 
-      alert("Caregiver updated.");
-
-      const vendorSnap = await getDocs(collection(db, "vendors"));
-      const vendorsData = vendorSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-      setVendors(vendorsData);
-      setEditingCaregiver(null);
+      setSuccessMessage(
+        "Caregiver password reset request created. Backend must apply the change.",
+      );
+      setShowCaregiverPasswordModal(false);
+      setCaregiverPasswordUser(null);
+      setCaregiverNewPassword("");
     } catch (err) {
-      console.error("Error updating caregiver", err);
-      alert("Could not update caregiver.");
+      console.error("Error creating caregiver password reset:", err);
+      setError("Failed to create caregiver password reset: " + err.message);
     }
   };
 
-  const handleRemoveCaregiver = async (vendorId) => {
-    if (!window.confirm("Remove this caregiver? This cannot be undone."))
+  const handleOpenCaregiverBlacklistModal = (caregiver) => {
+    setCaregiverBlacklistUser(caregiver);
+    setCaregiverBlacklistReason("");
+    setShowCaregiverBlacklistModal(true);
+  };
+
+  const handleSubmitCaregiverBlacklist = async (e) => {
+    e.preventDefault();
+    if (!caregiverBlacklistUser?.id) return;
+
+    try {
+      const user = caregiverBlacklistUser;
+
+      await updateDoc(doc(db, "vendors", user.id), {
+        isBlacklisted: true,
+        blacklistedAt: serverTimestamp(),
+        blacklistedBy: currentUser?.email || "superadmin",
+        blacklistReason:
+          caregiverBlacklistReason || "Blacklisted by superadmin",
+      });
+
+      await addDoc(collection(db, "blacklist"), {
+        userId: user.id,
+        userType: "caregiver",
+        reason: caregiverBlacklistReason || "Blacklisted by superadmin",
+        addedAt: serverTimestamp(),
+        approvedBy: currentUser?.email || "superadmin",
+      });
+
+      setSuccessMessage("Caregiver has been blacklisted.");
+      setShowCaregiverBlacklistModal(false);
+      setCaregiverBlacklistUser(null);
+      setCaregiverBlacklistReason("");
+
+      await loadAllData();
+    } catch (err) {
+      console.error("Error blacklisting caregiver:", err);
+      setError("Failed to blacklist caregiver: " + err.message);
+    }
+  };
+
+  const handleDeleteCaregiver = async (caregiverId) => {
+    if (!window.confirm("Are you sure you want to delete this caregiver?"))
       return;
 
     try {
-      await deleteDoc(doc(db, "vendors", vendorId));
-      await updateDoc(doc(db, "users", vendorId), {
-        isSuspended: true,
+      await deleteDoc(doc(db, "vendors", caregiverId));
+      try {
+        await deleteDoc(doc(db, "users", caregiverId));
+      } catch {
+        // users doc may not exist
+      }
+      setSuccessMessage("Caregiver deleted!");
+      if (selectedOrg) await handleOrgClick(selectedOrg);
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error deleting caregiver:", err);
+      setError("Failed to delete caregiver: " + err.message);
+    }
+  };
+
+  const handleEditCaregiver = async (caregiverId, updatedData) => {
+    try {
+      await updateDoc(doc(db, "vendors", caregiverId), updatedData);
+      setSuccessMessage("Caregiver updated successfully!");
+      if (selectedOrg) await handleOrgClick(selectedOrg);
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error updating caregiver:", err);
+      setError("Failed to update caregiver: " + err.message);
+    }
+  };
+
+  // ============ HANDLERS: SUPER ADMINS ============
+  const handleCreateSuperAdmin = async (e) => {
+    e.preventDefault();
+    setError("");
+    setAddingSuperAdmin(true);
+
+    try {
+      const adminCred = await createUserWithEmailAndPassword(
+        auth,
+        newSuperAdminEmail,
+        newSuperAdminPassword,
+      );
+      const adminUid = adminCred.user.uid;
+
+      const userData = {
+        uid: adminUid,
+        name: newSuperAdminName,
+        email: newSuperAdminEmail,
+        role: "superadmin",
+        createdAt: new Date().toISOString(),
+        isApproved: true,
+        isSuspended: false,
+        createdBy: currentUser?.email || "system",
+        permissions: [
+          "read",
+          "write",
+          "delete",
+          "approve_vendors",
+          "manage_admins",
+        ],
+      };
+
+      await setDoc(doc(db, "users", adminUid), userData);
+
+      setSuccessMessage("Superadmin created successfully!");
+      setNewSuperAdminName("");
+      setNewSuperAdminEmail("");
+      setNewSuperAdminPassword("");
+      setShowAddSuperAdminForm(false);
+
+      const usersSnap = await getDocs(collection(db, "users"));
+      const allUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setSuperAdmins(allUsers.filter((u) => u.role === "superadmin"));
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error creating superadmin:", err);
+      setError("Failed to create superadmin: " + err.message);
+    }
+    setAddingSuperAdmin(false);
+  };
+
+  const handleDeleteSuperAdmin = async (adminId) => {
+    if (adminId === currentUser?.uid) {
+      setError("You cannot delete your own account!");
+      return;
+    }
+    if (!window.confirm("Are you sure? This will delete the admin account.")) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, "users", adminId));
+      setSuccessMessage("Superadmin deleted!");
+      const usersSnap = await getDocs(collection(db, "users"));
+      const allUsers = usersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setSuperAdmins(allUsers.filter((u) => u.role === "superadmin"));
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error deleting superadmin:", err);
+      setError("Failed to delete superadmin: " + err.message);
+    }
+  };
+
+  // ============ HANDLERS: SERVICES ============
+  const handleAddService = async (e) => {
+    e.preventDefault();
+    if (!newServiceLabel.trim()) {
+      setError("Service label cannot be empty");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "services"), {
+        label: newServiceLabel,
+        category: newServiceCategory,
+        createdAt: serverTimestamp(),
+        createdBy: currentUser?.email || "system",
+      });
+      setSuccessMessage("Service added successfully!");
+      setNewServiceLabel("");
+      setNewServiceCategory("caregiver");
+
+      const servicesSnap = await getDocs(collection(db, "services"));
+      setServices(servicesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error adding service:", err);
+      setError("Failed to add service: " + err.message);
+    }
+  };
+
+  const handleUpdateService = async (serviceId, updatedLabel) => {
+    try {
+      await updateDoc(doc(db, "services", serviceId), {
+        label: updatedLabel,
+        updatedAt: serverTimestamp(),
+      });
+      setSuccessMessage("Service updated!");
+      const servicesSnap = await getDocs(collection(db, "services"));
+      setServices(servicesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setEditingService(null);
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error updating service:", err);
+      setError("Failed to update service: " + err.message);
+    }
+  };
+
+  const handleDeleteService = async (serviceId) => {
+    if (!window.confirm("Are you sure you want to delete this service?"))
+      return;
+
+    try {
+      await deleteDoc(doc(db, "services", serviceId));
+      setSuccessMessage("Service deleted!");
+      const servicesSnap = await getDocs(collection(db, "services"));
+      setServices(servicesSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error deleting service:", err);
+      setError("Failed to delete service: " + err.message);
+    }
+  };
+
+  // ============ HANDLERS: COMMISSION ============
+  const handleUpdateGlobalCommission = async (newRate) => {
+    try {
+      await setDoc(doc(db, "settings", "commission"), {
+        rate: Number(newRate),
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUser?.email || "system",
+      });
+      setGlobalCommissionRate(Number(newRate));
+      setEditingCommission(false);
+      setSuccessMessage("Global commission rate updated!");
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error updating commission:", err);
+      setError("Failed to update commission: " + err.message);
+    }
+  };
+
+  // ============ HANDLERS: BLACKLIST ============
+  const handleApproveBlacklistReport = async (reportId) => {
+    try {
+      const reportSnap = await getDoc(doc(db, "blacklistReports", reportId));
+      if (!reportSnap.exists()) return;
+
+      const reportData = reportSnap.data();
+
+      await addDoc(collection(db, "blacklist"), {
+        userId: reportData.userId,
+        userType: reportData.userType,
+        reason: reportData.reason,
+        addedAt: serverTimestamp(),
+        approvedBy: currentUser?.email || "system",
+        originalReportId: reportId,
       });
 
-      alert("Caregiver removed.");
-      const vendorSnap = await getDocs(collection(db, "vendors"));
-      const vendorsData = vendorSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-      setVendors(vendorsData);
+      await updateDoc(doc(db, "blacklistReports", reportId), {
+        status: "approved",
+        approvedAt: serverTimestamp(),
+        approvedBy: currentUser?.email || "system",
+      });
+
+      setSuccessMessage("User blacklisted!");
+      const reportsSnap = await getDocs(collection(db, "blacklistReports"));
+      setBlacklistReports(
+        reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      );
+      setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
-      console.error("Error removing caregiver", err);
-      alert("Could not remove caregiver.");
+      console.error("Error approving blacklist report:", err);
+      setError("Failed to process blacklist: " + err.message);
     }
   };
 
-  const getTabStyle = (tabName) => ({
-    padding: "8px 16px",
-    borderRadius: "6px",
-    border: activeTab === tabName ? "none" : "1px solid #1f2937",
-    background:
-      activeTab === tabName
-        ? "linear-gradient(135deg, #0ea5e9, #06b6d4)"
-        : "#020617",
-    color: activeTab === tabName ? "#ffffff" : "#e5e7eb",
-    cursor: "pointer",
-    fontWeight: activeTab === tabName ? 600 : 500,
-    fontSize: "13px",
-    transition: "all 0.2s ease",
-  });
-
-  const getServicesForCategory = (category) => {
-    if (!category) return [];
-
-    const cat = category.toLowerCase();
-
-    // If category includes both caregiver and household, show all
-    if (cat.includes("both")) {
-      return services;
-    }
-
-    // caregiver-only
-    if (cat.includes("caregiver") || cat.includes("care giver")) {
-      return services.filter(
-        (s) => s.category === "caregiver" || s.category === "both",
+  const handleRejectBlacklistReport = async (reportId) => {
+    try {
+      await updateDoc(doc(db, "blacklistReports", reportId), {
+        status: "rejected",
+        rejectedAt: serverTimestamp(),
+        rejectedBy: currentUser?.email || "system",
+      });
+      setSuccessMessage("Report rejected!");
+      const reportsSnap = await getDocs(collection(db, "blacklistReports"));
+      setBlacklistReports(
+        reportsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
       );
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error rejecting blacklist report:", err);
+      setError("Failed to reject report: " + err.message);
     }
-
-    // household-only
-    if (cat.includes("household") || cat.includes("house hold")) {
-      return services.filter(
-        (s) => s.category === "household" || s.category === "both",
-      );
-    }
-
-    // default: all
-    return services;
   };
 
-  const filteredOrganizations = organizations.filter((org) => {
-    const term = searchOrg.toLowerCase();
-    const matchSearch =
-      org.organizationName?.toLowerCase().includes(term) ||
-      org.adminName?.toLowerCase().includes(term) ||
-      org.adminEmail?.toLowerCase().includes(term);
+  const handleRemoveFromBlacklist = async (blacklistId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to remove this user from blacklist?",
+      )
+    )
+      return;
 
-    const matchStatus =
-      orgStatusFilter === "all"
-        ? true
-        : orgStatusFilter === "pending"
-          ? !org.isApproved
-          : orgStatusFilter === "approved"
-            ? org.isApproved && !org.isSuspended
-            : orgStatusFilter === "suspended"
-              ? org.isSuspended
-              : true;
+    try {
+      await deleteDoc(doc(db, "blacklist", blacklistId));
+      setSuccessMessage("User removed from blacklist!");
+      const blacklistSnap = await getDocs(collection(db, "blacklist"));
+      setBlacklist(blacklistSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err) {
+      console.error("Error removing from blacklist:", err);
+      setError("Failed to remove from blacklist: " + err.message);
+    }
+  };
 
-    return matchSearch && matchStatus;
-  });
+  // ============ UI: LOADING / PERMISSIONS ============
+  if (loadingAuth) {
+    return (
+      <div style={{ padding: "40px", textAlign: "center" }}>
+        <h2>Loading...</h2>
+        <p>Verifying permissions...</p>
+      </div>
+    );
+  }
 
-  const filteredVendors = vendors.filter((vendor) => {
-    const term = searchVendor.toLowerCase();
-    const matchSearch =
-      vendor.name?.toLowerCase().includes(term) ||
-      vendor.email?.toLowerCase().includes(term) ||
-      vendor.organizationName?.toLowerCase().includes(term);
-
-    const matchStatus =
-      vendorStatusFilter === "all"
-        ? true
-        : vendorStatusFilter === "pending"
-          ? !vendor.isApproved
-          : vendorStatusFilter === "approved"
-            ? vendor.isApproved && !vendor.isSuspended
-            : vendorStatusFilter === "suspended"
-              ? vendor.isSuspended
-              : true;
-
-    return matchSearch && matchStatus;
-  });
-
-  const filteredBookings = bookings.filter((b) => {
-    const matchStatus =
-      !bookingStatusFilter || b.status === bookingStatusFilter;
-    const matchDate = !bookingDateFilter || b.date === bookingDateFilter;
-    return matchStatus && matchDate;
-  });
-
-  const filteredReports = blacklistReports.filter(
-    (r) => r.status === blacklistFilter,
-  );
-
-  return (
-    <div style={{ padding: "20px" }}>
-      <h1 style={{ color: "#e5e7eb", marginBottom: "8px" }}>
-        SuperAdmin Dashboard
-      </h1>
-      <p
+  if (permissionsError || !isSuperAdmin) {
+    return (
+      <div
         style={{
-          fontSize: "13px",
-          color: "#9ca3af",
-          marginBottom: "16px",
+          padding: "40px",
+          maxWidth: "600px",
+          margin: "0 auto",
+          backgroundColor: "#fee",
+          border: "1px solid #fcc",
+          borderRadius: "8px",
+          color: "#c33",
         }}
       >
-        Sewak Platform Management - Full control over all platform activities.
-      </p>
+        <h1>⛔ Access Denied</h1>
+        <p>
+          <strong>{permissionsError}</strong>
+        </p>
+        <hr style={{ borderColor: "#fcc" }} />
+        <p>
+          <strong>Why are you seeing this?</strong>
+        </p>
+        <ul>
+          <li>You are not logged in, or</li>
+          <li>Your account does not have superadmin role, or</li>
+          <li>Firestore security rules are blocking access</li>
+        </ul>
+        <p>
+          <strong>What to do:</strong>
+        </p>
+        <ol>
+          <li>Ensure you are logged in as a superadmin account</li>
+          <li>Check Firestore Security Rules in Firebase Console</li>
+          <li>
+            Verify your user role in Firestore &quot;users&quot; collection
+          </li>
+          <li>Contact system administrator if you need access</li>
+        </ol>
+        <p style={{ marginTop: "20px", fontSize: "12px", color: "#999" }}>
+          Current User: {currentUser?.email || "Not logged in"}
+        </p>
+        <button
+          style={{
+            marginTop: "10px",
+            padding: "8px 12px",
+            cursor: "pointer",
+            borderRadius: 4,
+            border: "1px solid #c33",
+            background: "#c33",
+            color: "#fff",
+          }}
+          onClick={createFirstSuperAdminIfNeeded}
+        >
+          Initialize First Superadmin
+        </button>
+      </div>
+    );
+  }
+
+  // ============ UI: MAIN DASHBOARD ============
+  return (
+    <div
+      style={{
+        padding: "20px",
+        backgroundColor: "#f5f5f5",
+        minHeight: "100vh",
+      }}
+    >
+      {/* Header */}
+      <div style={{ marginBottom: "30px" }}>
+        <h1>Admin Dashboard</h1>
+        <p>
+          Logged in as: <strong>{currentUser?.email}</strong> ({userRole})
+        </p>
+      </div>
+
+      {/* Error Messages */}
+      {error && (
+        <div
+          style={{
+            padding: "15px",
+            marginBottom: "20px",
+            backgroundColor: "#fee",
+            border: "1px solid #fcc",
+            borderRadius: "4px",
+            color: "#c33",
+          }}
+        >
+          ❌ {error}
+          <button
+            onClick={() => setError("")}
+            style={{ marginLeft: "10px", cursor: "pointer" }}
+          >
+            Close
+          </button>
+        </div>
+      )}
+
+      {/* Success Messages */}
+      {successMessage && (
+        <div
+          style={{
+            padding: "15px",
+            marginBottom: "20px",
+            backgroundColor: "#efe",
+            border: "1px solid #cfc",
+            borderRadius: "4px",
+            color: "#3c3",
+          }}
+        >
+          ✅ {successMessage}
+        </div>
+      )}
 
       {/* Tabs */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
-          gap: "8px",
-          marginBottom: "16px",
+          marginBottom: "30px",
+          display: "flex",
+          gap: "10px",
+          flexWrap: "wrap",
         }}
       >
-        <button
-          style={getTabStyle("organizations")}
-          onClick={() => setActiveTab("organizations")}
-        >
-          Organizations ({analytics.totalOrganizations})
-        </button>
-        <button
-          style={getTabStyle("caregivers")}
-          onClick={() => setActiveTab("caregivers")}
-        >
-          Caregivers ({analytics.totalCaregivers})
-        </button>
-        <button
-          style={getTabStyle("bookings")}
-          onClick={() => setActiveTab("bookings")}
-        >
-          Bookings ({analytics.totalBookings})
-        </button>
-        <button
-          style={getTabStyle("services")}
-          onClick={() => setActiveTab("services")}
-        >
-          Services ({services.length})
-        </button>
-        <button
-          style={getTabStyle("reports")}
-          onClick={() => setActiveTab("reports")}
-        >
-          Reports ({blacklistReports.length})
-        </button>
-        <button
-          style={getTabStyle("settings")}
-          onClick={() => setActiveTab("settings")}
-        >
-          Settings
-        </button>
-      </div>
-
-      {error && <div className="error-banner">{error}</div>}
-
-      {/* ===== ORGANIZATIONS TAB ===== */}
-      {activeTab === "organizations" && (
-        <div>
-          <div
+        {[
+          "organizations",
+          "caregivers",
+          "bookings",
+          "services",
+          "blacklist",
+          "admins",
+          "analytics",
+        ].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
             style={{
-              display: "flex",
-              gap: "12px",
-              marginBottom: "16px",
-              flexWrap: "wrap",
+              padding: "10px 20px",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              backgroundColor: activeTab === tab ? "#007bff" : "#ddd",
+              color: activeTab === tab ? "white" : "black",
+              fontWeight: activeTab === tab ? "bold" : "normal",
             }}
           >
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowAddOrgForm(true)}
-              style={{ flex: 1 }}
-            >
-              + Create Organization
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setShowAddSuperAdminForm(true)}
-              style={{ flex: 1 }}
-            >
-              + Add SuperAdmin
-            </button>
-          </div>
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
 
-          {/* Filters */}
-          <div className="row" style={{ marginBottom: "16px" }}>
-            <div className="col">
-              <label>Search</label>
-              <input
-                type="text"
-                placeholder="Search organizations..."
-                value={searchOrg}
-                onChange={(e) => setSearchOrg(e.target.value)}
-              />
-            </div>
-            <div className="col">
-              <label>Status</label>
-              <select
-                value={orgStatusFilter}
-                onChange={(e) => setOrgStatusFilter(e.target.value)}
-              >
-                <option value="all">All</option>
-                <option value="pending">Pending Approval</option>
-                <option value="approved">Approved</option>
-                <option value="suspended">Suspended</option>
-              </select>
-            </div>
+      {/* ===== TAB: ORGANIZATIONS ===== */}
+      {activeTab === "organizations" && (
+        <div>
+          <div style={{ marginBottom: "20px" }}>
+            <button
+              onClick={() => setShowAddOrgForm(true)}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              + Add New Organization
+            </button>
           </div>
 
           {loadingOrganizations ? (
-            <p style={{ color: "#9ca3af" }}>Loading organizations...</p>
-          ) : filteredOrganizations.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">🏢</div>
-              <p className="empty-state-title">No organizations found</p>
-              <p className="empty-state-text">
-                {organizations.length === 0
-                  ? "Create your first organization to get started"
-                  : "No organizations match your filters"}
-              </p>
-            </div>
+            <p>Loading organizations...</p>
           ) : (
-            filteredOrganizations.map((org) => (
-              <div
-                key={org.id}
-                className="card"
-                style={{ marginBottom: "12px" }}
-              >
-                {/* Org info */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    flexWrap: "wrap",
-                    gap: "12px",
-                  }}
-                >
-                  <div>
-                    <strong style={{ color: "#e5e7eb", fontSize: "18px" }}>
-                      {org.organizationName || "No name"}
-                    </strong>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#9ca3af",
-                        marginTop: "4px",
-                      }}
-                    >
-                      <span style={{ fontWeight: 600 }}>Organization ID</span>:{" "}
-                      {org.id}
-                    </div>
-                    <div style={{ fontSize: "12px", color: "#9ca3af" }}>
-                      <span style={{ fontWeight: 600 }}>Admin</span>:{" "}
-                      {org.adminName || "NA"}
-                    </div>
-                    <div style={{ fontSize: "12px", color: "#9ca3af" }}>
-                      <span style={{ fontWeight: 600 }}>Admin Email</span>:{" "}
-                      {org.adminEmail || "NA"}
-                    </div>
-                    <div style={{ fontSize: "12px", color: "#9ca3af" }}>
-                      <span style={{ fontWeight: 600 }}>Phone</span>:{" "}
-                      {org.businessPhone || "NA"}
-                    </div>
-                    <div style={{ fontSize: "12px", color: "#9ca3af" }}>
-                      <span style={{ fontWeight: 600 }}>Address</span>:{" "}
-                      {org.businessAddress || ""}, {org.businessCity || ""}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "6px",
-                      alignItems: "flex-end",
-                    }}
-                  >
-                    <span
-                      style={{
-                        background: org.isApproved ? "#dcfce7" : "#fef3c7",
-                        color: org.isApproved ? "#15803d" : "#92400e",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {org.isApproved ? "✓ Approved" : "Pending Approval"}
-                    </span>
-                    {org.isSuspended && (
-                      <span
-                        style={{
-                          background: "#dc2626",
-                          color: "#fff",
-                          padding: "4px 8px",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Suspended
-                      </span>
-                    )}
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        color: "#9ca3af",
-                      }}
-                    >
-                      Commission: {org.commissionRate ?? 15}%
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        color: "#9ca3af",
-                      }}
-                    >
-                      Total Caregivers: {org.totalCaregivers ?? 0}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Actions row */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    marginTop: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  {!org.isApproved && (
-                    <>
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => handleApproveOrganization(org.id)}
-                        style={{ flex: 1 }}
-                      >
-                        ✓ Approve
-                      </button>
-                      <button
-                        className="btn btn-outline"
-                        onClick={() => handleRejectOrganization(org.id)}
-                        style={{
-                          flex: 1,
-                          background: "#7f1d1d",
-                          color: "#fecaca",
-                          border: "1px solid #991b1b",
-                        }}
-                      >
-                        ✕ Reject
-                      </button>
-                    </>
-                  )}
-
-                  <button
-                    className="btn btn-outline"
-                    onClick={() =>
-                      handleSuspendOrganization(org.id, org.isSuspended)
-                    }
-                    style={{
-                      flex: 1,
-                      background: org.isSuspended ? "#111827" : "#7f1d1d",
-                      color: org.isSuspended ? "#e5e7eb" : "#fecaca",
-                      border: `1px solid ${
-                        org.isSuspended ? "#1f2937" : "#991b1b"
-                      }`,
-                    }}
-                  >
-                    {org.isSuspended ? "🔓 Unsuspend" : "🔒 Suspend"}
-                  </button>
-
-                  <button
-                    className="btn btn-outline"
-                    onClick={() => setEditingOrg(org)}
-                    style={{ flex: 1 }}
-                  >
-                    ✏️ Edit
-                  </button>
-
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => handleOrgClick(org)}
-                    style={{ flex: 1, background: "#10b981" }}
-                  >
-                    📋 View Caregivers
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-
-          {/* ===== ORGANIZATION DETAILS MODAL ===== */}
-          {activeTab === "organizations" && selectedOrg && (
             <div>
-              <button
-                onClick={() => setSelectedOrg(null)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#0ea5e9",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  marginBottom: "16px",
-                  fontWeight: "600",
-                }}
-              >
-                ← Back to Organizations
-              </button>
-
               <div
-                className="card"
                 style={{
-                  background: "#0b1120",
-                  marginBottom: "24px",
+                  marginBottom: "15px",
+                  display: "flex",
+                  gap: "10px",
                 }}
               >
-                <h2 style={{ color: "#e5e7eb", marginTop: "0" }}>
-                  {selectedOrg.organizationName}
-                </h2>
-
-                <div
+                <input
+                  type="text"
+                  placeholder="Search organizations..."
+                  value={searchOrg}
+                  onChange={(e) => setSearchOrg(e.target.value)}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: "16px",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                    flex: 1,
+                  }}
+                />
+                <select
+                  value={orgStatusFilter}
+                  onChange={(e) => setOrgStatusFilter(e.target.value)}
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
                   }}
                 >
-                  <div>
-                    <p
-                      style={{
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      Organization ID
-                    </p>
-                    <p style={{ color: "#e5e7eb", margin: "0" }}>
-                      {selectedOrg.id}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p
-                      style={{
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      Admin Name
-                    </p>
-                    <p style={{ color: "#e5e7eb", margin: "0" }}>
-                      {selectedOrg.adminName}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p
-                      style={{
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      Admin Email
-                    </p>
-                    <p style={{ color: "#e5e7eb", margin: "0" }}>
-                      {selectedOrg.adminEmail}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p
-                      style={{
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      Status
-                    </p>
-                    <span
-                      style={{
-                        background: selectedOrg.isApproved
-                          ? "#dcfce7"
-                          : "#fee2e2",
-                        color: selectedOrg.isApproved ? "#15803d" : "#991b1b",
-                        padding: "6px 12px",
-                        borderRadius: "4px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                      }}
-                    >
-                      {selectedOrg.isApproved
-                        ? "✓ Approved"
-                        : "⏳ Pending Approval"}
-                    </span>
-                  </div>
-
-                  <div>
-                    <p
-                      style={{
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      Commission Rate
-                    </p>
-                    <p style={{ color: "#e5e7eb", margin: "0" }}>
-                      {selectedOrg.commissionRate || 15}%
-                    </p>
-                  </div>
-
-                  <div>
-                    <p
-                      style={{
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      Total Caregivers
-                    </p>
-                    <p style={{ color: "#e5e7eb", margin: "0" }}>
-                      {selectedOrg.totalCaregivers || 0}
-                    </p>
-                  </div>
-                </div>
+                  <option value="all">All Status</option>
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                </select>
               </div>
 
-              <div>
-                <h3 style={{ color: "#e5e7eb", marginBottom: "16px" }}>
-                  Caregivers ({orgCaregivers.length})
-                </h3>
-
-                {orgCaregivers.length === 0 ? (
-                  <p style={{ color: "#9ca3af" }}>
-                    No caregivers under this organization
-                  </p>
-                ) : (
-                  orgCaregivers.map((caregiver) => (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                  gap: "20px",
+                }}
+              >
+                {organizations
+                  .filter(
+                    (org) =>
+                      (searchOrg === "" ||
+                        org.organizationName
+                          ?.toLowerCase()
+                          .includes(searchOrg.toLowerCase())) &&
+                      (orgStatusFilter === "all" ||
+                        (orgStatusFilter === "approved"
+                          ? org.isApproved
+                          : !org.isApproved)),
+                  )
+                  .map((org) => (
                     <div
-                      key={caregiver.id}
-                      className="card"
-                      style={{ marginBottom: "12px" }}
+                      key={org.id}
+                      onClick={() => handleOrgClick(org)}
+                      style={{
+                        backgroundColor: "white",
+                        padding: "20px",
+                        borderRadius: "8px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        cursor: "pointer",
+                        border:
+                          selectedOrg?.id === org.id
+                            ? "2px solid #007bff"
+                            : "1px solid #ddd",
+                      }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                        }}
-                      >
-                        <div>
-                          <h4
-                            style={{
-                              margin: "0 0 8px 0",
-                              color: "#e5e7eb",
-                            }}
-                          >
-                            {caregiver.name}
-                          </h4>
-
-                          <p
-                            style={{
-                              margin: "4px 0",
-                              color: "#9ca3af",
-                              fontSize: "12px",
-                            }}
-                          >
-                            📍 {caregiver.location}
-                          </p>
-
-                          <p
-                            style={{
-                              margin: "4px 0",
-                              color: "#9ca3af",
-                              fontSize: "12px",
-                            }}
-                          >
-                            💰 Rs{caregiver.hourlyRate}/hour
-                          </p>
-
-                          <p
-                            style={{
-                              margin: "4px 0",
-                              color: "#9ca3af",
-                              fontSize: "12px",
-                            }}
-                          >
-                            Category: {caregiver.category || "N/A"}
-                          </p>
-
-                          <p
-                            style={{
-                              margin: "4px 0",
-                              color: "#9ca3af",
-                              fontSize: "12px",
-                            }}
-                          >
-                            Services:{" "}
-                            {Array.isArray(caregiver.services)
-                              ? caregiver.services.join(", ")
-                              : caregiver.services || "N/A"}
-                          </p>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "6px",
-                            alignItems: "flex-end",
-                          }}
-                        >
-                          <span
-                            style={{
-                              background: caregiver.isApproved
-                                ? "#dcfce7"
-                                : "#fef3c7",
-                              color: caregiver.isApproved
-                                ? "#15803d"
-                                : "#92400e",
-                              padding: "4px 8px",
-                              borderRadius: "4px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {caregiver.isApproved
-                              ? "✓ Approved"
-                              : "Pending Approval"}
-                          </span>
-
-                          <span
-                            style={{
-                              fontSize: "11px",
-                              color: "#9ca3af",
-                            }}
-                          >
-                            Experience: {caregiver.experience || "N/A"}
-                          </span>
-                        </div>
-                      </div>
+                      <h4>{org.organizationName}</h4>
+                      <p>
+                        <strong>Admin:</strong> {org.adminName}
+                      </p>
+                      <p>
+                        <strong>Email:</strong> {org.adminEmail || org.email}
+                      </p>
+                      <p>
+                        <strong>Commission:</strong> {org.commissionRate}%
+                      </p>
+                      <p>
+                        <strong>Status:</strong>{" "}
+                        {org.isApproved ? "✅ Approved" : "⏳ Pending"}
+                      </p>
 
                       <div
                         style={{
+                          marginTop: 10,
                           display: "flex",
-                          gap: "8px",
-                          marginTop: "12px",
+                          gap: 8,
+                          flexWrap: "wrap",
                         }}
                       >
-                        {!caregiver.isApproved && (
+                        {!org.isApproved && (
                           <>
                             <button
-                              className="btn btn-primary"
-                              onClick={() =>
-                                handleApproveCaregiverClick(caregiver.id)
-                              }
-                              style={{ flex: 1 }}
-                            >
-                              ✓ Approve
-                            </button>
-                            <button
-                              className="btn btn-outline"
-                              onClick={() =>
-                                handleRejectCaregiverClick(caregiver.id)
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleApproveOrganization(org.id);
+                              }}
                               style={{
-                                flex: 1,
-                                background: "#7f1d1d",
-                                color: "#fecaca",
-                                border: "1px solid #991b1b",
+                                padding: "6px 12px",
+                                backgroundColor: "#28a745",
+                                color: "white",
+                                border: "none",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                                fontSize: 12,
                               }}
                             >
-                              ✕ Reject
+                              Approve
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRejectOrganization(org.id);
+                              }}
+                              style={{
+                                padding: "6px 12px",
+                                backgroundColor: "#ffc107",
+                                color: "black",
+                                border: "none",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                                fontSize: 12,
+                              }}
+                            >
+                              Reject
                             </button>
                           </>
                         )}
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEditOrg(org);
+                          }}
+                          style={{
+                            padding: "6px 12px",
+                            backgroundColor: "#007bff",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            cursor: "pointer",
+                            fontSize: 12,
+                          }}
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenOrgPasswordModal(org);
+                          }}
+                          style={{
+                            padding: "6px 12px",
+                            backgroundColor: "#17a2b8",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            cursor: "pointer",
+                            fontSize: 12,
+                          }}
+                        >
+                          Change Password
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenOrgBlacklistModal(org);
+                          }}
+                          style={{
+                            padding: "6px 12px",
+                            backgroundColor: "#dc3545",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            cursor: "pointer",
+                            fontSize: 12,
+                          }}
+                        >
+                          Blacklist Org
+                        </button>
                       </div>
                     </div>
-                  ))
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Create Organization Modal */}
+          {showAddOrgForm && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
+              }}
+              onClick={() => setShowAddOrgForm(false)}
+            >
+              <div
+                style={{
+                  backgroundColor: "white",
+                  padding: "20px",
+                  borderRadius: "8px",
+                  maxWidth: "600px",
+                  width: "95%",
+                  maxHeight: "80vh",
+                  overflowY: "auto",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <h3>Create New Organization</h3>
+                  <button
+                    onClick={() => setShowAddOrgForm(false)}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 18,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateOrganization}>
+                  <div style={{ marginBottom: "15px" }}>
+                    <label style={{ display: "block", marginBottom: "5px" }}>
+                      Organization Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newOrgName}
+                      onChange={(e) => setNewOrgName(e.target.value)}
+                      placeholder="e.g., Care Plus"
+                      required
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: "15px" }}>
+                    <label style={{ display: "block", marginBottom: "5px" }}>
+                      Admin Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newOrgAdminName}
+                      onChange={(e) => setNewOrgAdminName(e.target.value)}
+                      placeholder="e.g., John Doe"
+                      required
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: "15px" }}>
+                    <label style={{ display: "block", marginBottom: "5px" }}>
+                      Email *
+                    </label>
+                    <input
+                      type="email"
+                      value={newOrgEmail}
+                      onChange={(e) => setNewOrgEmail(e.target.value)}
+                      placeholder="admin@careplus.com"
+                      required
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: "15px" }}>
+                    <label style={{ display: "block", marginBottom: "5px" }}>
+                      Password *
+                    </label>
+                    <input
+                      type="password"
+                      value={newOrgPassword}
+                      onChange={(e) => setNewOrgPassword(e.target.value)}
+                      placeholder="Secure password"
+                      required
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: "15px" }}>
+                    <label style={{ display: "block", marginBottom: "5px" }}>
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={newOrgPhone}
+                      onChange={(e) => setNewOrgPhone(e.target.value)}
+                      placeholder="+1234567890"
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: "15px" }}>
+                    <label style={{ display: "block", marginBottom: "5px" }}>
+                      Address
+                    </label>
+                    <input
+                      type="text"
+                      value={newOrgAddress}
+                      onChange={(e) => setNewOrgAddress(e.target.value)}
+                      placeholder="Street address"
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: "15px" }}>
+                    <label style={{ display: "block", marginBottom: "5px" }}>
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      value={newOrgCity}
+                      onChange={(e) => setNewOrgCity(e.target.value)}
+                      placeholder="Kathmandu"
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: "15px" }}>
+                    <label style={{ display: "block", marginBottom: "5px" }}>
+                      Commission Rate (%) *
+                    </label>
+                    <input
+                      type="number"
+                      value={newOrgCommission}
+                      onChange={(e) => setNewOrgCommission(e.target.value)}
+                      placeholder="15"
+                      min="0"
+                      max="100"
+                      required
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={addingOrg}
+                    style={{
+                      padding: "10px 20px",
+                      backgroundColor: addingOrg ? "#ccc" : "#007bff",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: addingOrg ? "not-allowed" : "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {addingOrg ? "Creating..." : "Create Organization"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Organization Modal */}
+          {showEditOrgModal && editingOrg && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
+              }}
+              onClick={handleCancelEditOrg}
+            >
+              <div
+                style={{
+                  backgroundColor: "white",
+                  padding: 20,
+                  borderRadius: 8,
+                  maxWidth: "600px",
+                  width: "95%",
+                  maxHeight: "80vh",
+                  overflowY: "auto",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <h3>Edit Organization – {editingOrg.organizationName}</h3>
+                  <button
+                    onClick={handleCancelEditOrg}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 18,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleUpdateOrganization}>
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      Organization Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editOrgName}
+                      onChange={(e) => setEditOrgName(e.target.value)}
+                      required
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      Admin Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editOrgAdminName}
+                      onChange={(e) => setEditOrgAdminName(e.target.value)}
+                      required
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={editOrgEmail}
+                      onChange={(e) => setEditOrgEmail(e.target.value)}
+                      required
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={editOrgPhone}
+                      onChange={(e) => setEditOrgPhone(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      Address
+                    </label>
+                    <input
+                      type="text"
+                      value={editOrgAddress}
+                      onChange={(e) => setEditOrgAddress(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      City
+                    </label>
+                    <input
+                      type="text"
+                      value={editOrgCity}
+                      onChange={(e) => setEditOrgCity(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      Commission Rate (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={editOrgCommission}
+                      onChange={(e) => setEditOrgCommission(e.target.value)}
+                      min={0}
+                      max={100}
+                      required
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      type="submit"
+                      style={{
+                        padding: "10px 20px",
+                        backgroundColor: "#28a745",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 4,
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Save Changes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEditOrg}
+                      style={{
+                        padding: "10px 20px",
+                        backgroundColor: "#999",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 4,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Change Organization Password Modal */}
+          {showOrgPasswordModal && orgPasswordOrg && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
+              }}
+              onClick={() => {
+                setShowOrgPasswordModal(false);
+                setOrgPasswordOrg(null);
+                setOrgNewPassword("");
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: "white",
+                  padding: 20,
+                  borderRadius: 8,
+                  maxWidth: "500px",
+                  width: "95%",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <h3>
+                    Change Password – {orgPasswordOrg.organizationName} (
+                    {orgPasswordOrg.email})
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowOrgPasswordModal(false);
+                      setOrgPasswordOrg(null);
+                      setOrgNewPassword("");
+                    }}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 18,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmitOrgPasswordChange}>
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={orgNewPassword}
+                      onChange={(e) => setOrgNewPassword(e.target.value)}
+                      required
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    style={{
+                      padding: "10px 20px",
+                      backgroundColor: "#17a2b8",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Create Reset Request
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Org Caregivers Modal */}
+          {showOrgCaregiversModal && selectedOrg && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
+              }}
+              onClick={() => setShowOrgCaregiversModal(false)}
+            >
+              <div
+                style={{
+                  backgroundColor: "white",
+                  padding: 20,
+                  borderRadius: 8,
+                  maxWidth: "900px",
+                  width: "90%",
+                  maxHeight: "80vh",
+                  overflowY: "auto",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <h3>Caregivers for {selectedOrg.organizationName}</h3>
+                  <button
+                    onClick={() => setShowOrgCaregiversModal(false)}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 18,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {orgCaregivers.length === 0 ? (
+                  <p>No caregivers found for this organization.</p>
+                ) : (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fill, minmax(250px, 1fr))",
+                      gap: 20,
+                    }}
+                  >
+                    {orgCaregivers.map((caregiver) => (
+                      <div
+                        key={caregiver.id}
+                        style={{
+                          backgroundColor: "#f9f9f9",
+                          padding: 15,
+                          borderRadius: 8,
+                          border: "1px solid #eee",
+                        }}
+                      >
+                        <h5>{caregiver.name}</h5>
+                        <p>
+                          <strong>Location:</strong> {caregiver.location}
+                        </p>
+                        <p>
+                          <strong>Rate:</strong> Rs. {caregiver.hourlyRate}
+                          /hour
+                        </p>
+                        <p>
+                          <strong>Status:</strong>{" "}
+                          {caregiver.isApproved ? "✅" : "⏳"}
+                        </p>
+                        <div
+                          style={{
+                            marginTop: 10,
+                            display: "flex",
+                            gap: 10,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          {!caregiver.isApproved && (
+                            <>
+                              <button
+                                onClick={() =>
+                                  handleApproveCaregiverClick(caregiver.id)
+                                }
+                                style={{
+                                  padding: "8px 15px",
+                                  backgroundColor: "#28a745",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: 4,
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleRejectCaregiverClick(caregiver.id)
+                                }
+                                style={{
+                                  padding: "8px 15px",
+                                  backgroundColor: "#dc3545",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: 4,
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                }}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => handleDeleteCaregiver(caregiver.id)}
+                            style={{
+                              padding: "8px 15px",
+                              backgroundColor: "#999",
+                              color: "white",
+                              border: "none",
+                              borderRadius: 4,
+                              cursor: "pointer",
+                              fontSize: 12,
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
           )}
-        </div>
-      )}
 
-      {/* ===== CAREGIVERS TAB ===== */}
-      {activeTab === "caregivers" && (
-        <div>
-          <div className="row" style={{ marginBottom: "16px" }}>
-            <div className="col">
-              <label>Search</label>
-              <input
-                type="text"
-                placeholder="Search caregivers..."
-                value={searchVendor}
-                onChange={(e) => setSearchVendor(e.target.value)}
-              />
-            </div>
-            <div className="col">
-              <label>Status</label>
-              <select
-                value={vendorStatusFilter}
-                onChange={(e) => setVendorStatusFilter(e.target.value)}
-              >
-                <option value="all">All</option>
-                <option value="pending">Pending Approval</option>
-                <option value="approved">Approved</option>
-                <option value="suspended">Suspended</option>
-              </select>
-            </div>
-          </div>
-
-          {loadingVendors ? (
-            <p style={{ color: "#9ca3af" }}>Loading caregivers...</p>
-          ) : filteredVendors.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">🧑‍⚕️</div>
-              <p className="empty-state-title">No caregivers found</p>
-              <p className="empty-state-text">
-                {vendors.length === 0
-                  ? "No caregivers registered yet"
-                  : "No caregivers match your filters"}
-              </p>
-            </div>
-          ) : (
-            filteredVendors.map((vendor) => (
-              <div
-                key={vendor.id}
-                className="card"
-                style={{ marginBottom: "12px" }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: "12px",
-                  }}
-                >
-                  <div>
-                    <h3 style={{ margin: 0, color: "#e5e7eb" }}>
-                      {vendor.name}
-                    </h3>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      {vendor.email}
-                    </p>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Organization: {vendor.organizationName || "Independent"}
-                    </p>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Location: {vendor.location}
-                    </p>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Rs{vendor.hourlyRate}/hour
-                    </p>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Category: {vendor.category || "N/A"}
-                    </p>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Services:{" "}
-                      {Array.isArray(vendor.services)
-                        ? vendor.services.join(", ")
-                        : vendor.services || "N/A"}
-                    </p>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "6px",
-                      alignItems: "flex-end",
-                    }}
-                  >
-                    <span
-                      style={{
-                        background: vendor.isApproved ? "#dcfce7" : "#fef3c7",
-                        color: vendor.isApproved ? "#15803d" : "#92400e",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {vendor.isApproved ? "✓ Approved" : "Pending Approval"}
-                    </span>
-                    {vendor.isSuspended && (
-                      <span
-                        style={{
-                          background: "#dc2626",
-                          color: "#fff",
-                          padding: "4px 8px",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Suspended
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    marginTop: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  {!vendor.isApproved && (
-                    <>
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => handleApproveCaregiverClick(vendor.id)}
-                        style={{ flex: 1 }}
-                      >
-                        ✓ Approve
-                      </button>
-                      <button
-                        className="btn btn-outline"
-                        onClick={() => handleRejectCaregiverClick(vendor.id)}
-                        style={{
-                          flex: 1,
-                          background: "#7f1d1d",
-                          color: "#fecaca",
-                          border: "1px solid #991b1b",
-                        }}
-                      >
-                        ✕ Reject
-                      </button>
-                    </>
-                  )}
-
-                  <button
-                    className="btn btn-outline"
-                    onClick={() => handleEditCaregiver(vendor)}
-                    style={{ flex: 1 }}
-                  >
-                    ✏️ Edit
-                  </button>
-
-                  <button
-                    className="btn btn-outline"
-                    onClick={() => handleRemoveCaregiver(vendor.id)}
-                    style={{
-                      flex: 1,
-                      background: "#7f1d1d",
-                      color: "#fecaca",
-                      border: "1px solid #991b1b",
-                    }}
-                  >
-                    ✕ Remove
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* ===== BOOKINGS TAB ===== */}
-      {activeTab === "bookings" && (
-        <div>
-          <div className="row" style={{ marginBottom: "16px" }}>
-            <div className="col">
-              <label>Status</label>
-              <select
-                value={bookingStatusFilter}
-                onChange={(e) => setBookingStatusFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                <option value="pending">Pending</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div className="col">
-              <label>Date</label>
-              <input
-                type="date"
-                value={bookingDateFilter}
-                onChange={(e) => setBookingDateFilter(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {loadingBookings ? (
-            <p style={{ color: "#9ca3af" }}>Loading bookings...</p>
-          ) : filteredBookings.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">📅</div>
-              <p className="empty-state-title">No bookings found</p>
-              <p className="empty-state-text">
-                {bookings.length === 0
-                  ? "No bookings yet"
-                  : "No bookings match your filters"}
-              </p>
-            </div>
-          ) : (
-            filteredBookings.map((b) => (
-              <div key={b.id} className="card" style={{ marginBottom: "12px" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <div>
-                    <h3 style={{ margin: 0, color: "#e5e7eb" }}>
-                      {b.householdName} ↔ {b.caregiverName}
-                    </h3>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Date: {b.date} | Time: {b.startTime} - {b.endTime}
-                    </p>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Location: {b.location}
-                    </p>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Total: Rs{b.totalAmount || 0} | Platform: Rs
-                      {b.platformCommission || 0}
-                    </p>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "6px",
-                      alignItems: "flex-end",
-                    }}
-                  >
-                    <span
-                      style={{
-                        background:
-                          b.status === "completed"
-                            ? "#dcfce7"
-                            : b.status === "cancelled"
-                              ? "#fee2e2"
-                              : "#fef3c7",
-                        color:
-                          b.status === "completed"
-                            ? "#15803d"
-                            : b.status === "cancelled"
-                              ? "#991b1b"
-                              : "#92400e",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {b.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* ===== SERVICES TAB ===== */}
-      {activeTab === "services" && (
-        <div>
-          <form
-            onSubmit={editingService ? handleUpdateService : handleAddService}
-            style={{
-              marginBottom: "16px",
-              padding: "12px",
-              background: "#020617",
-              borderRadius: "8px",
-            }}
-          >
-            <h3 style={{ color: "#e5e7eb", marginTop: 0 }}>
-              {editingService ? "Edit service" : "Add new service"}
-            </h3>
-            <div className="row">
-              <div className="col">
-                <label>Service name</label>
-                <input
-                  type="text"
-                  value={editingService ? editServiceLabel : newServiceLabel}
-                  onChange={(e) =>
-                    editingService
-                      ? setEditServiceLabel(e.target.value)
-                      : setNewServiceLabel(e.target.value)
-                  }
-                  placeholder="e.g. Elderly Care"
-                />
-              </div>
-              <div className="col">
-                <label>Category</label>
-                <select
-                  value={
-                    editingService ? editServiceCategory : newServiceCategory
-                  }
-                  onChange={(e) =>
-                    editingService
-                      ? setEditServiceCategory(e.target.value)
-                      : setNewServiceCategory(e.target.value)
-                  }
-                >
-                  <option value="caregiver">Caregiver</option>
-                  <option value="household">Household</option>
-                </select>
-              </div>
-            </div>
+          {/* Caregiver Password Modal */}
+          {showCaregiverPasswordModal && caregiverPasswordUser && (
             <div
               style={{
-                marginTop: "12px",
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(0,0,0,0.5)",
                 display: "flex",
-                justifyContent: "flex-end",
-                gap: "8px",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
+              }}
+              onClick={() => {
+                setShowCaregiverPasswordModal(false);
+                setCaregiverPasswordUser(null);
+                setCaregiverNewPassword("");
               }}
             >
-              {editingService && (
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={() => setEditingService(null)}
-                >
-                  Cancel
-                </button>
-              )}
-              <button type="submit" className="btn btn-primary">
-                {editingService ? "Save changes" : "Add service"}
-              </button>
-            </div>
-          </form>
-
-          {services.length === 0 ? (
-            <p style={{ color: "#9ca3af" }}>No services configured yet.</p>
-          ) : (
-            services.map((s) => (
-              <div key={s.id} className="card" style={{ marginBottom: "12px" }}>
+              <div
+                style={{
+                  backgroundColor: "white",
+                  padding: 20,
+                  borderRadius: 8,
+                  maxWidth: "500px",
+                  width: "95%",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
-                    alignItems: "center",
+                    marginBottom: 10,
                   }}
                 >
-                  <div>
-                    <h3 style={{ margin: 0, color: "#e5e7eb" }}>
-                      {s.label || s.serviceName}
-                    </h3>
-                    <p
-                      style={{
-                        margin: "4px 0",
-                        color: "#9ca3af",
-                        fontSize: "12px",
-                      }}
-                    >
-                      Category: {s.category || "caregiver"}
-                    </p>
-                  </div>
-                  <div
+                  <h3>
+                    Change Caregiver Password – {caregiverPasswordUser.name} (
+                    {caregiverPasswordUser.email})
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowCaregiverPasswordModal(false);
+                      setCaregiverPasswordUser(null);
+                      setCaregiverNewPassword("");
+                    }}
                     style={{
-                      display: "flex",
-                      gap: "8px",
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 18,
+                      cursor: "pointer",
                     }}
                   >
-                    <button
-                      className="btn btn-outline"
-                      onClick={() => {
-                        setEditingService(s);
-                        setEditServiceLabel(s.label || s.serviceName || "");
-                        setEditServiceCategory(s.category || "caregiver");
-                      }}
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      className="btn btn-outline"
-                      onClick={() =>
-                        handleDeleteService(s.id, s.label || s.serviceName)
-                      }
-                      style={{
-                        background: "#7f1d1d",
-                        color: "#fecaca",
-                        border: "1px solid #991b1b",
-                      }}
-                    >
-                      ✕ Delete
-                    </button>
-                  </div>
+                    ✕
+                  </button>
                 </div>
+
+                <form onSubmit={handleSubmitCaregiverPasswordChange}>
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={caregiverNewPassword}
+                      onChange={(e) => setCaregiverNewPassword(e.target.value)}
+                      required
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    style={{
+                      padding: "10px 20px",
+                      backgroundColor: "#17a2b8",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Create Reset Request
+                  </button>
+                </form>
               </div>
-            ))
+            </div>
+          )}
+
+          {/* Caregiver Blacklist Modal */}
+          {showCaregiverBlacklistModal && caregiverBlacklistUser && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
+              }}
+              onClick={() => {
+                setShowCaregiverBlacklistModal(false);
+                setCaregiverBlacklistUser(null);
+                setCaregiverBlacklistReason("");
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: "white",
+                  padding: 20,
+                  borderRadius: 8,
+                  maxWidth: "600px",
+                  width: "95%",
+                  maxHeight: "80vh",
+                  overflowY: "auto",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <h3>Blacklist Caregiver – {caregiverBlacklistUser.name}</h3>
+                  <button
+                    onClick={() => {
+                      setShowCaregiverBlacklistModal(false);
+                      setCaregiverBlacklistUser(null);
+                      setCaregiverBlacklistReason("");
+                    }}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 18,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <p>
+                  This will mark the caregiver as blacklisted and add them to
+                  the blacklist table. They will no longer be able to receive
+                  bookings.
+                </p>
+
+                <form onSubmit={handleSubmitCaregiverBlacklist}>
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      Reason (optional)
+                    </label>
+                    <textarea
+                      value={caregiverBlacklistReason}
+                      onChange={(e) =>
+                        setCaregiverBlacklistReason(e.target.value)
+                      }
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    style={{
+                      padding: "10px 20px",
+                      backgroundColor: "#6c757d",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Confirm Blacklist
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Org Blacklist Modal */}
+          {showOrgBlacklistModal && orgBlacklistOrg && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1000,
+              }}
+              onClick={() => {
+                setShowOrgBlacklistModal(false);
+                setOrgBlacklistOrg(null);
+                setOrgBlacklistReason("");
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: "white",
+                  padding: 20,
+                  borderRadius: 8,
+                  maxWidth: "600px",
+                  width: "95%",
+                  maxHeight: "80vh",
+                  overflowY: "auto",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                  }}
+                >
+                  <h3>
+                    Blacklist Organization – {orgBlacklistOrg.organizationName}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowOrgBlacklistModal(false);
+                      setOrgBlacklistOrg(null);
+                      setOrgBlacklistReason("");
+                    }}
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      fontSize: 18,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <p>
+                  This will mark the organization and all caregivers under it as
+                  blacklisted and add them to the blacklist table.
+                </p>
+
+                <form onSubmit={handleSubmitOrgBlacklist}>
+                  <div style={{ marginBottom: 15 }}>
+                    <label style={{ display: "block", marginBottom: 5 }}>
+                      Reason (optional)
+                    </label>
+                    <textarea
+                      value={orgBlacklistReason}
+                      onChange={(e) => setOrgBlacklistReason(e.target.value)}
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        padding: 8,
+                        borderRadius: 4,
+                        border: "1px solid #ddd",
+                      }}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    style={{
+                      padding: "10px 20px",
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Confirm Blacklist
+                  </button>
+                </form>
+              </div>
+            </div>
           )}
         </div>
       )}
 
-      {/* ===== REPORTS TAB ===== */}
-      {activeTab === "reports" && (
+      {/* ===== TAB: CAREGIVERS ===== */}
+      {activeTab === "caregivers" && (
         <div>
-          <div className="row" style={{ marginBottom: "16px" }}>
-            <div className="col">
-              <label>Filter</label>
-              <select
-                value={blacklistFilter}
-                onChange={(e) => setBlacklistFilter(e.target.value)}
+          {loadingVendors ? (
+            <p>Loading caregivers...</p>
+          ) : (
+            <div>
+              <div
+                style={{ marginBottom: "15px", display: "flex", gap: "10px" }}
               >
-                <option value="pending">Pending</option>
-                <option value="blacklisted">Blacklisted</option>
-                <option value="rejected">Rejected</option>
-              </select>
+                <input
+                  type="text"
+                  placeholder="Search caregivers..."
+                  value={searchVendor}
+                  onChange={(e) => setSearchVendor(e.target.value)}
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                    flex: 1,
+                  }}
+                />
+                <select
+                  value={vendorStatusFilter}
+                  onChange={(e) => setVendorStatusFilter(e.target.value)}
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                  }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="approved">Approved</option>
+                  <option value="pending">Pending</option>
+                </select>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                  gap: "20px",
+                }}
+              >
+                {vendors
+                  .filter(
+                    (vendor) =>
+                      (searchVendor === "" ||
+                        vendor.name
+                          ?.toLowerCase()
+                          .includes(searchVendor.toLowerCase())) &&
+                      (vendorStatusFilter === "all" ||
+                        (vendorStatusFilter === "approved"
+                          ? vendor.isApproved
+                          : !vendor.isApproved)),
+                  )
+                  .map((vendor) => (
+                    <div
+                      key={vendor.id}
+                      style={{
+                        backgroundColor: "white",
+                        padding: "20px",
+                        borderRadius: "8px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        border: vendor.isApproved
+                          ? "1px solid #28a745"
+                          : "1px solid #ffc107",
+                      }}
+                    >
+                      <h4>{vendor.name}</h4>
+                      <p>
+                        <strong>Location:</strong> {vendor.location}
+                      </p>
+                      <p>
+                        <strong>Hourly Rate:</strong> Rs. {vendor.hourlyRate}
+                      </p>
+                      <p>
+                        <strong>Work Type:</strong> {vendor.workType}
+                      </p>
+                      <p>
+                        <strong>Experience:</strong> {vendor.experience} years
+                      </p>
+                      <p>
+                        <strong>Status:</strong>{" "}
+                        {vendor.isApproved ? "✅ Approved" : "⏳ Pending"}
+                      </p>
+                      <div
+                        style={{
+                          marginTop: 10,
+                          display: "flex",
+                          gap: 10,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {!vendor.isApproved && (
+                          <button
+                            onClick={() =>
+                              handleApproveCaregiverClick(vendor.id)
+                            }
+                            style={{
+                              padding: "8px 15px",
+                              backgroundColor: "#28a745",
+                              color: "white",
+                              border: "none",
+                              borderRadius: 4,
+                              cursor: "pointer",
+                              fontSize: 12,
+                            }}
+                          >
+                            Approve
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleRejectCaregiverClick(vendor.id)}
+                          style={{
+                            padding: "8px 15px",
+                            backgroundColor: "#dc3545",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            cursor: "pointer",
+                            fontSize: 12,
+                          }}
+                        >
+                          Reject
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteCaregiver(vendor.id)}
+                          style={{
+                            padding: "8px 15px",
+                            backgroundColor: "#999",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            cursor: "pointer",
+                            fontSize: 12,
+                          }}
+                        >
+                          Delete
+                        </button>
+
+                        <button
+                          onClick={() => handleStartEditCaregiver(vendor)}
+                          style={{
+                            padding: "8px 15px",
+                            backgroundColor: "#007bff",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            cursor: "pointer",
+                            fontSize: 12,
+                          }}
+                        >
+                          Edit Caregiver
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleOpenCaregiverPasswordModal(vendor)
+                          }
+                          style={{
+                            padding: "8px 15px",
+                            backgroundColor: "#17a2b8",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            cursor: "pointer",
+                            fontSize: 12,
+                          }}
+                        >
+                          Change Password
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleOpenCaregiverBlacklistModal(vendor)
+                          }
+                          style={{
+                            padding: "8px 15px",
+                            backgroundColor: "#6c757d",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 4,
+                            cursor: "pointer",
+                            fontSize: 12,
+                          }}
+                        >
+                          Blacklist
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== TAB: BOOKINGS ===== */}
+      {activeTab === "bookings" && (
+        <div>
+          {loadingBookings ? (
+            <p>Loading bookings...</p>
+          ) : (
+            <div>
+              <div
+                style={{
+                  marginBottom: "15px",
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <select
+                  value={bookingStatusFilter}
+                  onChange={(e) => setBookingStatusFilter(e.target.value)}
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                  }}
+                >
+                  <option value="">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+                <input
+                  type="date"
+                  value={bookingDateFilter}
+                  onChange={(e) => setBookingDateFilter(e.target.value)}
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+                  gap: "20px",
+                }}
+              >
+                {bookings
+                  .filter(
+                    (booking) =>
+                      (bookingStatusFilter === "" ||
+                        booking.status === bookingStatusFilter) &&
+                      (bookingDateFilter === "" ||
+                        booking.bookingDate?.includes(bookingDateFilter)),
+                  )
+                  .map((booking) => (
+                    <div
+                      key={booking.id}
+                      style={{
+                        backgroundColor: "white",
+                        padding: "20px",
+                        borderRadius: "8px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        borderLeft: `4px solid ${
+                          booking.status === "completed"
+                            ? "#28a745"
+                            : booking.status === "cancelled"
+                              ? "#dc3545"
+                              : booking.status === "in_progress"
+                                ? "#007bff"
+                                : booking.status === "confirmed"
+                                  ? "#ffc107"
+                                  : "#999"
+                        }`,
+                      }}
+                    >
+                      <h5>Booking #{booking.id.substring(0, 8)}</h5>
+                      <p>
+                        <strong>User:</strong> {booking.userName}
+                      </p>
+                      <p>
+                        <strong>Caregiver:</strong> {booking.vendorName}
+                      </p>
+                      <p>
+                        <strong>Date:</strong> {booking.bookingDate}
+                      </p>
+                      <p>
+                        <strong>Time:</strong> {booking.startTime} -{" "}
+                        {booking.endTime}
+                      </p>
+                      <p>
+                        <strong>Amount:</strong> Rs. {booking.totalAmount}
+                      </p>
+                      <p>
+                        <strong>Platform Commission:</strong> Rs.{" "}
+                        {booking.platformCommission}
+                      </p>
+                      <p>
+                        <strong>Status:</strong>{" "}
+                        <strong
+                          style={{
+                            color:
+                              booking.status === "completed"
+                                ? "#28a745"
+                                : booking.status === "cancelled"
+                                  ? "#dc3545"
+                                  : "#ffc107",
+                          }}
+                        >
+                          {booking.status.toUpperCase()}
+                        </strong>
+                      </p>
+                    </div>
+                  ))}
+              </div>
+              {bookings.length === 0 && <p>No bookings found.</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== TAB: SERVICES ===== */}
+      {activeTab === "services" && (
+        <div>
+          <div style={{ marginBottom: "20px" }}>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <h3>Add New Service</h3>
+              <form onSubmit={handleAddService}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    marginBottom: "15px",
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={newServiceLabel}
+                    onChange={(e) => setNewServiceLabel(e.target.value)}
+                    placeholder="Service name (e.g., Elderly Care)"
+                    style={{
+                      flex: 1,
+                      padding: "8px",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd",
+                    }}
+                  />
+                  <select
+                    value={newServiceCategory}
+                    onChange={(e) => setNewServiceCategory(e.target.value)}
+                    style={{
+                      padding: "8px",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd",
+                    }}
+                  >
+                    <option value="caregiver">Caregiver</option>
+                    <option value="vendor">Vendor</option>
+                    <option value="both">Both</option>
+                  </select>
+                  <button
+                    type="submit"
+                    style={{
+                      padding: "8px 20px",
+                      backgroundColor: "#28a745",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Add Service
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <h3>Existing Services</h3>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+                gap: "20px",
+              }}
+            >
+              {services.map((service) => (
+                <div
+                  key={service.id}
+                  style={{
+                    backgroundColor: "white",
+                    padding: "15px",
+                    borderRadius: "8px",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  {editingService === service.id ? (
+                    <div>
+                      <input
+                        type="text"
+                        value={editServiceLabel}
+                        onChange={(e) => setEditServiceLabel(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "8px",
+                          marginBottom: "10px",
+                          borderRadius: "4px",
+                          border: "1px solid #ddd",
+                        }}
+                      />
+                      <div style={{ display: "flex", gap: "10px" }}>
+                        <button
+                          onClick={() =>
+                            handleUpdateService(service.id, editServiceLabel)
+                          }
+                          style={{
+                            flex: 1,
+                            padding: "8px",
+                            backgroundColor: "#28a745",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                          }}
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingService(null)}
+                          style={{
+                            flex: 1,
+                            padding: "8px",
+                            backgroundColor: "#999",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h5>{service.label}</h5>
+                      <p>
+                        <strong>Category:</strong> {service.category}
+                      </p>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "10px",
+                          marginTop: "10px",
+                        }}
+                      >
+                        <button
+                          onClick={() => {
+                            setEditingService(service.id);
+                            setEditServiceLabel(service.label);
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: "8px",
+                            backgroundColor: "#007bff",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteService(service.id)}
+                          style={{
+                            flex: 1,
+                            padding: "8px",
+                            backgroundColor: "#dc3545",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
+        </div>
+      )}
 
-          {filteredReports.length === 0 ? (
-            <p style={{ color: "#9ca3af" }}>No reports found.</p>
-          ) : (
-            filteredReports.map((r) => (
-              <div key={r.id} className="card" style={{ marginBottom: "12px" }}>
-                <h3 style={{ margin: 0, color: "#e5e7eb" }}>
-                  {r.userName} ({r.userId})
-                </h3>
-                <p
-                  style={{
-                    margin: "4px 0",
-                    color: "#9ca3af",
-                    fontSize: "12px",
-                  }}
-                >
-                  Reported by: {r.reportedByName} ({r.reportedBy})
-                </p>
-                <p
-                  style={{
-                    margin: "4px 0",
-                    color: "#9ca3af",
-                    fontSize: "12px",
-                  }}
-                >
-                  Reason: {r.reason}
-                </p>
-                {r.description && (
-                  <p
+      {/* ===== TAB: ADMINS ===== */}
+      {activeTab === "admins" && (
+        <div>
+          <div style={{ marginBottom: "20px" }}>
+            <button
+              onClick={() => setShowAddSuperAdminForm(!showAddSuperAdminForm)}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              {showAddSuperAdminForm ? "Cancel" : "+ Add Superadmin"}
+            </button>
+          </div>
+
+          {showAddSuperAdminForm && (
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <h3>Create New Superadmin</h3>
+              <form onSubmit={handleCreateSuperAdmin}>
+                <div style={{ marginBottom: "15px" }}>
+                  <label style={{ display: "block", marginBottom: "5px" }}>
+                    Admin Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={newSuperAdminName}
+                    onChange={(e) => setNewSuperAdminName(e.target.value)}
+                    placeholder="e.g., Sarah Admin"
+                    required
                     style={{
-                      margin: "4px 0",
-                      color: "#9ca3af",
+                      width: "100%",
+                      padding: "8px",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd",
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: "15px" }}>
+                  <label style={{ display: "block", marginBottom: "5px" }}>
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={newSuperAdminEmail}
+                    onChange={(e) => setNewSuperAdminEmail(e.target.value)}
+                    placeholder="admin@gharsathi.com"
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "8px",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd",
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: "15px" }}>
+                  <label style={{ display: "block", marginBottom: "5px" }}>
+                    Password *
+                  </label>
+                  <input
+                    type="password"
+                    value={newSuperAdminPassword}
+                    onChange={(e) => setNewSuperAdminPassword(e.target.value)}
+                    placeholder="Secure password"
+                    required
+                    style={{
+                      width: "100%",
+                      padding: "8px",
+                      borderRadius: "4px",
+                      border: "1px solid #ddd",
+                    }}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={addingSuperAdmin}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: addingSuperAdmin ? "#ccc" : "#007bff",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: addingSuperAdmin ? "not-allowed" : "pointer",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {addingSuperAdmin ? "Creating..." : "Create Superadmin"}
+                </button>
+              </form>
+            </div>
+          )}
+
+          <h3>Current Superadmins</h3>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: "20px",
+            }}
+          >
+            {superAdmins.map((admin) => (
+              <div
+                key={admin.id}
+                style={{
+                  backgroundColor: "white",
+                  padding: "20px",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                  border:
+                    admin.id === currentUser?.uid
+                      ? "2px solid #007bff"
+                      : "1px solid #ddd",
+                }}
+              >
+                <h5>{admin.name}</h5>
+                <p>
+                  <strong>Email:</strong> {admin.email}
+                </p>
+                <p>
+                  <strong>Created:</strong>{" "}
+                  {admin.createdAt
+                    ? new Date(admin.createdAt).toLocaleDateString()
+                    : "-"}
+                </p>
+                <p>
+                  <strong>Status:</strong>{" "}
+                  {admin.isSuspended ? "🚫 Suspended" : "✅ Active"}
+                </p>
+                {admin.id === currentUser?.uid && (
+                  <p style={{ color: "#007bff", fontWeight: "bold" }}>
+                    👤 (You)
+                  </p>
+                )}
+                {admin.id !== currentUser?.uid && (
+                  <button
+                    onClick={() => handleDeleteSuperAdmin(admin.id)}
+                    style={{
+                      marginTop: "10px",
+                      padding: "8px 15px",
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
                       fontSize: "12px",
                     }}
                   >
-                    Details: {r.description}
-                  </p>
+                    Delete Admin
+                  </button>
                 )}
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    marginTop: "12px",
-                  }}
-                >
-                  {r.status === "pending" && (
-                    <>
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => handleBlacklistUser(r.id, r.userId)}
-                        style={{ flex: 1 }}
-                      >
-                        Blacklist user
-                      </button>
-                      <button
-                        className="btn btn-outline"
-                        onClick={() => handleRejectReport(r.id)}
-                        style={{
-                          flex: 1,
-                          background: "#7f1d1d",
-                          color: "#fecaca",
-                          border: "1px solid #991b1b",
-                        }}
-                      >
-                        Reject report
-                      </button>
-                    </>
-                  )}
-                  {r.status === "blacklisted" && (
-                    <button
-                      className="btn btn-outline"
-                      onClick={() => handleRemoveFromBlacklist(r.userId)}
-                      style={{
-                        flex: 1,
-                        background: "#7f1d1d",
-                        color: "#fecaca",
-                        border: "1px solid #991b1b",
-                      }}
-                    >
-                      Remove from blacklist
-                    </button>
-                  )}
-                </div>
               </div>
-            ))
-          )}
-
-          <h3 style={{ color: "#e5e7eb", marginTop: "24px" }}>
-            Blacklisted users ({blacklist.length})
-          </h3>
-          {blacklist.length === 0 ? (
-            <p style={{ color: "#9ca3af" }}>No blacklisted users.</p>
-          ) : (
-            blacklist.map((b) => (
-              <div key={b.id} className="card" style={{ marginBottom: "12px" }}>
-                <h3 style={{ margin: 0, color: "#e5e7eb" }}>
-                  {b.userName} ({b.userId})
-                </h3>
-                <p
-                  style={{
-                    margin: "4px 0",
-                    color: "#9ca3af",
-                    fontSize: "12px",
-                  }}
-                >
-                  Reason: {b.reason}
-                </p>
-                <p
-                  style={{
-                    margin: "4px 0",
-                    color: "#9ca3af",
-                    fontSize: "12px",
-                  }}
-                >
-                  Reported by: {b.reportedByName} ({b.reportedBy})
-                </p>
-                <button
-                  className="btn btn-outline"
-                  onClick={() => handleRemoveFromBlacklist(b.id)}
-                  style={{
-                    marginTop: "8px",
-                    background: "#7f1d1d",
-                    color: "#fecaca",
-                    border: "1px solid #991b1b",
-                  }}
-                >
-                  Remove from blacklist
-                </button>
-              </div>
-            ))
-          )}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* ===== SETTINGS TAB ===== */}
-      {activeTab === "settings" && (
+      {/* ===== TAB: BLACKLIST ===== */}
+      {activeTab === "blacklist" && (
         <div>
+          <div style={{ marginBottom: "20px" }}>
+            <select
+              value={blacklistFilter}
+              onChange={(e) => setBlacklistFilter(e.target.value)}
+              style={{
+                padding: "8px",
+                borderRadius: "4px",
+                border: "1px solid #ddd",
+              }}
+            >
+              <option value="pending">Pending Reports</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: "30px" }}>
+            <h3>Blacklist Reports</h3>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(350px, 1fr))",
+                gap: "20px",
+              }}
+            >
+              {blacklistReports
+                .filter((report) => report.status === blacklistFilter)
+                .map((report) => (
+                  <div
+                    key={report.id}
+                    style={{
+                      backgroundColor: "white",
+                      padding: "20px",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                      borderLeft: `4px solid ${
+                        report.status === "approved"
+                          ? "#28a745"
+                          : report.status === "rejected"
+                            ? "#dc3545"
+                            : "#ffc107"
+                      }`,
+                    }}
+                  >
+                    <h5>Report #{report.id.substring(0, 8)}</h5>
+                    <p>
+                      <strong>User ID:</strong> {report.userId}
+                    </p>
+                    <p>
+                      <strong>User Type:</strong> {report.userType}
+                    </p>
+                    <p>
+                      <strong>Reason:</strong> {report.reason}
+                    </p>
+                    <p>
+                      <strong>Status:</strong> {report.status.toUpperCase()}
+                    </p>
+                    {report.status === "pending" && (
+                      <div
+                        style={{
+                          marginTop: "10px",
+                          display: "flex",
+                          gap: "10px",
+                        }}
+                      >
+                        <button
+                          onClick={() =>
+                            handleApproveBlacklistReport(report.id)
+                          }
+                          style={{
+                            flex: 1,
+                            padding: "8px 15px",
+                            backgroundColor: "#28a745",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                          }}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectBlacklistReport(report.id)}
+                          style={{
+                            flex: 1,
+                            padding: "8px 15px",
+                            backgroundColor: "#dc3545",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+
+          <div>
+            <h3>Blacklisted Users</h3>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                gap: "20px",
+              }}
+            >
+              {blacklist.map((entry) => (
+                <div
+                  key={entry.id}
+                  style={{
+                    backgroundColor: "#fee",
+                    padding: "20px",
+                    borderRadius: "8px",
+                    border: "1px solid #fcc",
+                  }}
+                >
+                  <h5>🚫 {entry.userId}</h5>
+                  <p>
+                    <strong>Type:</strong> {entry.userType}
+                  </p>
+                  <p>
+                    <strong>Reason:</strong> {entry.reason}
+                  </p>
+                  <p>
+                    <strong>Added:</strong>{" "}
+                    {entry.addedAt
+                      ? entry.addedAt.toDate().toLocaleDateString()
+                      : "-"}
+                  </p>
+                  <button
+                    onClick={() => handleRemoveFromBlacklist(entry.id)}
+                    style={{
+                      marginTop: "10px",
+                      padding: "8px 15px",
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                    }}
+                  >
+                    Remove from Blacklist
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== TAB: ANALYTICS ===== */}
+      {activeTab === "analytics" && (
+        <div>
+          <h2>Platform Analytics</h2>
           <div
-            className="card"
             style={{
-              marginBottom: "16px",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: "20px",
+              marginBottom: "30px",
             }}
           >
-            <h3 style={{ marginTop: 0, color: "#e5e7eb" }}>
-              Global commission rate
-            </h3>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textAlign: "center",
+              }}
+            >
+              <h3 style={{ color: "#007bff" }}>
+                {analytics.totalOrganizations}
+              </h3>
+              <p>Total Organizations</p>
+            </div>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textAlign: "center",
+              }}
+            >
+              <h3 style={{ color: "#28a745" }}>
+                {analytics.approvedOrganizations}
+              </h3>
+              <p>Approved Organizations</p>
+            </div>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textAlign: "center",
+              }}
+            >
+              <h3 style={{ color: "#007bff" }}>{analytics.totalCaregivers}</h3>
+              <p>Total Caregivers</p>
+            </div>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textAlign: "center",
+              }}
+            >
+              <h3 style={{ color: "#28a745" }}>
+                {analytics.approvedCaregivers}
+              </h3>
+              <p>Approved Caregivers</p>
+            </div>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textAlign: "center",
+              }}
+            >
+              <h3 style={{ color: "#ffc107" }}>{analytics.totalBookings}</h3>
+              <p>Total Bookings</p>
+            </div>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textAlign: "center",
+              }}
+            >
+              <h3 style={{ color: "#28a745" }}>
+                {analytics.completedBookings}
+              </h3>
+              <p>Completed Bookings</p>
+            </div>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textAlign: "center",
+              }}
+            >
+              <h3 style={{ color: "#17a2b8" }}>
+                Rs. {analytics.totalRevenue.toFixed(2)}
+              </h3>
+              <p>Total Revenue</p>
+            </div>
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                textAlign: "center",
+              }}
+            >
+              <h3 style={{ color: "#6c757d" }}>
+                Rs. {analytics.platformEarnings.toFixed(2)}
+              </h3>
+              <p>Platform Earnings</p>
+            </div>
+          </div>
+
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "20px",
+              borderRadius: "8px",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+            }}
+          >
+            <h3>Global Commission Settings</h3>
+            <p>
+              <strong>Current Rate:</strong> {globalCommissionRate}%
+            </p>
             {editingCommission ? (
-              <div
-                style={{ display: "flex", gap: "8px", alignItems: "center" }}
-              >
+              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
                 <input
                   type="number"
                   value={globalCommissionRate}
                   onChange={(e) =>
-                    setGlobalCommissionRate(Number(e.target.value) || 0)
+                    setGlobalCommissionRate(Number(e.target.value))
                   }
-                  style={{ maxWidth: "120px" }}
+                  min="0"
+                  max="100"
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                    flex: 1,
+                  }}
                 />
                 <button
-                  className="btn btn-primary"
-                  onClick={async () => {
-                    try {
-                      await setDoc(
-                        doc(db, "settings", "commission"),
-                        {
-                          rate: globalCommissionRate,
-                          updatedAt: serverTimestamp(),
-                        },
-                        { merge: true },
-                      );
-                      alert("Global commission updated.");
-                      setEditingCommission(false);
-                    } catch (err) {
-                      console.error("Error updating commission", err);
-                      alert("Could not update commission.");
-                    }
+                  onClick={() =>
+                    handleUpdateGlobalCommission(globalCommissionRate)
+                  }
+                  style={{
+                    padding: "8px 20px",
+                    backgroundColor: "#28a745",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
                   }}
                 >
-                  Save
+                  Update
                 </button>
                 <button
-                  className="btn btn-outline"
                   onClick={() => setEditingCommission(false)}
+                  style={{
+                    padding: "8px 20px",
+                    backgroundColor: "#999",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
                 >
                   Cancel
                 </button>
               </div>
             ) : (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <p
-                  style={{
-                    margin: 0,
-                    color: "#e5e7eb",
-                  }}
-                >
-                  {globalCommissionRate}%
-                </p>
-                <button
-                  className="btn btn-outline"
-                  onClick={() => setEditingCommission(true)}
-                >
-                  ✏️ Edit
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="card">
-            <h3 style={{ marginTop: 0, color: "#e5e7eb" }}>SuperAdmins</h3>
-            {superAdmins.length === 0 ? (
-              <p style={{ color: "#9ca3af" }}>
-                No superadmins created yet. Use the Organizations tab to add new
-                superadmins.
-              </p>
-            ) : (
-              superAdmins.map((u) => (
-                <div
-                  key={u.id}
-                  style={{
-                    borderBottom: "1px solid #1f2937",
-                    padding: "8px 0",
-                  }}
-                >
-                  <p
-                    style={{
-                      margin: 0,
-                      color: "#e5e7eb",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {u.name}
-                  </p>
-                  <p
-                    style={{
-                      margin: "2px 0 0 0",
-                      color: "#9ca3af",
-                      fontSize: "12px",
-                    }}
-                  >
-                    {u.email}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Edit Caregiver Modal (Admin) */}
-      {editingCaregiver && (
-        <div className="modal-backdrop">
-          <div className="modal" style={{ maxWidth: 640 }}>
-            <h2 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 4 }}>
-              Edit caregiver
-            </h2>
-            <p
-              style={{
-                fontSize: 12,
-                color: "#9ca3af",
-                marginTop: 0,
-                marginBottom: 16,
-              }}
-            >
-              Update caregiver details. Email and login credentials are managed
-              separately.
-            </p>
-
-            <form onSubmit={handleSaveCaregiverEdits} className="form">
-              {/* Name + Location */}
-              <div className="row">
-                <div className="col">
-                  <label>Name</label>
-                  <input
-                    type="text"
-                    value={editCaregiverData.name}
-                    onChange={(e) =>
-                      setEditCaregiverData((prev) => ({
-                        ...prev,
-                        name: e.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="col">
-                  <label>Location</label>
-                  <select
-                    value={editCaregiverData.location}
-                    onChange={(e) =>
-                      setEditCaregiverData((prev) => ({
-                        ...prev,
-                        location: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Select location</option>
-                    <option value="Kathmandu">Kathmandu</option>
-                    <option value="Lalitpur">Lalitpur</option>
-                    <option value="Bhaktapur">Bhaktapur</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Rate + Work type */}
-              <div className="row">
-                <div className="col">
-                  <label>Hourly rate (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={editCaregiverData.hourlyRate}
-                    onChange={(e) =>
-                      setEditCaregiverData((prev) => ({
-                        ...prev,
-                        hourlyRate: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="col">
-                  <label>Work type</label>
-                  <select
-                    value={editCaregiverData.workType}
-                    onChange={(e) =>
-                      setEditCaregiverData((prev) => ({
-                        ...prev,
-                        workType: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Select</option>
-                    <option value="Full Time">Full Time</option>
-                    <option value="Part Time">Part Time</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Category */}
-              <div className="row">
-                <div className="col">
-                  <label>Category</label>
-                  <select
-                    value={editCaregiverData.category}
-                    onChange={(e) =>
-                      setEditCaregiverData((prev) => ({
-                        ...prev,
-                        category: e.target.value,
-                        services: [],
-                      }))
-                    }
-                  >
-                    <option value="">Select category</option>
-                    <option value="caregiver">Caregiver</option>
-                    <option value="household">Household</option>
-                    <option value="both">Both</option>
-                  </select>
-                  <p
-                    style={{
-                      fontSize: 11,
-                      color: "#9ca3af",
-                      marginTop: 4,
-                    }}
-                  >
-                    Services list below will update based on this category.
-                  </p>
-                </div>
-              </div>
-
-              {/* Services checkboxes */}
-              <div className="form-group">
-                <label>Services</label>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                    gap: "4px 12px",
-                  }}
-                >
-                  {getServicesForCategory(editCaregiverData.category).map(
-                    (service) => {
-                      const id = service.id || service.serviceName;
-                      const label = service.label || service.serviceName;
-                      const checked =
-                        editCaregiverData.services.includes(label);
-
-                      return (
-                        <label
-                          key={id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                            fontSize: 13,
-                            color: "#e5e7eb",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) => {
-                              setEditCaregiverData((prev) => {
-                                const current = prev.services || [];
-                                if (e.target.checked) {
-                                  return {
-                                    ...prev,
-                                    services: [...current, label],
-                                  };
-                                }
-                                return {
-                                  ...prev,
-                                  services: current.filter((s) => s !== label),
-                                };
-                              });
-                            }}
-                          />
-                          {label}
-                        </label>
-                      );
-                    },
-                  )}
-                </div>
-              </div>
-
-              {/* Experience */}
-              <div className="form-group">
-                <label>Experience</label>
-                <input
-                  type="text"
-                  placeholder="e.g., 5 years"
-                  value={editCaregiverData.experience}
-                  onChange={(e) =>
-                    setEditCaregiverData((prev) => ({
-                      ...prev,
-                      experience: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 8,
-                  marginTop: 16,
-                }}
-              >
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={() => setEditingCaregiver(null)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Save changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Organization Modal - only when organizations tab is active */}
-      {activeTab === "organizations" && editingOrg && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <h3>Edit organization</h3>
-            <div className="form">
-              <div>
-                <label>Name</label>
-                <input
-                  value={editingOrg.organizationName || ""}
-                  onChange={(e) =>
-                    setEditingOrg({
-                      ...editingOrg,
-                      organizationName: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <label>Business phone</label>
-                <input
-                  value={editingOrg.businessPhone || ""}
-                  onChange={(e) =>
-                    setEditingOrg({
-                      ...editingOrg,
-                      businessPhone: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <label>City</label>
-                <input
-                  value={editingOrg.businessCity || ""}
-                  onChange={(e) =>
-                    setEditingOrg({
-                      ...editingOrg,
-                      businessCity: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <label>Commission rate (%)</label>
-                <input
-                  type="number"
-                  value={editingOrg.commissionRate ?? 15}
-                  onChange={(e) =>
-                    setEditingOrg({
-                      ...editingOrg,
-                      commissionRate: Number(e.target.value || 0),
-                    })
-                  }
-                />
-              </div>
-            </div>
-            <div className="modal-actions">
-              <button className="btn" onClick={() => setEditingOrg(null)}>
-                Cancel
-              </button>
               <button
-                className="btn btn-primary"
-                onClick={async () => {
-                  try {
-                    await updateDoc(doc(db, "organizations", editingOrg.id), {
-                      organizationName: editingOrg.organizationName || "",
-                      businessPhone: editingOrg.businessPhone || "",
-                      businessCity: editingOrg.businessCity || "",
-                      commissionRate: editingOrg.commissionRate ?? 15,
-                    });
-                    if (editingOrg.adminUid) {
-                      await updateDoc(doc(db, "users", editingOrg.adminUid), {
-                        organizationName: editingOrg.organizationName || "",
-                      });
-                    }
-                    setOrganizations((prev) =>
-                      prev.map((o) =>
-                        o.id === editingOrg.id ? editingOrg : o,
-                      ),
-                    );
-                    setEditingOrg(null);
-                  } catch (err) {
-                    console.error("Error updating organization", err);
-                    alert("Could not save changes.");
-                  }
+                onClick={() => setEditingCommission(true)}
+                style={{
+                  marginTop: "10px",
+                  padding: "8px 20px",
+                  backgroundColor: "#007bff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
                 }}
               >
-                Save changes
+                Edit Commission Rate
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Organization Modal */}
-      {showAddOrgForm && (
-        <div className="modal-backdrop">
-          <div className="modal" style={{ maxWidth: 640 }}>
-            <h2 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 4 }}>
-              Create new organization
-            </h2>
-            <p
-              style={{
-                fontSize: 12,
-                color: "#9ca3af",
-                marginTop: 0,
-                marginBottom: 16,
-              }}
-            >
-              This will create an organization admin account and link it to a
-              new organization record in the system.
-            </p>
-
-            <form onSubmit={handleCreateOrganization} className="form">
-              {/* Org + Admin names */}
-              <div className="row">
-                <div className="col">
-                  <label>Organization name</label>
-                  <input
-                    value={newOrgName}
-                    onChange={(e) => setNewOrgName(e.target.value)}
-                    required
-                    placeholder="e.g., Ghar Sathi Care Pvt. Ltd."
-                  />
-                </div>
-                <div className="col">
-                  <label>Admin full name</label>
-                  <input
-                    value={newOrgAdminName}
-                    onChange={(e) => setNewOrgAdminName(e.target.value)}
-                    required
-                    placeholder="e.g., Sita Sharma"
-                  />
-                </div>
-              </div>
-
-              {/* Admin credentials */}
-              <div className="row">
-                <div className="col">
-                  <label>Admin email</label>
-                  <input
-                    type="email"
-                    value={newOrgEmail}
-                    onChange={(e) => setNewOrgEmail(e.target.value)}
-                    required
-                    placeholder="admin@example.com"
-                  />
-                </div>
-                <div className="col">
-                  <label>Temporary password</label>
-                  <input
-                    type="password"
-                    value={newOrgPassword}
-                    onChange={(e) => setNewOrgPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    placeholder="At least 6 characters"
-                  />
-                  <p
-                    style={{
-                      fontSize: 11,
-                      color: "#9ca3af",
-                      marginTop: 4,
-                    }}
-                  >
-                    Share this password with the admin. They can change it
-                    later.
-                  </p>
-                </div>
-              </div>
-
-              {/* Contact / location */}
-              <div className="row">
-                <div className="col">
-                  <label>Business phone</label>
-                  <input
-                    value={newOrgPhone}
-                    onChange={(e) => setNewOrgPhone(e.target.value)}
-                    placeholder="98XXXXXXXX"
-                  />
-                </div>
-                <div className="col">
-                  <label>City</label>
-                  <input
-                    value={newOrgCity}
-                    onChange={(e) => setNewOrgCity(e.target.value)}
-                    placeholder="e.g., Kathmandu"
-                  />
-                </div>
-              </div>
-
-              <label>Business address</label>
-              <input
-                value={newOrgAddress}
-                onChange={(e) => setNewOrgAddress(e.target.value)}
-                placeholder="Street, area"
-              />
-
-              {/* Commission */}
-              <div className="row" style={{ marginTop: 8 }}>
-                <div className="col">
-                  <label>Commission rate (%)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={newOrgCommission}
-                    onChange={(e) =>
-                      setNewOrgCommission(Number(e.target.value) || 15)
-                    }
-                  />
-                  <p
-                    style={{
-                      fontSize: 11,
-                      color: "#9ca3af",
-                      marginTop: 4,
-                    }}
-                  >
-                    Platform fee applied to bookings for this organization.
-                  </p>
-                </div>
-              </div>
-
-              {error && (
-                <p
-                  style={{
-                    marginTop: 8,
-                    fontSize: 12,
-                    color: "#fca5a5",
-                  }}
-                >
-                  {error}
-                </p>
-              )}
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 8,
-                  marginTop: 16,
-                }}
-              >
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={() => {
-                    setShowAddOrgForm(false);
-                    setError("");
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={addingOrg}
-                >
-                  {addingOrg ? "Creating..." : "Create organization"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add SuperAdmin Modal */}
-      {/* Add SuperAdmin Modal */}
-      {showAddSuperAdminForm && (
-        <div className="modal-backdrop">
-          <div className="modal" style={{ maxWidth: 520 }}>
-            <h2 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 4 }}>
-              Add new SuperAdmin
-            </h2>
-            <p
-              style={{
-                fontSize: 12,
-                color: "#9ca3af",
-                marginTop: 0,
-                marginBottom: 16,
-              }}
-            >
-              SuperAdmins have full control over organizations, caregivers,
-              services, and settings. Assign this role carefully.
-            </p>
-
-            <form onSubmit={handleCreateSuperAdmin} className="form">
-              <label>Full name</label>
-              <input
-                value={newSuperAdminName}
-                onChange={(e) => setNewSuperAdminName(e.target.value)}
-                required
-                placeholder="e.g., Platform Owner"
-              />
-
-              <label>Email</label>
-              <input
-                type="email"
-                value={newSuperAdminEmail}
-                onChange={(e) => setNewSuperAdminEmail(e.target.value)}
-                required
-                placeholder="owner@example.com"
-              />
-
-              <label>Temporary password</label>
-              <input
-                type="password"
-                value={newSuperAdminPassword}
-                onChange={(e) => setNewSuperAdminPassword(e.target.value)}
-                required
-                minLength={6}
-                placeholder="At least 6 characters"
-              />
-              <p
-                style={{
-                  fontSize: 11,
-                  color: "#9ca3af",
-                  marginTop: 4,
-                }}
-              >
-                Share this password with the SuperAdmin. They can change it
-                after first login.
-              </p>
-
-              {error && (
-                <p
-                  style={{
-                    marginTop: 8,
-                    fontSize: 12,
-                    color: "#fca5a5",
-                  }}
-                >
-                  {error}
-                </p>
-              )}
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 8,
-                  marginTop: 16,
-                }}
-              >
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={() => {
-                    setShowAddSuperAdminForm(false);
-                    setError("");
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={addingSuperAdmin}
-                >
-                  {addingSuperAdmin ? "Creating..." : "Create SuperAdmin"}
-                </button>
-              </div>
-            </form>
+            )}
           </div>
         </div>
       )}

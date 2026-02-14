@@ -1,6 +1,10 @@
 // src/RegisterPage.js (updated)
 import React, { useState } from "react";
-import { createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  signOut,
+} from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebaseConfig";
 import { saveOrganizationRecord } from "./saveOrganizationRecord"; // NEW import
@@ -33,7 +37,7 @@ export default function RegisterPage() {
       };
 
       // If self‑registered organization admin
-      if (role === "org_admin") {
+      if (role === "orgadmin") {
         userData = {
           ...userData,
           profileComplete: false,
@@ -53,6 +57,8 @@ export default function RegisterPage() {
           businessPhone: "",
           businessAddress: "",
           businessCity: "",
+          isApproved: false,
+          verified: false,
         });
       }
 
@@ -61,7 +67,7 @@ export default function RegisterPage() {
 
       await signOut(auth);
       window.location.href = "/auth";
-      // Redirect handled by AuthContext (org_admin -> /organization)
+      // Redirect handled by AuthContext (orgadmin -> /organization)
     } catch (err) {
       console.error("Registration error:", err);
 
@@ -139,7 +145,7 @@ export default function RegisterPage() {
             required
           >
             <option value="user">👨‍👩‍👧 Family / User (Hiring)</option>
-            <option value="org_admin">🏢 Organization (Service Provider)</option>
+            <option value="orgadmin">🏢 Organization (Service Provider)</option>
           </select>
 
           <button
