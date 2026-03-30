@@ -246,7 +246,7 @@ export default function UserProfilePage() {
 
   if (loading)
     return (
-      <p style={{ color: "#9ca3af", textAlign: "center", padding: 20 }}>
+      <p style={{ color: "var(--theme-text-muted)", textAlign: "center", padding: 20 }}>
         Loading profile...
       </p>
     );
@@ -257,10 +257,10 @@ export default function UserProfilePage() {
     <div className="app-shell">
       <div className="app-card" style={{ maxWidth: 700 }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ color: "#e5e7eb", fontSize: 24, marginBottom: 8 }}>
+          <h1 style={{ color: "var(--theme-text)", fontSize: 24, marginBottom: 8 }}>
             My Profile
           </h1>
-          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "var(--theme-text-muted)", margin: 0 }}>
             {!userDoc?.profileComplete
               ? "Complete your profile to start booking caregivers"
               : "Update your profile information"}
@@ -271,13 +271,13 @@ export default function UserProfilePage() {
         {!userDoc?.profileComplete && (
           <div
             style={{
-              background: "#dbeafe",
-              color: "#0369a1",
+              background: "var(--theme-help-soft)",
+              color: "var(--theme-help)",
               padding: 12,
               borderRadius: 8,
               fontSize: 13,
               marginBottom: 16,
-              border: "1px solid #7dd3fc",
+              border: "1px solid var(--theme-help-light)",
             }}
           >
             <strong>ℹ️ Required:</strong> Your profile information will be used
@@ -289,13 +289,13 @@ export default function UserProfilePage() {
         {success && (
           <div
             style={{
-              background: "#dcfce7",
-              color: "#15803d",
+              background: "var(--theme-positive-soft)",
+              color: "var(--theme-positive)",
               padding: 12,
               borderRadius: 8,
               fontSize: 13,
               marginBottom: 16,
-              border: "1px solid #86efac",
+              border: "1px solid var(--theme-positive-soft)",
             }}
           >
             ✓ {success}
@@ -305,9 +305,9 @@ export default function UserProfilePage() {
         {/* Profile Picture Section */}
         <div
           className="card"
-          style={{ marginBottom: 16, background: "#0b1120" }}
+          style={{ marginBottom: 16, background: "var(--theme-surface)" }}
         >
-          <h3 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 12 }}>
+          <h3 style={{ color: "var(--theme-text)", marginTop: 0, marginBottom: 12 }}>
             Profile Picture
           </h3>
 
@@ -325,12 +325,12 @@ export default function UserProfilePage() {
                 width: 100,
                 height: 100,
                 borderRadius: "50%",
-                background: imagePreview ? "transparent" : "#0ea5e9",
+                background: imagePreview ? "transparent" : "var(--theme-help)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden",
-                border: "2px solid #1f2937",
+                border: "2px solid var(--theme-text)",
               }}
             >
               {imagePreview ? (
@@ -367,9 +367,9 @@ export default function UserProfilePage() {
                 style={{
                   display: "inline-block",
                   cursor: "pointer",
-                  background: "#111827",
-                  color: "#e5e7eb",
-                  border: "1px solid #1f2937",
+                  background: "var(--theme-surface)",
+                  color: "var(--theme-text)",
+                  border: "1px solid var(--theme-text)",
                   padding: "10px 16px",
                   borderRadius: "6px",
                   marginBottom: 8,
@@ -377,11 +377,11 @@ export default function UserProfilePage() {
               >
                 📷 {imagePreview ? "Change Photo" : "Upload Photo"}
               </label>
-              <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>
+              <p style={{ fontSize: 11, color: "var(--theme-text-muted)", margin: 0 }}>
                 Max size: 2MB • Formats: JPG, PNG, GIF
               </p>
               {uploadingImage && (
-                <p style={{ fontSize: 12, color: "#fbbf24", marginTop: 4 }}>
+                <p style={{ fontSize: 12, color: "var(--theme-warning)", marginTop: 4 }}>
                   Uploading image...
                 </p>
               )}
@@ -452,8 +452,8 @@ export default function UserProfilePage() {
         </form>
 
         {/* Change Password Section */}
-        <div className="card" style={{ marginTop: 24, background: "#0b1120" }}>
-          <h3 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 12 }}>
+        <div className="card" style={{ marginTop: 24, background: "var(--theme-surface)" }}>
+          <h3 style={{ color: "var(--theme-text)", marginTop: 0, marginBottom: 12 }}>
             Change Password
           </h3>
 
@@ -463,9 +463,9 @@ export default function UserProfilePage() {
               className="btn btn-outline"
               onClick={() => setShowPasswordSection(true)}
               style={{
-                background: "#111827",
-                color: "#e5e7eb",
-                border: "1px solid #1f2937",
+                background: "var(--theme-surface)",
+                color: "var(--theme-text)",
+                border: "1px solid var(--theme-text)",
               }}
             >
               🔒 Change Password
@@ -522,9 +522,9 @@ export default function UserProfilePage() {
                   }}
                   style={{
                     flex: 1,
-                    background: "#111827",
-                    color: "#e5e7eb",
-                    border: "1px solid #1f2937",
+                    background: "var(--theme-surface)",
+                    color: "var(--theme-text)",
+                    border: "1px solid var(--theme-text)",
                   }}
                 >
                   Cancel
@@ -539,63 +539,63 @@ export default function UserProfilePage() {
           style={{
             marginTop: 24,
             padding: 16,
-            background: "#0b1120",
-            border: "1px solid #1f2937",
+            background: "var(--theme-surface)",
+            border: "1px solid var(--theme-text)",
             borderRadius: 8,
           }}
         >
-          <h4 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 12 }}>
+          <h4 style={{ color: "var(--theme-text)", marginTop: 0, marginBottom: 12 }}>
             Profile Completion
           </h4>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: name ? "#22c55e" : "#9ca3af" }}>
+              <span style={{ color: name ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
                 {name ? "✓" : "○"}
               </span>
               <span
-                style={{ fontSize: 13, color: name ? "#22c55e" : "#9ca3af" }}
+                style={{ fontSize: 13, color: name ? "var(--theme-positive)" : "var(--theme-text-muted)" }}
               >
                 Full name
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: phone ? "#22c55e" : "#9ca3af" }}>
+              <span style={{ color: phone ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
                 {phone ? "✓" : "○"}
               </span>
               <span
-                style={{ fontSize: 13, color: phone ? "#22c55e" : "#9ca3af" }}
+                style={{ fontSize: 13, color: phone ? "var(--theme-positive)" : "var(--theme-text-muted)" }}
               >
                 Phone number
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: address ? "#22c55e" : "#9ca3af" }}>
+              <span style={{ color: address ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
                 {address ? "✓" : "○"}
               </span>
               <span
-                style={{ fontSize: 13, color: address ? "#22c55e" : "#9ca3af" }}
+                style={{ fontSize: 13, color: address ? "var(--theme-positive)" : "var(--theme-text-muted)" }}
               >
                 Address
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: city ? "#22c55e" : "#9ca3af" }}>
+              <span style={{ color: city ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
                 {city ? "✓" : "○"}
               </span>
               <span
-                style={{ fontSize: 13, color: city ? "#22c55e" : "#9ca3af" }}
+                style={{ fontSize: 13, color: city ? "var(--theme-positive)" : "var(--theme-text-muted)" }}
               >
                 City
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: imagePreview ? "#22c55e" : "#9ca3af" }}>
+              <span style={{ color: imagePreview ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
                 {imagePreview ? "✓" : "○"}
               </span>
               <span
                 style={{
                   fontSize: 13,
-                  color: imagePreview ? "#22c55e" : "#9ca3af",
+                  color: imagePreview ? "var(--theme-positive)" : "var(--theme-text-muted)",
                 }}
               >
                 Profile picture (optional)
@@ -618,7 +618,7 @@ export default function UserProfilePage() {
                     style={{
                       width: "100%",
                       height: 8,
-                      background: "#1f2937",
+                      background: "var(--theme-border)",
                       borderRadius: 4,
                       overflow: "hidden",
                     }}
@@ -627,7 +627,7 @@ export default function UserProfilePage() {
                       style={{
                         width: `${percentage}%`,
                         height: "100%",
-                        background: percentage === 100 ? "#22c55e" : "#0ea5e9",
+                        background: percentage === 100 ? "var(--theme-positive)" : "var(--theme-help)",
                         transition: "width 0.3s ease",
                       }}
                     />
@@ -635,7 +635,7 @@ export default function UserProfilePage() {
                   <p
                     style={{
                       fontSize: 12,
-                      color: "#9ca3af",
+                      color: "var(--theme-text-muted)",
                       marginTop: 8,
                       textAlign: "center",
                     }}

@@ -6,14 +6,14 @@
   justify-content: center;
   gap: 40px;
   padding: 32px 20px;
-  background: #ffffff;
+  background: var(--theme-background);
   box-sizing: border-box;
 }
 
 .auth-hero {
   flex: 1;
   max-width: 420px;
-  color: #1e40af;
+  color: var(--theme-text);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -21,7 +21,7 @@
 
 .auth-title {
   font-size: 44px;
-  color: #1e40af;
+  color: var(--theme-accent);
   margin: 0 0 12px 0;
   font-weight: 800;
   letter-spacing: 0.03em;
@@ -29,7 +29,7 @@
 
 .auth-tagline {
   font-size: 16px;
-  color: #64748b;
+  color: var(--theme-text-muted);
   margin: 0 0 20px 0;
 }
 
@@ -41,7 +41,7 @@
 
 .auth-points li {
   font-size: 14px;
-  color: #1e40af;
+  color: var(--theme-text);
   margin: 10px 0;
   padding-left: 22px;
   position: relative;
@@ -51,7 +51,7 @@
   content: "✔";
   position: absolute;
   left: 0;
-  color: #22c55e;
+  color: var(--theme-positive);
 }
 
 /* Card side */
@@ -59,31 +59,31 @@
 .auth-card {
   flex: 1;
   max-width: 420px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
   border-radius: 16px;
   padding: 28px 24px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 16px 32px rgba(113, 84, 41, 0.08);
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 .auth-card h2 {
-  color: #1e40af;
+  color: var(--theme-text);
   font-size: 22px;
   margin: 0 0 6px 0;
 }
 
 .auth-card p {
-  color: #64748b;
+  color: var(--theme-text-muted);
   font-size: 13px;
   margin: 0 0 18px 0;
 }
 
 .error-message {
-  background: #fee2e2;
-  color: #991b1b;
+  background: rgba(220, 38, 38, 0.12);
+  color: var(--theme-danger);
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 13px;
@@ -99,7 +99,7 @@
 }
 
 .form label {
-  color: #1e40af;
+  color: var(--theme-text);
   font-size: 12px;
   font-weight: 600;
 }
@@ -109,10 +109,10 @@
 .form select {
   width: 100%;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--theme-border);
   border-radius: 6px;
   padding: 9px 11px;
-  color: #0f2847;
+  color: var(--theme-text);
   font-size: 13px;
   outline: none;
   transition: all 0.2s ease;
@@ -122,7 +122,7 @@
 .form input:focus,
 .form textarea:focus,
 .form select:focus {
-  border-color: #1e40af;
+  border-color: var(--theme-accent);
   background: #ffffff;
 }
 
@@ -141,16 +141,16 @@
   gap: 8px;
   padding: 9px 10px;
   border-radius: 6px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--theme-border);
   cursor: pointer;
-  color: #1e40af;
+  color: var(--theme-text);
   transition: all 0.2s ease;
   font-size: 13px;
 }
 
 .role-option:hover {
-  border-color: #1e40af;
-  background: #eff6ff;
+  border-color: var(--theme-accent);
+  background: var(--theme-surface-alt);
 }
 
 .role-option input[type="radio"] {
@@ -162,7 +162,7 @@
 .btn {
   padding: 10px 16px;
   border-radius: 6px;
-  border: 1px solid #1f2937;
+  border: 1px solid var(--theme-border);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
@@ -178,8 +178,8 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #1e40af, #2563eb);
-  color: #fff;
+  background: var(--theme-gradient-primary);
+  color: var(--theme-button-text);
   border: none;
   width: 100%;
   margin-top: 4px;
@@ -187,7 +187,7 @@
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(30, 64, 175, 0.35);
+  box-shadow: 0 12px 24px rgba(140, 94, 45, 0.22);
 }
 
 /* Toggle */
@@ -200,13 +200,13 @@
 .auth-toggle p {
   margin: 0;
   font-size: 12px;
-  color: #64748b;
+  color: var(--theme-text-muted);
 }
 
 .link-button {
   background: none;
   border: none;
-  color: #1e40af;
+  color: var(--theme-accent);
   cursor: pointer;
   text-decoration: underline;
   padding: 0;
@@ -214,7 +214,7 @@
 }
 
 .link-button:hover {
-  color: #2563eb;
+  color: var(--theme-help);
 }
 
 /* Responsive */

@@ -146,7 +146,7 @@ export default function CaregiverProfilePage() {
 
   if (loading)
     return (
-      <p style={{ color: "#9ca3af", textAlign: "center", padding: 20 }}>
+      <p style={{ color: "var(--theme-text-muted)", textAlign: "center", padding: 20 }}>
         Loading profile...
       </p>
     );
@@ -159,13 +159,13 @@ export default function CaregiverProfilePage() {
       {success && (
         <div
           style={{
-            background: "#dcfce7",
-            color: "#15803d",
+            background: "var(--theme-positive-soft)",
+            color: "var(--theme-positive)",
             padding: 12,
             borderRadius: 8,
             fontSize: 13,
             marginBottom: 16,
-            border: "1px solid #86efac",
+            border: "1px solid var(--theme-positive-soft)",
           }}
         >
           ✓ {success}
@@ -237,9 +237,9 @@ export default function CaregiverProfilePage() {
             style={{
               padding: "8px 16px",
               borderRadius: "6px",
-              border: isAvailable ? "none" : "1px solid #1f2937",
-              background: isAvailable ? "#22c55e" : "#020617",
-              color: isAvailable ? "white" : "#e5e7eb",
+              border: isAvailable ? "none" : "1px solid var(--theme-text)",
+              background: isAvailable ? "var(--theme-positive)" : "var(--theme-surface)",
+              color: isAvailable ? "white" : "var(--theme-button-text)",
               cursor: "pointer",
               fontWeight: isAvailable ? "600" : "500",
             }}
@@ -252,9 +252,9 @@ export default function CaregiverProfilePage() {
             style={{
               padding: "8px 16px",
               borderRadius: "6px",
-              border: !isAvailable ? "none" : "1px solid #1f2937",
-              background: !isAvailable ? "#ef4444" : "#020617",
-              color: !isAvailable ? "white" : "#e5e7eb",
+              border: !isAvailable ? "none" : "1px solid var(--theme-text)",
+              background: !isAvailable ? "var(--theme-danger)" : "var(--theme-surface)",
+              color: !isAvailable ? "white" : "var(--theme-button-text)",
               cursor: "pointer",
               fontWeight: !isAvailable ? "600" : "500",
             }}
@@ -274,9 +274,9 @@ export default function CaregiverProfilePage() {
             style={{
               padding: "8px 16px",
               borderRadius: "6px",
-              border: workType === "fulltime" ? "none" : "1px solid #1f2937",
-              background: workType === "fulltime" ? "#0ea5e9" : "#020617",
-              color: workType === "fulltime" ? "white" : "#e5e7eb",
+              border: workType === "fulltime" ? "none" : "1px solid var(--theme-text)",
+              background: workType === "fulltime" ? "var(--theme-help)" : "var(--theme-surface)",
+              color: workType === "fulltime" ? "white" : "var(--theme-button-text)",
               cursor: "pointer",
               fontWeight: workType === "fulltime" ? "600" : "500",
             }}
@@ -289,9 +289,9 @@ export default function CaregiverProfilePage() {
             style={{
               padding: "8px 16px",
               borderRadius: "6px",
-              border: workType === "parttime" ? "none" : "1px solid #1f2937",
-              background: workType === "parttime" ? "#fbbf24" : "#020617",
-              color: workType === "parttime" ? "black" : "#e5e7eb",
+              border: workType === "parttime" ? "none" : "1px solid var(--theme-text)",
+              background: workType === "parttime" ? "var(--theme-warning)" : "var(--theme-surface)",
+              color: workType === "parttime" ? "black" : "var(--theme-button-text)",
               cursor: "pointer",
               fontWeight: workType === "parttime" ? "600" : "500",
             }}
@@ -316,9 +316,9 @@ export default function CaregiverProfilePage() {
                     cursor: "pointer",
                     padding: "6px 12px",
                     borderRadius: "999px",
-                    background: shifts.includes(s) ? "#0ea5e9" : "#020617",
-                    border: "1px solid " + (shifts.includes(s) ? "#0ea5e9" : "#1f2937"),
-                    color: shifts.includes(s) ? "#f9fafb" : "#e5e7eb",
+                    background: shifts.includes(s) ? "var(--theme-help)" : "var(--theme-surface)",
+                    border: "1px solid " + (shifts.includes(s) ? "var(--theme-help)" : "var(--theme-border)"),
+                    color: shifts.includes(s) ? "var(--theme-button-text)" : "var(--theme-button-text)",
                   }}
                 >
                   <input
@@ -338,7 +338,7 @@ export default function CaregiverProfilePage() {
         <label style={{ marginTop: 12 }}>Services you offer</label>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           {availableServices.length === 0 ? (
-            <p style={{ fontSize: 12, color: "#9ca3af" }}>
+            <p style={{ fontSize: 12, color: "var(--theme-text-muted)" }}>
               No services available yet. Contact admin to add services.
             </p>
           ) : (
@@ -353,9 +353,9 @@ export default function CaregiverProfilePage() {
                   cursor: "pointer",
                   padding: "6px 12px",
                   borderRadius: "999px",
-                  background: servicesOffered.includes(s.id) ? "#10b981" : "#020617",
-                  border: "1px solid " + (servicesOffered.includes(s.id) ? "#10b981" : "#1f2937"),
-                  color: servicesOffered.includes(s.id) ? "#f9fafb" : "#e5e7eb",
+                  background: servicesOffered.includes(s.id) ? "var(--theme-positive)" : "var(--theme-surface)",
+                  border: "1px solid " + (servicesOffered.includes(s.id) ? "var(--theme-positive)" : "var(--theme-border)"),
+                  color: servicesOffered.includes(s.id) ? "var(--theme-button-text)" : "var(--theme-button-text)",
                 }}
               >
                 <input
@@ -384,34 +384,34 @@ export default function CaregiverProfilePage() {
         style={{
           marginTop: 24,
           padding: 16,
-          background: "#0b1120",
-          border: "1px solid #1f2937",
+          background: "var(--theme-surface)",
+          border: "1px solid var(--theme-text)",
           borderRadius: 8,
         }}
       >
-        <h4 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 8 }}>
+        <h4 style={{ color: "var(--theme-button-text)", marginTop: 0, marginBottom: 8 }}>
           📝 Profile Completion
         </h4>
-        <p style={{ fontSize: 13, color: "#9ca3af", margin: "0 0 8px 0" }}>
+        <p style={{ fontSize: 13, color: "var(--theme-text-muted)", margin: "0 0 8px 0" }}>
           Complete your profile to appear in caregiver listings:
         </p>
-        <ul style={{ fontSize: 12, color: "#cbd5f5", paddingLeft: 20, margin: 0 }}>
-          <li style={{ color: name ? "#22c55e" : "#9ca3af" }}>
+        <ul style={{ fontSize: 12, color: "var(--theme-text-muted)", paddingLeft: 20, margin: 0 }}>
+          <li style={{ color: name ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
             {name ? "✓" : "○"} Full name
           </li>
-          <li style={{ color: location ? "#22c55e" : "#9ca3af" }}>
+          <li style={{ color: location ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
             {location ? "✓" : "○"} Location
           </li>
-          <li style={{ color: phone ? "#22c55e" : "#9ca3af" }}>
+          <li style={{ color: phone ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
             {phone ? "✓" : "○"} Phone number
           </li>
-          <li style={{ color: hourlyRate > 0 ? "#22c55e" : "#9ca3af" }}>
+          <li style={{ color: hourlyRate > 0 ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
             {hourlyRate > 0 ? "✓" : "○"} Hourly rate
           </li>
-          <li style={{ color: servicesOffered.length > 0 ? "#22c55e" : "#9ca3af" }}>
+          <li style={{ color: servicesOffered.length > 0 ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
             {servicesOffered.length > 0 ? "✓" : "○"} At least one service
           </li>
-          <li style={{ color: "#fbbf24" }}>
+          <li style={{ color: "var(--theme-warning)" }}>
             ⏳ Admin verification required
           </li>
         </ul>

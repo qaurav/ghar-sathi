@@ -81,10 +81,10 @@ export default function CaregiverReportUserPage() {
     <div className="app-shell">
       <div className="app-card" style={{ maxWidth: 600 }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ color: "#e5e7eb", fontSize: 24, marginBottom: 8 }}>
+          <h1 style={{ color: "var(--theme-button-text)", fontSize: 24, marginBottom: 8 }}>
             🚫 Report User
           </h1>
-          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "var(--theme-text-muted)", margin: 0 }}>
             Submit a report to admin about this user
           </p>
         </div>
@@ -92,13 +92,13 @@ export default function CaregiverReportUserPage() {
         {/* Warning */}
         <div
           style={{
-            background: "#fef3c7",
-            color: "#92400e",
+            background: "var(--theme-warning-soft)",
+            color: "var(--theme-warning)",
             padding: 12,
             borderRadius: 8,
             fontSize: 13,
             marginBottom: 16,
-            border: "1px solid #fcd34d",
+            border: "1px solid var(--theme-warning)",
           }}
         >
           <strong>⚠️ Important:</strong> Only use this feature for serious issues like abuse,
@@ -108,14 +108,14 @@ export default function CaregiverReportUserPage() {
         {error && <div className="error-message">{error}</div>}
 
         {/* User info */}
-        <div className="card" style={{ marginBottom: 16, background: "#0b1120" }}>
-          <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
+        <div className="card" style={{ marginBottom: 16, background: "var(--theme-surface)" }}>
+          <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
             <strong>User:</strong> {userName || "Unknown"}
           </p>
-          <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
+          <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
             <strong>User ID:</strong> {userId || "N/A"}
           </p>
-          <p style={{ fontSize: 13, color: "#e5e7eb", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "var(--theme-button-text)", margin: 0 }}>
             <strong>Booking ID:</strong> {bookingId?.substring(0, 12)}...
           </p>
         </div>
@@ -161,9 +161,9 @@ export default function CaregiverReportUserPage() {
               onClick={() => navigate("/caregiver")}
               style={{
                 flex: 1,
-                background: "#111827",
-                color: "#e5e7eb",
-                border: "1px solid #1f2937",
+                background: "var(--theme-surface)",
+                color: "var(--theme-button-text)",
+                border: "1px solid var(--theme-text)",
               }}
             >
               Cancel
@@ -176,14 +176,14 @@ export default function CaregiverReportUserPage() {
           style={{
             marginTop: 24,
             padding: 12,
-            background: "#020617",
-            border: "1px solid #1f2937",
+            background: "var(--theme-surface)",
+            border: "1px solid var(--theme-text)",
             borderRadius: 8,
             fontSize: 12,
-            color: "#9ca3af",
+            color: "var(--theme-text-muted)",
           }}
         >
-          <strong style={{ color: "#e5e7eb" }}>Note:</strong> Your report will be reviewed by an
+          <strong style={{ color: "var(--theme-button-text)" }}>Note:</strong> Your report will be reviewed by an
           admin within 24-48 hours. The user may be blacklisted if the report is verified. You will
           be notified of the decision.
         </div>

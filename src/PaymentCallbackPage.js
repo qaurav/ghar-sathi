@@ -93,23 +93,23 @@ export default function PaymentCallbackPage() {
         {status === "processing" && (
           <>
             <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-            <h2 style={{ color: "#e5e7eb", marginBottom: 8 }}>Processing Payment</h2>
-            <p style={{ color: "#9ca3af", fontSize: 14 }}>{message}</p>
+            <h2 style={{ color: "var(--theme-button-text)", marginBottom: 8 }}>Processing Payment</h2>
+            <p style={{ color: "var(--theme-text-muted)", fontSize: 14 }}>{message}</p>
           </>
         )}
 
         {status === "success" && (
           <>
             <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-            <h2 style={{ color: "#22c55e", marginBottom: 8 }}>Payment Successful!</h2>
-            <p style={{ color: "#e5e7eb", fontSize: 14, marginBottom: 16 }}>{message}</p>
+            <h2 style={{ color: "var(--theme-positive)", marginBottom: 8 }}>Payment Successful!</h2>
+            <p style={{ color: "var(--theme-button-text)", fontSize: 14, marginBottom: 16 }}>{message}</p>
             <div
               style={{
-                background: "#dcfce7",
+                background: "var(--theme-positive-soft)",
                 padding: 12,
                 borderRadius: 8,
                 fontSize: 13,
-                color: "#15803d",
+                color: "var(--theme-positive)",
               }}
             >
               You will be redirected to your bookings...
@@ -120,8 +120,8 @@ export default function PaymentCallbackPage() {
         {status === "error" && (
           <>
             <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
-            <h2 style={{ color: "#ef4444", marginBottom: 8 }}>Payment Failed</h2>
-            <p style={{ color: "#e5e7eb", fontSize: 14, marginBottom: 16 }}>{message}</p>
+            <h2 style={{ color: "var(--theme-danger)", marginBottom: 8 }}>Payment Failed</h2>
+            <p style={{ color: "var(--theme-button-text)", fontSize: 14, marginBottom: 16 }}>{message}</p>
             <button
               className="btn btn-primary"
               onClick={() => navigate("/user")}

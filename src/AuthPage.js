@@ -171,10 +171,10 @@ export default function AuthPage() {
           Book trusted caregivers and household help in a few clicks.
         </p>
         <ul className="auth-points">
-          <li>✔ Verified caregivers reviewed by admins</li>
-          <li>✔ Clear timings, locations, and booking history</li>
-          <li>✔ Designed for Nepali families and workers</li>
-          <li>✔ Partner organizations manage their teams</li>
+          <li> Verified caregivers reviewed by admins</li>
+          <li> Clear timings, locations, and booking history</li>
+          <li> Designed for Nepali families and workers</li>
+          <li> Partner organizations manage their teams</li>
         </ul>
       </div>
 
@@ -256,7 +256,7 @@ export default function AuthPage() {
                     <span>🏢 Organization/Company (Provide caregivers)</span>
                   </label>
                 </div>
-                <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
+                <p className="text-muted" style={{ fontSize: 11, marginTop: 8 }}>
                   {selectedRole === "user" && "Browse and book trusted caregivers for your family"}
                   {selectedRole === "orgadmin" && "Partner with Sewak and manage your caregiver team"}
                 </p>

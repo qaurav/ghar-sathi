@@ -88,18 +88,18 @@ export default function RegisterPage() {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <h2 style={{ color: "#e5e7eb", marginBottom: 8 }}>
+        <h2 style={{ color: "var(--theme-button-text)", marginBottom: 8 }}>
           Create your account
         </h2>
-        <p style={{ color: "#9ca3af", fontSize: 14, marginBottom: 20 }}>
+        <p style={{ color: "var(--theme-text-muted)", fontSize: 14, marginBottom: 20 }}>
           Join Sewak as a user or organization
         </p>
 
         {error && (
           <div
             style={{
-              background: "#fee2e2",
-              color: "#991b1b",
+              background: "var(--theme-danger-soft)",
+              color: "var(--theme-danger)",
               padding: "10px 12px",
               borderRadius: "8px",
               fontSize: 13,
@@ -163,7 +163,7 @@ export default function RegisterPage() {
             marginTop: 16,
             textAlign: "center",
             fontSize: 12,
-            color: "#9ca3af",
+            color: "var(--theme-text-muted)",
           }}
         >
           Already have an account?{" "}

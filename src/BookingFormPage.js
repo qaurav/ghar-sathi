@@ -31,7 +31,7 @@ export default function BookingFormPage({ caregiver, onBooked }) {
 
   if (!caregiver) {
     return (
-      <div style={{ textAlign: "center", color: "#ef4444", padding: 20 }}>
+      <div style={{ textAlign: "center", color: "var(--theme-danger)", padding: 20 }}>
         <p>No caregiver selected. Please go back and select a caregiver.</p>
       </div>
     );
@@ -186,13 +186,13 @@ export default function BookingFormPage({ caregiver, onBooked }) {
       {/* Profile Auto-fill Notice */}
       <div
         style={{
-          background: "#dbeafe",
-          color: "#0369a1",
+          background: "var(--theme-help-soft)",
+          color: "var(--theme-help)",
           padding: 12,
           borderRadius: 8,
           fontSize: 12,
           marginBottom: 16,
-          border: "1px solid #7dd3fc",
+          border: "1px solid var(--theme-help-light)",
         }}
       >
         ℹ️ Your information has been auto-filled from your profile. You can edit if needed.
@@ -203,7 +203,7 @@ export default function BookingFormPage({ caregiver, onBooked }) {
         className="card"
         style={{
           marginBottom: 16,
-          background: "#0b1120",
+          background: "var(--theme-surface)",
         }}
       >
         <div style={{ display: "flex", gap: 12 }}>
@@ -212,7 +212,7 @@ export default function BookingFormPage({ caregiver, onBooked }) {
               width: 60,
               height: 60,
               borderRadius: "50%",
-              background: "#0ea5e9",
+              background: "var(--theme-help)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -224,19 +224,19 @@ export default function BookingFormPage({ caregiver, onBooked }) {
             {(caregiver.name || "C")[0].toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
-            <h3 style={{ color: "#e5e7eb", margin: "0 0 8px 0" }}>
+            <h3 style={{ color: "var(--theme-button-text)", margin: "0 0 8px 0" }}>
               {caregiver.name || "Caregiver"}
             </h3>
-            <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--theme-text-muted)" }}>
               📍 {caregiver.location}
             </p>
-            <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "#cbd5f5" }}>
+            <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "var(--theme-text-muted)" }}>
               {caregiver.category === "caregiver" ? "🏥 Care Giver" : "🏠 Household"}
               {" • "}
               {caregiver.workType === "full_time" ? "💼 Full Time" : "⏰ Part Time"}
             </p>
             {caregiver.organizationName && (
-              <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "#9ca3af" }}>
+              <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "var(--theme-text-muted)" }}>
                 🏢 {caregiver.organizationName}
               </p>
             )}
@@ -244,8 +244,8 @@ export default function BookingFormPage({ caregiver, onBooked }) {
           {caregiver.verified && (
             <span
               style={{
-                background: "#dcfce7",
-                color: "#15803d",
+                background: "var(--theme-positive-soft)",
+                color: "var(--theme-positive)",
                 padding: "4px 8px",
                 borderRadius: "4px",
                 fontSize: 11,
@@ -257,35 +257,18 @@ export default function BookingFormPage({ caregiver, onBooked }) {
             </span>
           )}
         </div>
-        <div
-          style={{
-            marginTop: 12,
-            paddingTop: 12,
-            borderTop: "1px solid #1f2937",
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 8,
-            fontSize: 12,
-            color: "#9ca3af",
-          }}
-        >
-          <div>
-            <p style={{ margin: 0 }}>Rating</p>
-            <p style={{ margin: 0, color: "#e5e7eb", fontWeight: "bold" }}>
-              ⭐ {caregiver.rating || 5}/5
-            </p>
+        <div className="stats-grid">
+          <div className="stats-cell">
+            <p className="stats-cell-label">Rating</p>
+            <p className="stats-cell-value">⭐ {caregiver.rating || 5}/5</p>
           </div>
-          <div>
-            <p style={{ margin: 0 }}>Jobs Done</p>
-            <p style={{ margin: 0, color: "#e5e7eb", fontWeight: "bold" }}>
-              {caregiver.jobsCompleted || 0}
-            </p>
+          <div className="stats-cell">
+            <p className="stats-cell-label">Jobs Done</p>
+            <p className="stats-cell-value">{caregiver.jobsCompleted || 0}</p>
           </div>
-          <div>
-            <p style={{ margin: 0 }}>Hourly Rate</p>
-            <p style={{ margin: 0, color: "#0ea5e9", fontWeight: "bold" }}>
-              ₹{hourlyRate}/hr
-            </p>
+          <div className="stats-cell">
+            <p className="stats-cell-label">Hourly Rate</p>
+            <p className="stats-cell-value stats-cell-value--help">₹{hourlyRate}/hr</p>
           </div>
         </div>
       </div>
@@ -369,16 +352,16 @@ export default function BookingFormPage({ caregiver, onBooked }) {
           style={{
             marginTop: 12,
             marginBottom: 12,
-            background: "#0b1120",
+            background: "var(--theme-surface)",
           }}
         >
-          <h4 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 12 }}>
+          <h4 style={{ color: "var(--theme-button-text)", marginTop: 0, marginBottom: 12 }}>
             Pricing Breakdown
           </h4>
-          <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 8 }}>
+          <div style={{ fontSize: 13, color: "var(--theme-text-muted)", marginBottom: 8 }}>
             <p style={{ margin: 0 }}>
               {durationHours} hours × ₹{hourlyRate}/hour ={" "}
-              <span style={{ color: "#0ea5e9", fontWeight: "bold" }}>
+              <span style={{ color: "var(--theme-help)", fontWeight: "bold" }}>
                 ₹{totalAmount}
               </span>
             </p>
@@ -395,12 +378,12 @@ export default function BookingFormPage({ caregiver, onBooked }) {
               flex: 1,
               padding: "10px 16px",
               borderRadius: "6px",
-              border: paymentMethod === "fonepay" ? "none" : "1px solid #1f2937",
+              border: paymentMethod === "fonepay" ? "none" : "1px solid var(--theme-text)",
               background:
                 paymentMethod === "fonepay"
-                  ? "linear-gradient(135deg, #0ea5e9, #06b6d4)"
-                  : "#111827",
-              color: paymentMethod === "fonepay" ? "white" : "#e5e7eb",
+                  ? "linear-gradient(135deg, var(--theme-help), var(--theme-help-accent))"
+                  : "var(--theme-surface)",
+              color: paymentMethod === "fonepay" ? "white" : "var(--theme-button-text)",
               cursor: "pointer",
               fontWeight: "600",
             }}
@@ -414,12 +397,12 @@ export default function BookingFormPage({ caregiver, onBooked }) {
               flex: 1,
               padding: "10px 16px",
               borderRadius: "6px",
-              border: paymentMethod === "cash" ? "none" : "1px solid #1f2937",
+              border: paymentMethod === "cash" ? "none" : "1px solid var(--theme-text)",
               background:
                 paymentMethod === "cash"
-                  ? "linear-gradient(135deg, #0ea5e9, #06b6d4)"
-                  : "#111827",
-              color: paymentMethod === "cash" ? "white" : "#e5e7eb",
+                  ? "linear-gradient(135deg, var(--theme-help), var(--theme-help-accent))"
+                  : "var(--theme-surface)",
+              color: paymentMethod === "cash" ? "white" : "var(--theme-button-text)",
               cursor: "pointer",
               fontWeight: "600",
             }}
@@ -432,13 +415,13 @@ export default function BookingFormPage({ caregiver, onBooked }) {
         {paymentMethod === "fonepay" && (
           <div
             style={{
-              background: "#dbeafe",
-              color: "#0369a1",
+              background: "var(--theme-help-soft)",
+              color: "var(--theme-help)",
               padding: 12,
               borderRadius: 8,
               fontSize: 12,
               marginBottom: 12,
-              border: "1px solid #7dd3fc",
+              border: "1px solid var(--theme-help-light)",
             }}
           >
             <strong>💳 Secure Payment:</strong> You'll be redirected to Fonepay's secure payment
@@ -449,13 +432,13 @@ export default function BookingFormPage({ caregiver, onBooked }) {
                {paymentMethod === "cash" && (
           <div
             style={{
-              background: "#fef3c7",
-              color: "#92400e",
+              background: "var(--theme-warning-soft)",
+              color: "var(--theme-warning)",
               padding: 12,
               borderRadius: 8,
               fontSize: 12,
               marginBottom: 12,
-              border: "1px solid #fcd34d",
+              border: "1px solid var(--theme-warning)",
             }}
           >
             <strong>⚠️ Note:</strong> Please pay ₹{totalAmount} in cash directly to the caregiver
@@ -495,19 +478,19 @@ export default function BookingFormPage({ caregiver, onBooked }) {
         >
           <div
             style={{
-              background: "#020617",
+              background: "var(--theme-surface)",
               borderRadius: 8,
               padding: 24,
               maxWidth: 420,
               width: "90%",
               boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
-              border: "1px solid #1f2937",
+              border: "1px solid var(--theme-text)",
             }}
           >
-            <h3 style={{ marginTop: 0, marginBottom: 8, color: "#fecaca" }}>
+            <h3 style={{ marginTop: 0, marginBottom: 8, color: "var(--theme-danger-soft)" }}>
               🚫 Account Restricted
             </h3>
-            <p style={{ fontSize: 14, color: "#e5e7eb", marginBottom: 16 }}>
+            <p style={{ fontSize: 14, color: "var(--theme-button-text)", marginBottom: 16 }}>
               Your account has been restricted due to previous reports. You cannot create new
               bookings at this time.
               <br />

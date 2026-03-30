@@ -39,16 +39,16 @@ export default function LoginPage() {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <h2 style={{ color: "#e5e7eb", marginBottom: 8 }}>Welcome back</h2>
-        <p style={{ color: "#9ca3af", fontSize: 14, marginBottom: 20 }}>
+        <h2 style={{ color: "var(--theme-button-text)", marginBottom: 8 }}>Welcome back</h2>
+        <p style={{ color: "var(--theme-text-muted)", fontSize: 14, marginBottom: 20 }}>
           Sign in to continue to Sewak
         </p>
 
         {error && (
           <div
             style={{
-              background: "#fee2e2",
-              color: "#991b1b",
+              background: "var(--theme-danger-soft)",
+              color: "var(--theme-danger)",
               padding: "10px 12px",
               borderRadius: "8px",
               fontSize: 13,
@@ -88,7 +88,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: 16, textAlign: "center", fontSize: 12, color: "#9ca3af" }}>
+        <div style={{ marginTop: 16, textAlign: "center", fontSize: 12, color: "var(--theme-text-muted)" }}>
           Don't have an account?{" "}
           <button
             type="button"

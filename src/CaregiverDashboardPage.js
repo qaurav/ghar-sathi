@@ -294,12 +294,12 @@ export default function CaregiverDashboardPage() {
   const getTabStyle = (tabName) => ({
     padding: "8px 16px",
     borderRadius: "6px",
-    border: activeTab === tabName ? "none" : "1px solid #1f2937",
+    border: activeTab === tabName ? "none" : "1px solid var(--theme-text)",
     background:
       activeTab === tabName
-        ? "linear-gradient(135deg, #0ea5e9, #06b6d4)"
-        : "#020617",
-    color: activeTab === tabName ? "#ffffff" : "#e5e7eb",
+        ? "linear-gradient(135deg, var(--theme-help), var(--theme-help-accent))"
+        : "var(--theme-surface)",
+    color: activeTab === tabName ? "var(--theme-button-text)" : "var(--theme-text)",
     cursor: "pointer",
     fontWeight: activeTab === tabName ? 600 : 500,
     fontSize: 13,
@@ -364,7 +364,7 @@ export default function CaregiverDashboardPage() {
 
   if (loading) {
     return (
-      <p style={{ color: "#9ca3af", textAlign: "center", padding: 20 }}>
+      <p style={{ color: "var(--theme-text-muted)", textAlign: "center", padding: 20 }}>
         Loading dashboard...
       </p>
     );
@@ -372,7 +372,7 @@ export default function CaregiverDashboardPage() {
 
   if (error && !profileData) {
     return (
-      <p style={{ color: "#ef4444", textAlign: "center", padding: 20 }}>
+      <p style={{ color: "var(--theme-danger)", textAlign: "center", padding: 20 }}>
         Error: {error}
       </p>
     );
@@ -384,7 +384,7 @@ export default function CaregiverDashboardPage() {
       <p
         style={{
           fontSize: 13,
-          color: "#9ca3af",
+          color: "var(--theme-text-muted)",
           marginTop: -4,
           marginBottom: 12,
         }}
@@ -395,13 +395,13 @@ export default function CaregiverDashboardPage() {
       {userDoc?.organizationName && (
         <div
           style={{
-            background: "#dbeafe",
-            color: "#0369a1",
+            background: "var(--theme-help-soft)",
+            color: "var(--theme-help)",
             padding: 12,
             borderRadius: 8,
             fontSize: 13,
             marginBottom: 16,
-            border: "1px solid #7dd3fc",
+            border: "1px solid var(--theme-help-light)",
           }}
         >
           You&apos;re part of{" "}
@@ -444,6 +444,7 @@ export default function CaregiverDashboardPage() {
             <div className="col">
               <label>Filter by status</label>
               <select
+                className="dropdown-select"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
@@ -488,14 +489,14 @@ export default function CaregiverDashboardPage() {
                 >
                   <div>
                     <strong
-                      style={{ color: "#e5e7eb", fontSize: 14 }}
+                      style={{ color: "var(--theme-button-text)", fontSize: 14 }}
                     >
                       {b.userName || "User"}
                     </strong>
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginTop: 4,
                       }}
                     >
@@ -504,7 +505,7 @@ export default function CaregiverDashboardPage() {
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginTop: 4,
                       }}
                     >
@@ -516,20 +517,20 @@ export default function CaregiverDashboardPage() {
                       style={{
                         background:
                           b.status === "pending"
-                            ? "#fef3c7"
+                            ? "var(--theme-warning-soft)"
                             : b.status === "accepted"
-                            ? "#dbeafe"
+                            ? "var(--theme-help-soft)"
                             : b.status === "completed"
-                            ? "#dcfce7"
-                            : "#fee2e2",
+                            ? "var(--theme-positive-soft)"
+                            : "var(--theme-danger-soft)",
                         color:
                           b.status === "pending"
-                            ? "#92400e"
+                            ? "var(--theme-warning)"
                             : b.status === "accepted"
-                            ? "#0369a1"
+                            ? "var(--theme-help)"
                             : b.status === "completed"
-                            ? "#15803d"
-                            : "#991b1b",
+                            ? "var(--theme-positive)"
+                            : "var(--theme-danger)",
                         padding: "4px 8px",
                         borderRadius: 4,
                         fontSize: 11,
@@ -546,13 +547,13 @@ export default function CaregiverDashboardPage() {
                   style={{
                     marginTop: 10,
                     paddingTop: 10,
-                    borderTop: "1px solid #1f2937",
+                    borderTop: "1px solid var(--theme-text)",
                   }}
                 >
                   <p
                     style={{
                       fontSize: 13,
-                      color: "#e5e7eb",
+                      color: "var(--theme-button-text)",
                       marginBottom: 6,
                     }}
                   >
@@ -562,7 +563,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: "#e5e7eb",
+                      color: "var(--theme-button-text)",
                       marginBottom: 6,
                     }}
                   >
@@ -572,7 +573,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: "#e5e7eb",
+                      color: "var(--theme-button-text)",
                       marginBottom: 6,
                     }}
                   >
@@ -582,7 +583,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: "#e5e7eb",
+                      color: "var(--theme-button-text)",
                       marginBottom: 6,
                     }}
                   >
@@ -595,10 +596,10 @@ export default function CaregiverDashboardPage() {
                     <p
                       style={{
                         fontSize: 13,
-                        color: "#cbd5f5",
+                        color: "var(--theme-text-muted)",
                         marginTop: 10,
                         fontStyle: "italic",
-                        borderLeft: "3px solid #0ea5e9",
+                        borderLeft: "3px solid var(--theme-help)",
                         paddingLeft: 10,
                       }}
                     >
@@ -612,8 +613,8 @@ export default function CaregiverDashboardPage() {
                   style={{
                     marginTop: 10,
                     paddingTop: 10,
-                    borderTop: "1px solid #1f2937",
-                    background: "#0b1120",
+                    borderTop: "1px solid var(--theme-text)",
+                    background: "var(--theme-surface)",
                     padding: 10,
                     borderRadius: 8,
                   }}
@@ -621,7 +622,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 12,
-                      color: "#e5e7eb",
+                      color: "var(--theme-button-text)",
                       marginBottom: 4,
                     }}
                   >
@@ -631,7 +632,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 12,
-                      color: "#22c55e",
+                      color: "var(--theme-positive)",
                       marginBottom: 4,
                     }}
                   >
@@ -644,7 +645,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 11,
-                      color: "#fbbf24",
+                      color: "var(--theme-warning)",
                       marginBottom: 4,
                     }}
                   >
@@ -658,7 +659,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 12,
-                      color: "#9ca3af",
+                      color: "var(--theme-text-muted)",
                       marginTop: 8,
                     }}
                   >
@@ -673,7 +674,7 @@ export default function CaregiverDashboardPage() {
                 <div
                   style={{
                     fontSize: 11,
-                    color: "#6b7280",
+                    color: "var(--theme-text-muted)",
                     marginTop: 10,
                   }}
                 >
@@ -710,9 +711,9 @@ export default function CaregiverDashboardPage() {
                         }
                         style={{
                           flex: 1,
-                          background: "#7f1d1d",
-                          color: "#fecaca",
-                          borderColor: "#991b1b",
+                          background: "var(--theme-danger)",
+                          color: "var(--theme-danger-soft)",
+                          borderColor: "var(--theme-danger)",
                         }}
                       >
                         Decline
@@ -738,9 +739,9 @@ export default function CaregiverDashboardPage() {
                         }
                         style={{
                           flex: 1,
-                          background: "#7f1d1d",
-                          color: "#fecaca",
-                          borderColor: "#991b1b",
+                          background: "var(--theme-danger)",
+                          color: "var(--theme-danger-soft)",
+                          borderColor: "var(--theme-danger)",
                         }}
                       >
                         Cancel
@@ -752,7 +753,7 @@ export default function CaregiverDashboardPage() {
                     <div
                       style={{
                         fontSize: 13,
-                        color: "#22c55e",
+                        color: "var(--theme-positive)",
                         flex: 1,
                       }}
                     >
@@ -762,7 +763,7 @@ export default function CaregiverDashboardPage() {
 
                   {b.status === "cancelled" && (
                     <div
-                      style={{ fontSize: 13, color: "#ef4444" }}
+                      style={{ fontSize: 13, color: "var(--theme-danger)" }}
                     >
                       Job cancelled
                     </div>
@@ -774,9 +775,9 @@ export default function CaregiverDashboardPage() {
                       disabled
                       style={{
                         flex: 1,
-                        background: "#111827",
-                        color: "#9ca3af",
-                        borderColor: "#4b5563",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-text-muted)",
+                        borderColor: "var(--theme-text-muted)",
                         cursor: "default",
                       }}
                     >
@@ -789,9 +790,9 @@ export default function CaregiverDashboardPage() {
                         onClick={() => handleReportUser(b)}
                         style={{
                           flex: 1,
-                          background: "#111827",
-                          color: "#fecaca",
-                          borderColor: "#991b1b",
+                          background: "var(--theme-surface)",
+                          color: "var(--theme-danger-soft)",
+                          borderColor: "var(--theme-danger)",
                         }}
                       >
                         Report User
@@ -807,8 +808,8 @@ export default function CaregiverDashboardPage() {
 
       {/* PROFILE TAB */}
       {activeTab === "profile" && (
-        <div>
-          <h3 style={{ color: "#e5e7eb", marginBottom: 12 }}>
+        <div className="profile-section">
+          <h3 style={{ color: "var(--theme-button-text)", marginBottom: 12 }}>
             Edit Your Profile
           </h3>
           <form onSubmit={handleSaveProfile} className="form">
@@ -849,7 +850,7 @@ export default function CaregiverDashboardPage() {
             <div style={{ marginBottom: 16 }}>
               <label
                 style={{
-                  color: "#e5e7eb",
+                  color: "var(--theme-button-text)",
                   fontWeight: 600,
                   fontSize: 13,
                 }}
@@ -857,18 +858,11 @@ export default function CaregiverDashboardPage() {
                 Category
               </label>
               <select
+                className="dropdown-select"
                 value={editCategory}
                 onChange={(e) => setEditCategory(e.target.value)}
                 style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 6,
-                  border: "1px solid #1f2937",
-                  background: "#111827",
-                  color: "#e5e7eb",
                   marginTop: 8,
-                  boxSizing: "border-box",
-                  fontSize: 13,
                   cursor: "pointer",
                 }}
               >
@@ -885,7 +879,7 @@ export default function CaregiverDashboardPage() {
               <p
                 style={{
                   fontSize: 11,
-                  color: "#9ca3af",
+                  color: "var(--theme-text-muted)",
                   marginTop: 6,
                   margin: "6px 0 0 0",
                 }}
@@ -907,9 +901,9 @@ export default function CaregiverDashboardPage() {
                 style={{
                   padding: "8px 16px",
                   borderRadius: 6,
-                  border: editAvailable ? "none" : "1px solid #1f2937",
-                  background: editAvailable ? "#22c55e" : "#111827",
-                  color: editAvailable ? "#ffffff" : "#e5e7eb",
+                  border: editAvailable ? "none" : "1px solid var(--theme-text)",
+                  background: editAvailable ? "var(--theme-positive)" : "var(--theme-surface)",
+                  color: editAvailable ? "var(--theme-button-text)" : "var(--theme-button-text)",
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
@@ -924,9 +918,9 @@ export default function CaregiverDashboardPage() {
                   borderRadius: 6,
                   border: !editAvailable
                     ? "none"
-                    : "1px solid #1f2937",
-                  background: !editAvailable ? "#ef4444" : "#111827",
-                  color: !editAvailable ? "#ffffff" : "#e5e7eb",
+                    : "1px solid var(--theme-text)",
+                  background: !editAvailable ? "var(--theme-danger)" : "var(--theme-surface)",
+                  color: !editAvailable ? "var(--theme-button-text)" : "var(--theme-button-text)",
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
@@ -950,15 +944,15 @@ export default function CaregiverDashboardPage() {
                   border:
                     editWorkType === "fulltime"
                       ? "none"
-                      : "1px solid #1f2937",
+                      : "1px solid var(--theme-text)",
                   background:
                     editWorkType === "fulltime"
-                      ? "#0ea5e9"
-                      : "#111827",
+                      ? "var(--theme-help)"
+                      : "var(--theme-surface)",
                   color:
                     editWorkType === "fulltime"
-                      ? "#ffffff"
-                      : "#e5e7eb",
+                      ? "var(--theme-button-text)"
+                      : "var(--theme-button-text)",
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
@@ -974,15 +968,15 @@ export default function CaregiverDashboardPage() {
                   border:
                     editWorkType === "parttime"
                       ? "none"
-                      : "1px solid #1f2937",
+                      : "1px solid var(--theme-text)",
                   background:
                     editWorkType === "parttime"
-                      ? "#fbbf24"
-                      : "#111827",
+                      ? "var(--theme-warning)"
+                      : "var(--theme-surface)",
                   color:
                     editWorkType === "parttime"
-                      ? "#000000"
-                      : "#e5e7eb",
+                      ? "var(--theme-text)"
+                      : "var(--theme-button-text)",
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
@@ -1013,13 +1007,13 @@ export default function CaregiverDashboardPage() {
                         borderRadius: 6,
                         border: editShifts.includes(shift)
                           ? "none"
-                          : "1px solid #1f2937",
+                          : "1px solid var(--theme-text)",
                         background: editShifts.includes(shift)
-                          ? "#0ea5e9"
-                          : "#111827",
+                          ? "var(--theme-help)"
+                          : "var(--theme-surface)",
                         color: editShifts.includes(shift)
-                          ? "#ffffff"
-                          : "#e5e7eb",
+                          ? "var(--theme-button-text)"
+                          : "var(--theme-button-text)",
                         cursor: "pointer",
                         fontSize: 12,
                         fontWeight: 600,
@@ -1047,7 +1041,7 @@ export default function CaregiverDashboardPage() {
               }}
             >
               {services.length === 0 && (
-                <p style={{ fontSize: 12, color: "#9ca3af" }}>
+                <p style={{ fontSize: 12, color: "var(--theme-text-muted)" }}>
                   No services available.
                 </p>
               )}
@@ -1077,13 +1071,13 @@ export default function CaregiverDashboardPage() {
                       borderRadius: 6,
                       border: editServices.includes(service.id)
                         ? "none"
-                        : "1px solid #1f2937",
+                        : "1px solid var(--theme-text)",
                       background: editServices.includes(service.id)
-                        ? "#10b981"
-                        : "#111827",
+                        ? "var(--theme-positive)"
+                        : "var(--theme-surface)",
                       color: editServices.includes(service.id)
-                        ? "#ffffff"
-                        : "#e5e7eb",
+                        ? "var(--theme-button-text)"
+                        : "var(--theme-button-text)",
                       cursor: "pointer",
                       fontSize: 12,
                       fontWeight: 600,
@@ -1125,11 +1119,11 @@ export default function CaregiverDashboardPage() {
           {/* Change Password */}
           <div
             className="card"
-            style={{ marginTop: 24, background: "#0b1120" }}
+            style={{ marginTop: 24, background: "var(--theme-surface)" }}
           >
             <h3
               style={{
-                color: "#e5e7eb",
+                color: "var(--theme-button-text)",
                 marginTop: 0,
                 marginBottom: 12,
               }}
@@ -1142,9 +1136,9 @@ export default function CaregiverDashboardPage() {
                 className="btn btn-outline"
                 onClick={() => setShowPasswordSection(true)}
                 style={{
-                  background: "#111827",
-                  color: "#e5e7eb",
-                  border: "1px solid #1f2937",
+                  background: "var(--theme-surface)",
+                  color: "var(--theme-button-text)",
+                  border: "1px solid var(--theme-text)",
                 }}
               >
                 Change Password
@@ -1215,9 +1209,9 @@ export default function CaregiverDashboardPage() {
                     }}
                     style={{
                       flex: 1,
-                      background: "#111827",
-                      color: "#e5e7eb",
-                      border: "1px solid #1f2937",
+                      background: "var(--theme-surface)",
+                      color: "var(--theme-button-text)",
+                      border: "1px solid var(--theme-text)",
                     }}
                   >
                     Cancel
@@ -1232,14 +1226,14 @@ export default function CaregiverDashboardPage() {
             style={{
               marginTop: 24,
               padding: 16,
-              background: "#0b1120",
-              border: "1px solid #1f2937",
+              background: "var(--theme-surface)",
+              border: "1px solid var(--theme-text)",
               borderRadius: 8,
             }}
           >
             <h4
               style={{
-                color: "#e5e7eb",
+                color: "var(--theme-button-text)",
                 marginTop: 0,
                 marginBottom: 12,
               }}
@@ -1263,8 +1257,8 @@ export default function CaregiverDashboardPage() {
                 <span
                   style={{
                     color: profileData?.isApproved
-                      ? "#22c55e"
-                      : "#fbbf24",
+                      ? "var(--theme-positive)"
+                      : "var(--theme-warning)",
                   }}
                 >
                   ●
@@ -1273,8 +1267,8 @@ export default function CaregiverDashboardPage() {
                   style={{
                     fontSize: 13,
                     color: profileData?.isApproved
-                      ? "#22c55e"
-                      : "#fbbf24",
+                      ? "var(--theme-positive)"
+                      : "var(--theme-warning)",
                   }}
                 >
                   {profileData?.isApproved
@@ -1286,7 +1280,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 11,
-                    color: "#9ca3af",
+                    color: "var(--theme-text-muted)",
                     marginLeft: 24,
                     margin: 0,
                   }}
@@ -1306,8 +1300,8 @@ export default function CaregiverDashboardPage() {
                 <span
                   style={{
                     color: profileData?.verified
-                      ? "#22c55e"
-                      : "#9ca3af",
+                      ? "var(--theme-positive)"
+                      : "var(--theme-text-muted)",
                   }}
                 >
                   ●
@@ -1316,8 +1310,8 @@ export default function CaregiverDashboardPage() {
                   style={{
                     fontSize: 13,
                     color: profileData?.verified
-                      ? "#22c55e"
-                      : "#9ca3af",
+                      ? "var(--theme-positive)"
+                      : "var(--theme-text-muted)",
                   }}
                 >
                   ID verified
@@ -1334,8 +1328,8 @@ export default function CaregiverDashboardPage() {
                 <span
                   style={{
                     color: profileData?.backgroundChecked
-                      ? "#22c55e"
-                      : "#9ca3af",
+                      ? "var(--theme-positive)"
+                      : "var(--theme-text-muted)",
                   }}
                 >
                   ●
@@ -1344,8 +1338,8 @@ export default function CaregiverDashboardPage() {
                   style={{
                     fontSize: 13,
                     color: profileData?.backgroundChecked
-                      ? "#22c55e"
-                      : "#9ca3af",
+                      ? "var(--theme-positive)"
+                      : "var(--theme-text-muted)",
                   }}
                 >
                   Background checked
@@ -1361,11 +1355,11 @@ export default function CaregiverDashboardPage() {
         <div>
           <div
             className="card"
-            style={{ marginBottom: 16, background: "#0b1120" }}
+            style={{ marginBottom: 16, background: "var(--theme-surface)" }}
           >
             <h3
               style={{
-                color: "#e5e7eb",
+                color: "var(--theme-button-text)",
                 marginTop: 0,
                 marginBottom: 16,
               }}
@@ -1384,7 +1378,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 12,
-                    color: "#9ca3af",
+                    color: "var(--theme-text-muted)",
                     margin: 0,
                   }}
                 >
@@ -1393,7 +1387,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 20,
-                    color: "#0ea5e9",
+                    color: "var(--theme-help)",
                     fontWeight: "bold",
                     margin: 0,
                   }}
@@ -1405,7 +1399,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 12,
-                    color: "#9ca3af",
+                    color: "var(--theme-text-muted)",
                     margin: 0,
                   }}
                 >
@@ -1414,7 +1408,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 20,
-                    color: "#22c55e",
+                    color: "var(--theme-positive)",
                     fontWeight: "bold",
                     margin: 0,
                   }}
@@ -1424,7 +1418,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 10,
-                    color: "#6b7280",
+                    color: "var(--theme-text-muted)",
                     margin: 0,
                   }}
                 >
@@ -1435,7 +1429,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 12,
-                    color: "#9ca3af",
+                    color: "var(--theme-text-muted)",
                     margin: 0,
                   }}
                 >
@@ -1444,7 +1438,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 20,
-                    color: "#10b981",
+                    color: "var(--theme-positive)",
                     fontWeight: "bold",
                     margin: 0,
                   }}
@@ -1456,7 +1450,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 12,
-                    color: "#9ca3af",
+                    color: "var(--theme-text-muted)",
                     margin: 0,
                   }}
                 >
@@ -1465,7 +1459,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 14,
-                    color: "#fbbf24",
+                    color: "var(--theme-warning)",
                     fontWeight: "bold",
                     margin: 0,
                   }}
@@ -1477,7 +1471,7 @@ export default function CaregiverDashboardPage() {
                 <p
                   style={{
                     fontSize: 10,
-                    color: "#6b7280",
+                    color: "var(--theme-text-muted)",
                     margin: 0,
                   }}
                 >
@@ -1489,7 +1483,7 @@ export default function CaregiverDashboardPage() {
 
           <h4
             style={{
-              color: "#e5e7eb",
+              color: "var(--theme-button-text)",
               marginBottom: 12,
             }}
           >
@@ -1498,7 +1492,7 @@ export default function CaregiverDashboardPage() {
           {bookings.filter((b) => b.status === "completed").length ===
           0 ? (
             <div className="empty-state">
-              <p style={{ color: "#9ca3af" }}>
+              <p style={{ color: "var(--theme-text-muted)" }}>
                 No completed jobs yet.
               </p>
             </div>
@@ -1524,7 +1518,7 @@ export default function CaregiverDashboardPage() {
                           style={{
                             margin: 0,
                             fontSize: 13,
-                            color: "#e5e7eb",
+                            color: "var(--theme-button-text)",
                           }}
                         >
                           <strong>{b.userName}</strong>
@@ -1533,7 +1527,7 @@ export default function CaregiverDashboardPage() {
                           style={{
                             margin: 0,
                             fontSize: 11,
-                            color: "#9ca3af",
+                            color: "var(--theme-text-muted)",
                           }}
                         >
                           {b.date} • {b.durationHours}h
@@ -1544,7 +1538,7 @@ export default function CaregiverDashboardPage() {
                           style={{
                             margin: 0,
                             fontSize: 14,
-                            color: "#22c55e",
+                            color: "var(--theme-positive)",
                             fontWeight: "bold",
                           }}
                         >
@@ -1557,7 +1551,7 @@ export default function CaregiverDashboardPage() {
                           style={{
                             margin: 0,
                             fontSize: 10,
-                            color: "#9ca3af",
+                            color: "var(--theme-text-muted)",
                           }}
                         >
                           {b.totalAmount} - {COMMISSION_RATE}% fee

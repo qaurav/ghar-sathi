@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import logoSvg from "../logoSewak.jpeg";
 import "./Header.css";
 
-export default function Header({ user, userRole, userDoc, onLogout }) {
+export default function Header({ user, userRole, userDoc, onLogout, onBrowseCaregivers, onMyBookings }) {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
 
@@ -58,13 +59,14 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
               onClick={() => handleNavigate("/")}
               style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}
             >
-              <img src="/logo.svg" alt="Sewak" className="header-logo-img" />
-              <h1 style={{ margin: 0, color: "#1e40af", fontSize: 22 }}>Sewak</h1>
+              <img src={logoSvg} alt="Sewak" className="header-logo-img" />
+              <h1 style={{ margin: 0, color: "var(--theme-help)", fontSize: 22 }}>Sewak</h1>
             </div>
 
         {/* User Menu */}
         <div className="header-menu">
           <button
+            type="button"
             className="header-user-button"
             onClick={() => setShowMenu(!showMenu)}
           >
@@ -86,19 +88,19 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
               <div className="header-dropdown">
                 {/* User Info */}
                 <div className="dropdown-header">
-                  <p style={{ margin: 0, color: "#e5e7eb", fontSize: 13 }}>
+                  <p style={{ margin: 0, color: "var(--theme-button-text)", fontSize: 13 }}>
                     <strong>{userDoc?.name}</strong>
                   </p>
-                  <p style={{ margin: 0, color: "#9ca3af", fontSize: 12 }}>
+                  <p style={{ margin: 0, color: "var(--theme-text-muted)", fontSize: 12 }}>
                     {user.email}
                   </p>
                   {userRole === "caregiver" && userDoc?.organizationName && (
-                    <p style={{ margin: "4px 0 0 0", color: "#9ca3af", fontSize: 11 }}>
+                    <p style={{ margin: "4px 0 0 0", color: "var(--theme-text-muted)", fontSize: 11 }}>
                       🏢 {userDoc.organizationName}
                     </p>
                   )}
                   {userRole === "orgadmin" && userDoc?.organizationName && (
-                    <p style={{ margin: "4px 0 0 0", color: "#9ca3af", fontSize: 11 }}>
+                    <p style={{ margin: "4px 0 0 0", color: "var(--theme-text-muted)", fontSize: 11 }}>
                       🏢 {userDoc.organizationName}
                     </p>
                   )}
@@ -110,12 +112,33 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
                 {userRole === "user" && (
                   <>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/user")}
+                      onClick={() => {
+                        if (onBrowseCaregivers) {
+                          onBrowseCaregivers();
+                        } else {
+                          handleNavigate("/user");
+                        }
+                      }}
                     >
                       📋 Browse Caregivers
                     </button>
                     <button
+                      type="button"
+                      className="dropdown-item"
+                      onClick={() => {
+                        if (onMyBookings) {
+                          onMyBookings();
+                        } else {
+                          handleNavigate("/user");
+                        }
+                      }}
+                    >
+                      📅 My Bookings
+                    </button>
+                    <button
+                      type="button"
                       className="dropdown-item"
                       onClick={() => handleNavigate("/user/profile")}
                     >
@@ -128,12 +151,14 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
                 {userRole === "caregiver" && (
                   <>
                     <button
+                      type="button"
                       className="dropdown-item"
                       onClick={() => handleNavigate("/caregiver")}
                     >
                       📊 Job Dashboard
                     </button>
                     <button
+                      type="button"
                       className="dropdown-item"
                       onClick={() => handleNavigate("/caregiver")}
                     >
@@ -146,20 +171,37 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
                 {userRole === "orgadmin" && (
                   <>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/organization")}
+                      onClick={() => handleNavigate("/organization?tab=caregivers")}
                     >
                       👥 Manage Caregivers
                     </button>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/organization")}
+                      onClick={() => handleNavigate("/organization?tab=bookings")}
                     >
                       📅 All Bookings
                     </button>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/organization")}
+                      onClick={() => handleNavigate("/organization?tab=services")}
+                    >
+                      🛠️ Services
+                    </button>
+                    <button
+                      type="button"
+                      className="dropdown-item"
+                      onClick={() => handleNavigate("/organization?tab=blacklist")}
+                    >
+                      🚫 Blacklist
+                    </button>
+                    <button
+                      type="button"
+                      className="dropdown-item"
+                      onClick={() => handleNavigate("/organization?tab=profile")}
                     >
                       🏢 Organization Profile
                     </button>
@@ -170,38 +212,44 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
                 {userRole === "superadmin" && (
                   <>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/superadmin")}
+                      onClick={() => handleNavigate("/superadmin/organizations")}
                     >
                       🏢 All Organizations
                     </button>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/superadmin")}
+                      onClick={() => handleNavigate("/superadmin/caregivers")}
                     >
                       👥 All Caregivers
                     </button>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/superadmin")}
+                      onClick={() => handleNavigate("/superadmin/bookings")}
                     >
                       📅 All Bookings
                     </button>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/superadmin")}
+                      onClick={() => handleNavigate("/superadmin/services")}
                     >
                       🛠️ Services
                     </button>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/superadmin")}
+                      onClick={() => handleNavigate("/superadmin/blacklist")}
                     >
                       🚫 Reports
                     </button>
                     <button
+                      type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/superadmin")}
+                      onClick={() => handleNavigate("/superadmin/analytics")}
                     >
                       ⚙️ Settings
                     </button>
@@ -211,7 +259,7 @@ export default function Header({ user, userRole, userDoc, onLogout }) {
                 <div className="dropdown-divider"></div>
 
                 {/* Logout */}
-                <button className="dropdown-item logout" onClick={handleLogout}>
+                <button type="button" className="dropdown-item logout" onClick={handleLogout}>
                   🚪 Logout
                 </button>
               </div>

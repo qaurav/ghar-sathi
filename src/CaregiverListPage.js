@@ -26,13 +26,25 @@ const normalizeServiceId = (s) =>
     .trim()
     .toLowerCase();
 
-function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
+function CaregiverCard({ caregiver, services, onSelect, requireLogin, hasPaid }) {
   const getInitials = (name) =>
     (name || "C")
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase();
+
+  const getServiceLabel = (serviceId) => {
+    if (!serviceId) return "";
+    const normalizedId = normalizeServiceId(serviceId);
+    const match = (services || []).find(
+      (s) =>
+        normalizeServiceId(s.id) === normalizedId ||
+        normalizeServiceId(s.label) === normalizedId ||
+        normalizeServiceId(s.serviceName) === normalizedId,
+    );
+    return match?.label || match?.serviceName || getServiceNameFromVendorData(serviceId);
+  };
 
   const getRatingStars = (rating) => {
     const stars = Math.round(rating || 0);
@@ -72,7 +84,7 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
               width: 60,
               height: 60,
               borderRadius: "50%",
-              background: "#0ea5e9",
+              background: "var(--theme-help)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -94,15 +106,15 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
             }}
           >
             <div>
-              <strong style={{ fontSize: 16, color: "#e5e7eb" }}>
+              <strong style={{ fontSize: 16, color: "var(--theme-help)" }}>
                 {caregiver.name || "Caregiver"}
               </strong>
               {caregiver.verified && (
                 <span
                   style={{
                     marginLeft: 8,
-                    background: "#dcfce7",
-                    color: "#15803d",
+                    background: "var(--theme-positive-soft)",
+                    color: "var(--theme-positive)",
                     padding: "4px 8px",
                     borderRadius: "4px",
                     fontSize: 11,
@@ -115,7 +127,7 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
             </div>
           </div>
 
-          <p style={{ margin: "4px 0", fontSize: 12, color: "#9ca3af" }}>
+          <p style={{ margin: "4px 0", fontSize: 12, color: "var(--theme-help)" }}>
             📍 {caregiver.location || "Location not specified"}
           </p>
 
@@ -124,7 +136,7 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
               style={{
                 margin: "4px 0",
                 fontSize: 12,
-                color: "#0ea5e9",
+                color: "var(--theme-help)",
                 fontWeight: "500",
               }}
             >
@@ -134,13 +146,13 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
 
           {typeof caregiver.rating === "number" && (
             <div style={{ marginTop: 4 }}>
-              <span style={{ color: "#fbbf24", fontSize: 13 }}>
+              <span style={{ color: "var(--theme-warning)", fontSize: 13 }}>
                 {getRatingStars(caregiver.rating)}
               </span>
               <span
                 style={{
                   fontSize: 12,
-                  color: "#9ca3af",
+                  color: "var(--theme-text-muted)",
                   marginLeft: 8,
                 }}
               >
@@ -157,11 +169,11 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
         style={{
           marginTop: 12,
           paddingTop: 12,
-          borderTop: "1px solid #1f2937",
+          borderTop: "1px solid var(--theme-text)",
         }}
       >
-        <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
-          <span style={{ color: "#9ca3af" }}>Category:</span>{" "}
+        <p style={{ fontSize: 13, color: "var(--theme-help)", marginBottom: 6 }}>
+          <span style={{ color: "var(--theme-help)" }}>Category:</span>{" "}
           {caregiver.category === "caregiver"
             ? "🏥 Care giver"
             : caregiver.category === "household"
@@ -169,8 +181,8 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
             : "👥 Both"}
         </p>
 
-        <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
-          <span style={{ color: "#9ca3af" }}>Work type:</span>{" "}
+        <p style={{ fontSize: 13, color: "var(--theme-help)", marginBottom: 6 }}>
+          <span style={{ color: "var(--theme-help)" }}>Work type:</span>{" "}
           {caregiver.workType === "fulltime"
             ? "💼 Full time"
             : caregiver.workType === "parttime"
@@ -178,17 +190,17 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
             : "Not specified"}
         </p>
 
-        <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
-          <span style={{ color: "#9ca3af" }}>Services:</span>{" "}
+        <p style={{ fontSize: 13, color: "var(--theme-help)", marginBottom: 6 }}>
+          <span style={{ color: "var(--theme-help)" }}>Services:</span>{" "}
           {(caregiver.servicesOffered || []).length > 0
             ? (caregiver.servicesOffered || [])
-                .map((service) => getServiceNameFromVendorData(service))
+                .map((service) => getServiceLabel(service))
                 .join(", ")
             : "Not specified"}
         </p>
 
-        <p style={{ fontSize: 13, color: "#e5e7eb" }}>
-          <span style={{ color: "#9ca3af" }}>Shifts:</span>{" "}
+        <p style={{ fontSize: 13, color: "var(--theme-help)" }}>
+          <span style={{ color: "var(--theme-help)" }}>Shifts:</span>{" "}
           {(caregiver.shifts || [])
             .map((s) => s[0].toUpperCase() + s.slice(1))
             .join(", ") || "Not specified"}
@@ -196,70 +208,18 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
       </div>
 
       {/* Stats */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 8,
-          margin: "12px 0",
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            padding: 8,
-            background: "#020617",
-            borderRadius: 6,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 16,
-              color: "#0ea5e9",
-              fontWeight: "bold",
-            }}
-          >
-            {caregiver.experience || 0}+
-          </div>
-          <div style={{ fontSize: 11, color: "#9ca3af" }}>Years exp</div>
+      <div className="stat-row">
+        <div className="stat-card stat-card--help">
+          <div className="stat-value">{caregiver.experience || 0}+</div>
+          <div className="stat-label">Years exp</div>
         </div>
-        <div
-          style={{
-            textAlign: "center",
-            padding: 8,
-            background: "#020617",
-            borderRadius: 6,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 16,
-              color: "#0ea5e9",
-              fontWeight: "bold",
-            }}
-          >
-            {caregiver.jobsCompleted || 0}+
-          </div>
-          <div style={{ fontSize: 11, color: "#9ca3af" }}>Jobs done</div>
+        <div className="stat-card stat-card--help">
+          <div className="stat-value">{caregiver.jobsCompleted || 0}+</div>
+          <div className="stat-label">Jobs done</div>
         </div>
-        <div
-          style={{
-            textAlign: "center",
-            padding: 8,
-            background: "#020617",
-            borderRadius: 6,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 16,
-              color: "#0ea5e9",
-              fontWeight: "bold",
-            }}
-          >
-            {caregiver.satisfactionRate || 95}%
-          </div>
-          <div style={{ fontSize: 11, color: "#9ca3af" }}>Satisfaction</div>
+        <div className="stat-card stat-card--help">
+          <div className="stat-value">{caregiver.satisfactionRate || 95}%</div>
+          <div className="stat-label">Satisfaction</div>
         </div>
       </div>
 
@@ -275,8 +235,8 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
         {caregiver.backgroundChecked && (
           <span
             style={{
-              background: "#dbeafe",
-              color: "#0369a1",
+              background: "var(--theme-help-soft)",
+              color: "var(--theme-help)",
               padding: "4px 8px",
               borderRadius: "4px",
               fontSize: 11,
@@ -289,8 +249,8 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
         {caregiver.verified && (
           <span
             style={{
-              background: "#dbeafe",
-              color: "#0369a1",
+              background: "var(--theme-help-soft)",
+              color: "var(--theme-help)",
               padding: "4px 8px",
               borderRadius: "4px",
               fontSize: 11,
@@ -303,8 +263,8 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
         {caregiver.isCertified && (
           <span
             style={{
-              background: "#fef3c7",
-              color: "#92400e",
+              background: "var(--theme-warning-soft)",
+              color: "var(--theme-warning)",
               padding: "4px 8px",
               borderRadius: "4px",
               fontSize: 11,
@@ -318,28 +278,16 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
 
       {/* Pricing */}
       {caregiver.hourlyRate && (
-        <div
-          style={{
-            fontSize: 13,
-            color: "#0ea5e9",
-            marginTop: 8,
-            fontWeight: 600,
-            padding: "8px 12px",
-            background: "#020617",
-            borderRadius: "6px",
-            border: "1px solid #0ea5e9",
-          }}
-        >
+        <div className="price-chip">
           💰 ₹{caregiver.hourlyRate}/hour
         </div>
       )}
 
       {/* Actions */}
-      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+      <div className="action-row">
         <button
-          className="btn btn-primary"
+          className="btn btn-primary btn-full"
           onClick={handleBookClick}
-          style={{ flex: 1 }}
           disabled={caregiver.isSuspended || !caregiver.isApproved}
         >
           📅 {requireLogin ? "Sign in to book" : "Book now"}
@@ -348,16 +296,9 @@ function CaregiverCard({ caregiver, onSelect, requireLogin, hasPaid }) {
         {hasPaid && caregiver.phone && (
           <a
             href={`https://wa.me/${caregiver.phone.replace(/\D/g, "")}`}
-            className="btn"
+            className="btn btn-whatsapp btn-full"
             target="_blank"
             rel="noopener noreferrer"
-            style={{
-              flex: 1,
-              background: "#25D366",
-              color: "white",
-              border: "none",
-              textDecoration: "none",
-            }}
           >
             💬 WhatsApp
           </a>
@@ -484,7 +425,7 @@ export default function CaregiverListPage({
 
   if (loading) {
     return (
-      <p style={{ textAlign: "center", color: "#9ca3af", marginTop: 20 }}>
+      <p style={{ textAlign: "center", color: "var(--theme-text-muted)", marginTop: 20 }}>
         Loading caregivers...
       </p>
     );
@@ -502,7 +443,7 @@ export default function CaregiverListPage({
   return (
     <div>
       {/* Breadcrumb */}
-      <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>
+      <div style={{ fontSize: 12, color: "var(--theme-text-muted)", marginBottom: 16 }}>
         <span>Home</span> &gt; <span>{categoryLabel}</span> &gt;{" "}
         <span>
           {workTypeFilter === "fulltime"
@@ -528,9 +469,9 @@ export default function CaregiverListPage({
             width: "100%",
             padding: "10px 12px",
             borderRadius: "6px",
-            border: "1px solid #cbd5e1",
-            background: "#ffffff",
-            color: "#0f2847",
+            border: "1px solid var(--theme-border-muted)",
+            background: "var(--theme-button-text)",
+            color: "var(--theme-text)",
             outline: "none",
           }}
         />
@@ -549,9 +490,9 @@ export default function CaregiverListPage({
               width: "100%",
               padding: "8px 12px",
               borderRadius: "6px",
-              border: "1px solid #cbd5e1",
-              background: "#ffffff",
-              color: "#0f2847",
+              border: "1px solid var(--theme-border-muted)",
+              background: "var(--theme-button-text)",
+              color: "var(--theme-text)",
             }}
           >
             <option value="">All</option>
@@ -574,9 +515,9 @@ export default function CaregiverListPage({
               width: "100%",
               padding: "8px 12px",
               borderRadius: "6px",
-              border: "1px solid #cbd5e1",
-              background: "#ffffff",
-              color: "#0f2847",
+              border: "1px solid var(--theme-border-muted)",
+              background: "var(--theme-button-text)",
+              color: "var(--theme-text)",
             }}
           >
             <option value="">Any</option>
@@ -599,9 +540,9 @@ export default function CaregiverListPage({
                 width: "100%",
                 padding: "8px 12px",
                 borderRadius: "6px",
-                border: "1px solid #cbd5e1",
-                background: "#ffffff",
-                color: "#0f2847",
+                border: "1px solid var(--theme-border-muted)",
+                background: "var(--theme-button-text)",
+                color: "var(--theme-text)",
               }}
             >
               <option value="">Any</option>
@@ -624,9 +565,9 @@ export default function CaregiverListPage({
               width: "100%",
               padding: "8px 12px",
               borderRadius: "6px",
-              border: "1px solid #cbd5e1",
-              background: "#ffffff",
-              color: "#0f2847",
+              border: "1px solid var(--theme-border-muted)",
+              background: "var(--theme-button-text)",
+              color: "var(--theme-text)",
             }}
           />
         </div>
@@ -635,7 +576,7 @@ export default function CaregiverListPage({
       {/* Service filter dropdown (optional, if you use it in UI) */}
       {/* 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", fontSize: 13, color: "#e5e7eb" }}>
+        <label style={{ display: "block", fontSize: 13, color: "var(--theme-button-text)" }}>
           Service
         </label>
         <select
@@ -645,9 +586,9 @@ export default function CaregiverListPage({
             width: "100%",
             padding: "8px 12px",
             borderRadius: "6px",
-            border: "1px solid #1f2937",
-            background: "#111827",
-            color: "#e5e7eb",
+            border: "1px solid var(--theme-text)",
+            background: "var(--theme-surface)",
+            color: "var(--theme-button-text)",
           }}
         >
           <option value="">Any</option>
@@ -664,12 +605,12 @@ export default function CaregiverListPage({
       {featured.length > 0 && (
         <div
           style={{
-            background: "#0b1120",
-            border: "1px solid #1f2937",
+            background: "var(--theme-help-soft)",
+            border: "1px solid var(--theme-info-dark)",
             padding: "12px 16px",
             borderRadius: "8px",
             marginBottom: 16,
-            color: "#fbbf24",
+            color: "var(--theme-text)",
             fontWeight: 600,
           }}
         >
@@ -677,7 +618,7 @@ export default function CaregiverListPage({
           <div
             style={{
               fontSize: 12,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               fontWeight: "normal",
               marginTop: 4,
             }}
@@ -691,6 +632,7 @@ export default function CaregiverListPage({
         <CaregiverCard
           key={c.id}
           caregiver={c}
+          services={services}
           onSelect={onSelectCaregiver}
           requireLogin={requireLogin}
           hasPaid={hasPaid}
@@ -701,6 +643,7 @@ export default function CaregiverListPage({
         <CaregiverCard
           key={c.id}
           caregiver={c}
+          services={services}
           onSelect={onSelectCaregiver}
           requireLogin={requireLogin}
           hasPaid={hasPaid}
@@ -728,9 +671,9 @@ export default function CaregiverListPage({
             style={{
               padding: "10px 16px",
               borderRadius: "6px",
-              border: "1px solid #cbd5e1",
-              background: "#ffffff",
-              color: "#1e40af",
+              border: "1px solid var(--theme-border-muted)",
+              background: "var(--theme-button-text)",
+              color: "var(--theme-help)",
               cursor: "pointer",
               marginTop: 12,
             }}

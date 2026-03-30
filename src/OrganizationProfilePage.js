@@ -84,7 +84,7 @@ export default function OrganizationProfilePage() {
 
   if (loading)
     return (
-      <p style={{ color: "#9ca3af", textAlign: "center", padding: 20 }}>
+      <p style={{ color: "var(--theme-text-muted)", textAlign: "center", padding: 20 }}>
         Loading profile...
       </p>
     );
@@ -96,10 +96,10 @@ export default function OrganizationProfilePage() {
     <div className="app-shell">
       <div className="app-card" style={{ maxWidth: 700 }}>
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ color: "#e5e7eb", fontSize: 24, marginBottom: 8 }}>
+          <h1 style={{ color: "var(--theme-button-text)", fontSize: 24, marginBottom: 8 }}>
             Organization Profile
           </h1>
-          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "var(--theme-text-muted)", margin: 0 }}>
             {!userDoc?.profileComplete
               ? "Complete your organization profile to start managing caregivers"
               : "Update your organization information"}
@@ -110,13 +110,13 @@ export default function OrganizationProfilePage() {
         {!userDoc?.profileComplete && (
           <div
             style={{
-              background: "#dbeafe",
-              color: "#0369a1",
+              background: "var(--theme-help-soft)",
+              color: "var(--theme-help)",
               padding: 12,
               borderRadius: 8,
               fontSize: 13,
               marginBottom: 16,
-              border: "1px solid #7dd3fc",
+              border: "1px solid var(--theme-help-light)",
             }}
           >
             <strong>ℹ️ Required:</strong> Your organization information will be
@@ -128,13 +128,13 @@ export default function OrganizationProfilePage() {
         {success && (
           <div
             style={{
-              background: "#dcfce7",
-              color: "#15803d",
+              background: "var(--theme-positive-soft)",
+              color: "var(--theme-positive)",
               padding: 12,
               borderRadius: 8,
               fontSize: 13,
               marginBottom: 16,
-              border: "1px solid #86efac",
+              border: "1px solid var(--theme-positive-soft)",
             }}
           >
             ✓ {success}
@@ -204,62 +204,62 @@ export default function OrganizationProfilePage() {
           style={{
             marginTop: 24,
             padding: 16,
-            background: "#0b1120",
-            border: "1px solid #1f2937",
+            background: "var(--theme-surface)",
+            border: "1px solid var(--theme-text)",
             borderRadius: 8,
           }}
         >
-          <h4 style={{ color: "#e5e7eb", marginTop: 0, marginBottom: 12 }}>
+          <h4 style={{ color: "var(--theme-button-text)", marginTop: 0, marginBottom: 12 }}>
             Profile Completion
           </h4>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: organizationName ? "#22c55e" : "#9ca3af" }}>
+              <span style={{ color: organizationName ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
                 {organizationName ? "✓" : "○"}
               </span>
               <span
                 style={{
                   fontSize: 13,
-                  color: organizationName ? "#22c55e" : "#9ca3af",
+                  color: organizationName ? "var(--theme-positive)" : "var(--theme-text-muted)",
                 }}
               >
                 Organization name
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: businessPhone ? "#22c55e" : "#9ca3af" }}>
+              <span style={{ color: businessPhone ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
                 {businessPhone ? "✓" : "○"}
               </span>
               <span
                 style={{
                   fontSize: 13,
-                  color: businessPhone ? "#22c55e" : "#9ca3af",
+                  color: businessPhone ? "var(--theme-positive)" : "var(--theme-text-muted)",
                 }}
               >
                 Business phone
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: businessAddress ? "#22c55e" : "#9ca3af" }}>
+              <span style={{ color: businessAddress ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
                 {businessAddress ? "✓" : "○"}
               </span>
               <span
                 style={{
                   fontSize: 13,
-                  color: businessAddress ? "#22c55e" : "#9ca3af",
+                  color: businessAddress ? "var(--theme-positive)" : "var(--theme-text-muted)",
                 }}
               >
                 Business address
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: businessCity ? "#22c55e" : "#9ca3af" }}>
+              <span style={{ color: businessCity ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
                 {businessCity ? "✓" : "○"}
               </span>
               <span
                 style={{
                   fontSize: 13,
-                  color: businessCity ? "#22c55e" : "#9ca3af",
+                  color: businessCity ? "var(--theme-positive)" : "var(--theme-text-muted)",
                 }}
               >
                 City
@@ -285,7 +285,7 @@ export default function OrganizationProfilePage() {
                     style={{
                       width: "100%",
                       height: 8,
-                      background: "#1f2937",
+                      background: "var(--theme-border)",
                       borderRadius: 4,
                       overflow: "hidden",
                     }}
@@ -294,7 +294,7 @@ export default function OrganizationProfilePage() {
                       style={{
                         width: `${percentage}%`,
                         height: "100%",
-                        background: percentage === 100 ? "#22c55e" : "#0ea5e9",
+                        background: percentage === 100 ? "var(--theme-positive)" : "var(--theme-help)",
                         transition: "width 0.3s ease",
                       }}
                     />
@@ -302,7 +302,7 @@ export default function OrganizationProfilePage() {
                   <p
                     style={{
                       fontSize: 12,
-                      color: "#9ca3af",
+                      color: "var(--theme-text-muted)",
                       marginTop: 8,
                       textAlign: "center",
                     }}

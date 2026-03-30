@@ -89,14 +89,14 @@ export default function MyBookingsPage() {
 
   if (loading)
     return (
-      <p style={{ color: "#9ca3af", textAlign: "center", padding: 20 }}>
+      <p style={{ color: "var(--theme-text-muted)", textAlign: "center", padding: 20 }}>
         Loading your bookings...
       </p>
     );
 
   if (error)
     return (
-      <p style={{ color: "#ef4444", textAlign: "center", padding: 20 }}>
+      <p style={{ color: "var(--theme-danger)", textAlign: "center", padding: 20 }}>
         Error loading bookings: {error}
       </p>
     );
@@ -109,36 +109,36 @@ export default function MyBookingsPage() {
 
   return (
     <div>
-      <h2 className="section-title">My Bookings</h2>
-      <p style={{ fontSize: 13, color: "#9ca3af", marginTop: -4, marginBottom: 12 }}>
+      <h2 className="section-title section-title--compact">My Bookings</h2>
+      <p style={{ fontSize: 13, color: "var(--theme-text-muted)", marginTop: -4, marginBottom: 12 }}>
         Track your service bookings and payments
       </p>
 
       {/* Summary Cards */}
       {bookings.length > 0 && (
-        <div className="card" style={{ marginBottom: 16, background: "#0b1120" }}>
+        <div className="card" style={{ marginBottom: 16, background: "var(--theme-surface)" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Total Bookings</p>
-              <p style={{ fontSize: 20, color: "#0ea5e9", fontWeight: "bold", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Total Bookings</p>
+              <p style={{ fontSize: 20, color: "var(--theme-help)", fontWeight: "bold", margin: 0 }}>
                 {bookings.length}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Completed</p>
-              <p style={{ fontSize: 20, color: "#22c55e", fontWeight: "bold", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Completed</p>
+              <p style={{ fontSize: 20, color: "var(--theme-positive)", fontWeight: "bold", margin: 0 }}>
                 {completedCount}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Total Spent</p>
-              <p style={{ fontSize: 20, color: "#10b981", fontWeight: "bold", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Total Spent</p>
+              <p style={{ fontSize: 20, color: "var(--theme-positive)", fontWeight: "bold", margin: 0 }}>
                 ₹{totalSpent}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Pending</p>
-              <p style={{ fontSize: 20, color: "#fbbf24", fontWeight: "bold", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Pending</p>
+              <p style={{ fontSize: 20, color: "var(--theme-warning)", fontWeight: "bold", margin: 0 }}>
                 {bookings.filter((b) => b.status === "pending").length}
               </p>
             </div>
@@ -151,6 +151,7 @@ export default function MyBookingsPage() {
         <div className="col">
           <label>Booking Status</label>
           <select
+            className="dropdown-select"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -165,6 +166,7 @@ export default function MyBookingsPage() {
         <div className="col">
           <label>Payment Status</label>
           <select
+            className="dropdown-select"
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value)}
           >
@@ -180,6 +182,7 @@ export default function MyBookingsPage() {
       {filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
+          &nbsp;
           <p className="empty-state-title">No bookings</p>
           <p className="empty-state-text">
             {bookings.length === 0
@@ -201,18 +204,18 @@ export default function MyBookingsPage() {
               }}
             >
               <div>
-                <strong style={{ fontSize: 16, color: "#e5e7eb" }}>
+                <strong style={{ fontSize: 16, color: "var(--theme-button-text)" }}>
                   {b.caregiverName || "Caregiver"}
                 </strong>
-                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: "var(--theme-text-muted)", marginTop: 4 }}>
                   📍 {b.caregiverLocation || "Location not specified"}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <span
                   style={{
-                    background: "#dcfce7",
-                    color: "#15803d",
+                    background: "var(--theme-positive-soft)",
+                    color: "var(--theme-positive)",
                     padding: "4px 8px",
                     borderRadius: "4px",
                     fontSize: 11,
@@ -224,8 +227,8 @@ export default function MyBookingsPage() {
                 {b.paymentMethod === "fonepay" && (
                   <span
                     style={{
-                      background: b.paymentStatus === "paid" ? "#dcfce7" : "#fef3c7",
-                      color: b.paymentStatus === "paid" ? "#15803d" : "#92400e",
+                      background: b.paymentStatus === "paid" ? "var(--theme-positive-soft)" : "var(--theme-warning-soft)",
+                      color: b.paymentStatus === "paid" ? "var(--theme-positive)" : "var(--theme-warning)",
                       padding: "4px 8px",
                       borderRadius: "4px",
                       fontSize: 11,
@@ -238,8 +241,8 @@ export default function MyBookingsPage() {
                 {b.paymentMethod === "cash" && (
                   <span
                     style={{
-                      background: "#dbeafe",
-                      color: "#0369a1",
+                      background: "var(--theme-help-soft)",
+                      color: "var(--theme-help)",
                       padding: "4px 8px",
                       borderRadius: "4px",
                       fontSize: 11,
@@ -253,24 +256,24 @@ export default function MyBookingsPage() {
             </div>
 
             {/* Details */}
-            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #1f2937" }}>
-              <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--theme-text)" }}>
+              <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
                 <strong>📅 Date:</strong> {b.date || "Not specified"}
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
+              <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
                 <strong>⏰ Time:</strong> {b.time || "Not specified"}
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
+              <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
                 <strong>⏱️ Duration:</strong> {b.durationHours || "N/A"} hours
               </p>
-              <p style={{ fontSize: 13, color: "#e5e7eb" }}>
+              <p style={{ fontSize: 13, color: "var(--theme-button-text)" }}>
                 <strong>🏠 Address:</strong> {b.address || "Not specified"}
               </p>
             </div>
 
             {/* Work Type */}
             <div style={{ marginTop: 10 }}>
-              <p style={{ fontSize: 13, color: "#cbd5f5", marginBottom: 4 }}>
+              <p style={{ fontSize: 13, color: "var(--theme-text-muted)", marginBottom: 4 }}>
                 <strong>Work Type:</strong> {b.caregiverWorkType === "fulltime" ? "💼 Full Time" : "⏰ Part Time"}
               </p>
             </div>
@@ -283,28 +286,28 @@ export default function MyBookingsPage() {
                 paddingBottom: 12,
                 paddingLeft: 12,
                 paddingRight: 12,
-                borderTop: "1px solid #1f2937",
-                background: "#0b1120",
+                borderTop: "1px solid var(--theme-text)",
+                background: "var(--theme-surface)",
                 borderRadius: "8px",
               }}
             >
-              <p style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 6 }}>
+              <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
                 <strong>💰 Amount:</strong> ₹{b.totalAmount || b.amountDue || "N/A"}
               </p>
               {b.paymentMethod === "fonepay" && (
                 <>
-                  <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
+                  <p style={{ fontSize: 12, color: "var(--theme-text-muted)", marginBottom: 4 }}>
                     <strong>Payment Method:</strong> Fonepay
                   </p>
                   {b.transactionId && (
-                    <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
+                    <p style={{ fontSize: 12, color: "var(--theme-text-muted)", marginBottom: 4 }}>
                       <strong>Transaction ID:</strong> {b.transactionId.substring(0, 20)}...
                     </p>
                   )}
                 </>
               )}
               {b.paymentMethod === "cash" && (
-                <p style={{ fontSize: 12, color: "#fbbf24" }}>
+                <p style={{ fontSize: 12, color: "var(--theme-warning)" }}>
                   <strong>⚠️ Note:</strong> Please pay ₹{b.totalAmount} in cash to the caregiver
                 </p>
               )}
@@ -315,10 +318,10 @@ export default function MyBookingsPage() {
               <p
                 style={{
                   fontSize: 13,
-                  color: "#cbd5f5",
+                  color: "var(--theme-text-muted)",
                   marginTop: 10,
                   fontStyle: "italic",
-                  borderLeft: "3px solid #0ea5e9",
+                  borderLeft: "3px solid var(--theme-help)",
                   paddingLeft: 10,
                 }}
               >
@@ -327,7 +330,7 @@ export default function MyBookingsPage() {
             )}
 
             {/* Booking Info */}
-            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 10 }}>
+            <div style={{ fontSize: 11, color: "var(--theme-text-muted)", marginTop: 10 }}>
               Booking ID: {b.id.substring(0, 8)}... · Created:{" "}
               {b.createdAt?.toDate?.().toLocaleDateString?.() || "N/A"}
             </div>
@@ -340,15 +343,15 @@ export default function MyBookingsPage() {
                     className="btn btn-outline"
                     onClick={() => cancelBooking(b.id)}
                     style={{
-                      background: "#111827",
-                      color: "#e5e7eb",
-                      border: "1px solid #1f2937",
+                      background: "var(--theme-surface)",
+                      color: "var(--theme-button-text)",
+                      border: "1px solid var(--theme-text)",
                       flex: 1,
                     }}
                   >
                     Cancel
                   </button>
-                  <span style={{ fontSize: 12, color: "#9ca3af", alignSelf: "center", flex: 1 }}>
+                  <span style={{ fontSize: 12, color: "var(--theme-text-muted)", alignSelf: "center", flex: 1 }}>
                     ⏳ Waiting for acceptance...
                   </span>
                 </>
@@ -360,15 +363,15 @@ export default function MyBookingsPage() {
                     className="btn btn-outline"
                     onClick={() => cancelBooking(b.id)}
                     style={{
-                      background: "#111827",
-                      color: "#e5e7eb",
-                      border: "1px solid #1f2937",
+                      background: "var(--theme-surface)",
+                      color: "var(--theme-button-text)",
+                      border: "1px solid var(--theme-text)",
                       flex: 1,
                     }}
                   >
                     Cancel
                   </button>
-                  <span style={{ fontSize: 12, color: "#22c55e", alignSelf: "center", flex: 1 }}>
+                  <span style={{ fontSize: 12, color: "var(--theme-positive)", alignSelf: "center", flex: 1 }}>
                     ✓ Accepted - will start soon
                   </span>
                 </>
@@ -376,16 +379,16 @@ export default function MyBookingsPage() {
 
               {b.status === "completed" && (
                 <div>
-                  <div style={{ fontSize: 13, color: "#22c55e", marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, color: "var(--theme-positive)", marginBottom: 8 }}>
                     ✓ Completed successfully
                   </div>
                   {b.paymentStatus === "paid" && b.paymentMethod === "fonepay" && (
-                    <div style={{ fontSize: 12, color: "#0ea5e9" }}>
+                    <div style={{ fontSize: 12, color: "var(--theme-help)" }}>
                       ✓ Payment received
                     </div>
                   )}
                   {b.paymentStatus === "pending" && b.paymentMethod === "cash" && (
-                    <div style={{ fontSize: 12, color: "#fbbf24" }}>
+                    <div style={{ fontSize: 12, color: "var(--theme-warning)" }}>
                       ⚠️ Cash payment pending
                     </div>
                   )}
@@ -393,7 +396,7 @@ export default function MyBookingsPage() {
               )}
 
               {b.status === "cancelled" && (
-                <div style={{ fontSize: 13, color: "#ef4444" }}>✗ Cancelled</div>
+                <div style={{ fontSize: 13, color: "var(--theme-danger)" }}>✗ Cancelled</div>
               )}
             </div>
           </div>
@@ -406,12 +409,12 @@ export default function MyBookingsPage() {
           className="card"
           style={{
             marginTop: 20,
-            background: "#0b1120",
+            background: "var(--theme-surface)",
             paddingTop: 14,
             paddingBottom: 14,
           }}
         >
-          <p style={{ fontSize: 14, color: "#e5e7eb", marginBottom: 10 }}>
+          <p style={{ fontSize: 14, color: "var(--theme-button-text)", marginBottom: 10 }}>
             <strong>📊 Your Booking Summary</strong>
           </p>
           <div
@@ -422,26 +425,26 @@ export default function MyBookingsPage() {
             }}
           >
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Total bookings</p>
-              <p style={{ fontSize: 18, color: "#0ea5e9", fontWeight: "600", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Total bookings</p>
+              <p style={{ fontSize: 18, color: "var(--theme-help)", fontWeight: "600", margin: 0 }}>
                 {bookings.length}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Completed</p>
-              <p style={{ fontSize: 18, color: "#22c55e", fontWeight: "600", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Completed</p>
+              <p style={{ fontSize: 18, color: "var(--theme-positive)", fontWeight: "600", margin: 0 }}>
                 {bookings.filter((b) => b.status === "completed").length}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Pending</p>
-              <p style={{ fontSize: 18, color: "#fbbf24", fontWeight: "600", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Pending</p>
+              <p style={{ fontSize: 18, color: "var(--theme-warning)", fontWeight: "600", margin: 0 }}>
                 {bookings.filter((b) => b.status === "pending").length}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Total spent</p>
-              <p style={{ fontSize: 18, color: "#0ea5e9", fontWeight: "600", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Total spent</p>
+              <p style={{ fontSize: 18, color: "var(--theme-help)", fontWeight: "600", margin: 0 }}>
                 ₹
                 {bookings
                   .filter((b) => b.paymentStatus === "paid" || b.status === "completed")
@@ -449,8 +452,8 @@ export default function MyBookingsPage() {
               </p>
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Paid via Fonepay</p>
-              <p style={{ fontSize: 18, color: "#10b981", fontWeight: "600", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Paid via Fonepay</p>
+              <p style={{ fontSize: 18, color: "var(--theme-positive)", fontWeight: "600", margin: 0 }}>
                 ₹
                 {bookings
                   .filter((b) => b.paymentMethod === "fonepay" && b.paymentStatus === "paid")
@@ -458,8 +461,8 @@ export default function MyBookingsPage() {
               </p>
             </div>
             <div>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>Cash pending</p>
-              <p style={{ fontSize: 18, color: "#fbbf24", fontWeight: "600", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--theme-text-muted)", margin: 0 }}>Cash pending</p>
+              <p style={{ fontSize: 18, color: "var(--theme-warning)", fontWeight: "600", margin: 0 }}>
                 ₹
                 {bookings
                   .filter((b) => b.paymentMethod === "cash" && b.paymentStatus === "pending")

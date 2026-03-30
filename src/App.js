@@ -37,6 +37,18 @@ function App() {
     }
   };
 
+  const handleBrowseCaregivers = () => {
+    setSelectedCaregiver(null);
+    setShowMyBookings(false);
+    navigate("/user");
+  };
+
+  const handleMyBookings = () => {
+    setSelectedCaregiver(null);
+    setShowMyBookings(false);
+    navigate("/user/mybookings");
+  };
+
   useEffect(() => {
     if (!user || !userRole) return;
 
@@ -69,7 +81,7 @@ function App() {
   // Global loading state while Firebase auth initializes
   if (loading) {
     return (
-      <div style={{ textAlign: "center", paddingTop: 50, color: "#9ca3af" }}>
+      <div className="centered-message">
         <p>Loading...</p>
       </div>
     );
@@ -78,7 +90,7 @@ function App() {
   // Prevent routing until Firestore userRole is known
   if (user && !userRole) {
     return (
-      <div style={{ textAlign: "center", paddingTop: 50, color: "#9ca3af" }}>
+      <div className="centered-message">
         <p>Loading your dashboard...</p>
       </div>
     );
@@ -94,22 +106,13 @@ function App() {
             <div className="app-shell">
               <div className="app-card">
                 <div className="app-header">
-                  <div
-                    className="header-logo"
-                    onClick={() => navigate("/")}
-                    style={{
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
+                  <div className="header-logo" onClick={() => navigate("/") }>
                     <img
                       src={logoSewak}
                       alt="Sewak"
                       style={{ height: 40, width: "auto" }}
                     />
-                    <h1 style={{ margin: 0, color: "#0ea5e9", fontSize: 22 }}>
+                    <h1 className="header-logo-title">
                       Sewak
                     </h1>
                   </div>
@@ -240,6 +243,7 @@ function App() {
           userRole={userRole}
           userDoc={userDoc}
           onLogout={handleLogout}
+          onBrowseCaregivers={handleBrowseCaregivers}
         />
         <Routes>
           <Route path="/user/profile" element={<UserProfilePage />} />
@@ -258,6 +262,7 @@ function App() {
           userRole={userRole}
           userDoc={userDoc}
           onLogout={handleLogout}
+          onBrowseCaregivers={handleBrowseCaregivers}
         />
         <Routes>
           <Route path="/organization/profile" element={<OrganizationProfilePage />} />
@@ -275,12 +280,24 @@ function App() {
         userRole={userRole}
         userDoc={userDoc}
         onLogout={handleLogout}
+        onBrowseCaregivers={handleBrowseCaregivers}
+        onMyBookings={handleMyBookings}
       />
       <Routes>
         {/* USER ROUTES */}
         {userRole === "user" && (
           <>
             <Route path="/user/profile" element={<UserProfilePage />} />
+            <Route
+              path="/user/mybookings"
+              element={
+                <div className="app-shell app-shell--compact">
+                  <div className="app-card app-card--compact">
+                    <MyBookingsPage />
+                  </div>
+                </div>
+              }
+            />
             <Route
               path="/user/*"
               element={
@@ -307,7 +324,7 @@ function App() {
                         caregiver={selectedCaregiver}
                         onBooked={() => {
                           setSelectedCaregiver(null);
-                          setShowMyBookings(true);
+                          navigate("/user/mybookings");
                         }}
                       />
                     </div>
@@ -322,7 +339,7 @@ function App() {
                         <div className="app-header-actions">
                           <button
                             className="btn btn-outline"
-                            onClick={() => setShowMyBookings(false)}
+                            onClick={() => navigate("/user")}
                           >
                             Browse Caregivers
                           </button>
@@ -334,23 +351,6 @@ function App() {
                 ) : (
                   <div className="app-shell">
                     <div className="app-card">
-                      <div className="app-header">
-                        <div>
-                          <h1 className="app-title">Sewak</h1>
-                          <p className="app-subtitle">
-                            Find trusted caregivers
-                          </p>
-                        </div>
-                        <div className="app-header-actions">
-                          <button
-                            className="btn btn-outline"
-                            onClick={() => setShowMyBookings(true)}
-                          >
-                            My Bookings
-                          </button>
-                        </div>
-                      </div>
-
                       <div className="choice-group">
                         <h3>What do you need help with?</h3>
                         <div className="choice-buttons">

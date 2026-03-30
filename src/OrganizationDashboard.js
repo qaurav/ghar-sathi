@@ -1,5 +1,6 @@
 // src/OrganizationDashboard.js
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   collection,
   getDocs,
@@ -17,10 +18,23 @@ import { db, auth } from "./firebaseConfig";
 import { useAuth } from "./AuthContext";
 import "./OrganizationDashboard.css";
 
+const validTabs = ["caregivers", "bookings", "services", "blacklist", "profile"];
+
 export default function OrganizationDashboard() {
   const { user, userDoc } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [activeTab, setActiveTab] = useState("caregivers");
+  const getTabFromSearch = useCallback((search) => {
+    const params = new URLSearchParams(search);
+    const tab = params.get("tab");
+    return validTabs.includes(tab) ? tab : "caregivers";
+  }, []);
+  const selectTab = (tabName) => {
+    navigate(`/organization?tab=${tabName}`);
+  };
+
+  const [activeTab, setActiveTab] = useState(getTabFromSearch(location.search));
   const [loading, setLoading] = useState(true);
   const [organizationData, setOrganizationData] = useState(null);
   const [caregivers, setCaregivers] = useState([]);
@@ -540,20 +554,30 @@ export default function OrganizationDashboard() {
   const getTabStyle = (tabName) => ({
     padding: "8px 16px",
     borderRadius: "6px",
-    border: activeTab === tabName ? "none" : "1px solid #1f2937",
+    border: activeTab === tabName ? "none" : "1px solid var(--theme-text)",
     background:
       activeTab === tabName
-        ? "linear-gradient(135deg, #0ea5e9, #06b6d4)"
-        : "#020617",
-    color: activeTab === tabName ? "#ffffff" : "#e5e7eb",
+        ? "linear-gradient(135deg, var(--theme-help), var(--theme-help-accent))"
+        : "var(--theme-surface)",
+    color: activeTab === tabName ? "var(--theme-button-text)" : "var(--theme-text)",
     cursor: "pointer",
     fontWeight: activeTab === tabName ? 600 : 500,
     fontSize: 13,
   });
 
+  const getServiceLabel = (id) =>
+    services.find((service) => service.id === id)?.label || id;
+
+  useEffect(() => {
+    const tab = getTabFromSearch(location.search);
+    if (tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [location.search, activeTab, getTabFromSearch]);
+
   if (loading) {
     return (
-      <p style={{ color: "#9ca3af", textAlign: "center", padding: 20 }}>
+      <p style={{ color: "var(--theme-text-muted)", textAlign: "center", padding: 20 }}>
         Loading dashboard...
       </p>
     );
@@ -564,12 +588,12 @@ export default function OrganizationDashboard() {
       <div style={{ padding: 20 }}>
         <div
           style={{
-            background: "#fef3c7",
-            color: "#92400e",
+            background: "var(--theme-warning-soft)",
+            color: "var(--theme-warning)",
             padding: 16,
             borderRadius: 8,
             fontSize: 14,
-            border: "1px solid #fcd34d",
+            border: "1px solid var(--theme-warning)",
             textAlign: "center",
           }}
         >
@@ -581,13 +605,13 @@ export default function OrganizationDashboard() {
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
-          <h3 style={{ color: "#e5e7eb", marginTop: 0 }}>
+          <h3 style={{ color: "var(--theme-button-text)", marginTop: 0 }}>
             Organization Details
           </h3>
           <p
             style={{
               fontSize: 13,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: "8px 0",
             }}
           >
@@ -596,7 +620,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 13,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: "8px 0",
             }}
           >
@@ -605,7 +629,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 13,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: "8px 0",
             }}
           >
@@ -614,7 +638,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 13,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: "8px 0",
             }}
           >
@@ -623,7 +647,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 13,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: "8px 0",
             }}
           >
@@ -632,7 +656,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 13,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: "8px 0",
             }}
           >
@@ -657,22 +681,23 @@ export default function OrganizationDashboard() {
   const globalServices = services.filter((s) => !s.organizationId);
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1 style={{ color: "#e5e7eb", marginBottom: 8 }}>
-        {organizationData?.organizationName} Organization Dashboard
-      </h1>
-      <p
-        style={{
-          fontSize: 13,
-          color: "#9ca3af",
-          marginBottom: 16,
-        }}
-      >
-        Manage your caregiver team, services, and track performance.
-      </p>
-      {error && <div className="error-message">{error}</div>}
+    <div className="org-dashboard-root">
+      <div className="org-dashboard-container">
+        <div className="org-dashboard-header">
+          <h1>{organizationData?.organizationName} Organization Dashboard</h1>
+          <p
+            style={{
+              fontSize: 13,
+              color: "var(--theme-text-muted)",
+              marginBottom: 16,
+            }}
+          >
+            Manage your caregiver team, services, and track performance.
+          </p>
+          {error && <div className="error-message">{error}</div>}
+        </div>
 
-      {/* Stats */}
+        {/* Stats */}
       <div
         style={{
           display: "grid",
@@ -681,11 +706,11 @@ export default function OrganizationDashboard() {
           marginBottom: 24,
         }}
       >
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div className="card" style={{ background: "var(--theme-surface)", textAlign: "center" }}>
           <p
             style={{
               fontSize: 12,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: 0,
             }}
           >
@@ -694,7 +719,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 24,
-              color: "#0ea5e9",
+              color: "var(--theme-help)",
               fontWeight: "bold",
               margin: 0,
             }}
@@ -702,11 +727,11 @@ export default function OrganizationDashboard() {
             {caregivers.length}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div className="card" style={{ background: "var(--theme-surface)", textAlign: "center" }}>
           <p
             style={{
               fontSize: 12,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: 0,
             }}
           >
@@ -715,7 +740,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 24,
-              color: "#22c55e",
+              color: "var(--theme-positive)",
               fontWeight: "bold",
               margin: 0,
             }}
@@ -723,11 +748,11 @@ export default function OrganizationDashboard() {
             {caregivers.filter((c) => c.isAvailable && c.isApproved).length}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div className="card" style={{ background: "var(--theme-surface)", textAlign: "center" }}>
           <p
             style={{
               fontSize: 12,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: 0,
             }}
           >
@@ -736,7 +761,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 24,
-              color: "#10b981",
+              color: "var(--theme-positive)",
               fontWeight: "bold",
               margin: 0,
             }}
@@ -744,11 +769,11 @@ export default function OrganizationDashboard() {
             {bookings.length}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div className="card" style={{ background: "var(--theme-surface)", textAlign: "center" }}>
           <p
             style={{
               fontSize: 12,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: 0,
             }}
           >
@@ -757,7 +782,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 24,
-              color: "#0ea5e9",
+              color: "var(--theme-help)",
               fontWeight: "bold",
               margin: 0,
             }}
@@ -765,11 +790,11 @@ export default function OrganizationDashboard() {
             {completedBookings}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div className="card" style={{ background: "var(--theme-surface)", textAlign: "center" }}>
           <p
             style={{
               fontSize: 12,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: 0,
             }}
           >
@@ -778,7 +803,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 24,
-              color: "#fbbf24",
+              color: "var(--theme-warning)",
               fontWeight: "bold",
               margin: 0,
             }}
@@ -786,11 +811,11 @@ export default function OrganizationDashboard() {
             {totalRevenue}
           </p>
         </div>
-        <div className="card" style={{ background: "#0b1120", textAlign: "center" }}>
+        <div className="card" style={{ background: "var(--theme-surface)", textAlign: "center" }}>
           <p
             style={{
               fontSize: 12,
-              color: "#9ca3af",
+              color: "var(--theme-text-muted)",
               margin: 0,
             }}
           >
@@ -799,7 +824,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 24,
-              color: "#22c55e",
+              color: "var(--theme-positive)",
               fontWeight: "bold",
               margin: 0,
             }}
@@ -809,7 +834,7 @@ export default function OrganizationDashboard() {
           <p
             style={{
               fontSize: 10,
-              color: "#6b7280",
+              color: "var(--theme-text-muted)",
               margin: 0,
             }}
           >
@@ -826,41 +851,39 @@ export default function OrganizationDashboard() {
         <button
           type="button"
           style={getTabStyle("caregivers")}
-          onClick={() => setActiveTab("caregivers")}
+          onClick={() => selectTab("caregivers")}
         >
           Caregivers ({caregivers.length})
         </button>
         <button
           type="button"
           style={getTabStyle("bookings")}
-          onClick={() => setActiveTab("bookings")}
+          onClick={() => selectTab("bookings")}
         >
           Bookings ({bookings.length})
         </button>
         <button
           type="button"
           style={getTabStyle("services")}
-          onClick={() => setActiveTab("services")}
+          onClick={() => selectTab("services")}
         >
           Services ({orgServices.length})
         </button>
         <button
           type="button"
           style={getTabStyle("blacklist")}
-          onClick={() => setActiveTab("blacklist")}
+          onClick={() => selectTab("blacklist")}
         >
           Blacklist ({orgBlacklist.length})
         </button>
         <button
           type="button"
           style={getTabStyle("profile")}
-          onClick={() => setActiveTab("profile")}
+          onClick={() => selectTab("profile")}
         >
           Profile
         </button>
       </div>
-
-      {/* CAREGIVERS TAB */}
       {activeTab === "caregivers" && (
         <div>
           <button
@@ -871,8 +894,8 @@ export default function OrganizationDashboard() {
             }}
             style={{ marginBottom: 16 }}
           >
-            Add New Caregiver
-          </button>
+          Add New Caregiver
+        </button>
 
           {caregivers.length === 0 ? (
             <div className="empty-state">
@@ -905,7 +928,7 @@ export default function OrganizationDashboard() {
                     <div>
                       <strong
                         style={{
-                          color: "#e5e7eb",
+                          color: "var(--theme-text)",
                           fontSize: 16,
                         }}
                       >
@@ -914,7 +937,7 @@ export default function OrganizationDashboard() {
                       <div
                         style={{
                           fontSize: 12,
-                          color: "#9ca3af",
+                          color: "var(--theme-text-muted)",
                           marginTop: 4,
                         }}
                       >
@@ -923,7 +946,7 @@ export default function OrganizationDashboard() {
                       <div
                         style={{
                           fontSize: 12,
-                          color: "#9ca3af",
+                          color: "var(--theme-text-muted)",
                         }}
                       >
                         {caregiver.location || "No location"}
@@ -931,7 +954,7 @@ export default function OrganizationDashboard() {
                       <div
                         style={{
                           fontSize: 12,
-                          color: "#9ca3af",
+                          color: "var(--theme-text-muted)",
                         }}
                       >
                         {caregiver.phone || "No phone"}
@@ -948,9 +971,9 @@ export default function OrganizationDashboard() {
                       <span
                         style={{
                           background: caregiver.isApproved
-                            ? "#dcfce7"
-                            : "#fef3c7",
-                          color: caregiver.isApproved ? "#15803d" : "#92400e",
+                            ? "var(--theme-positive-soft)"
+                            : "var(--theme-warning-soft)",
+                          color: caregiver.isApproved ? "var(--theme-positive)" : "var(--theme-warning)",
                           padding: "4px 8px",
                           borderRadius: 4,
                           fontSize: 11,
@@ -964,8 +987,8 @@ export default function OrganizationDashboard() {
                       {caregiver.isAvailable ? (
                         <span
                           style={{
-                            background: "#dcfce7",
-                            color: "#15803d",
+                            background: "var(--theme-positive-soft)",
+                            color: "var(--theme-positive)",
                             padding: "4px 8px",
                             borderRadius: 4,
                             fontSize: 11,
@@ -977,8 +1000,8 @@ export default function OrganizationDashboard() {
                       ) : (
                         <span
                           style={{
-                            background: "#fee2e2",
-                            color: "#991b1b",
+                            background: "var(--theme-danger-soft)",
+                            color: "var(--theme-danger)",
                             padding: "4px 8px",
                             borderRadius: 4,
                             fontSize: 11,
@@ -991,8 +1014,8 @@ export default function OrganizationDashboard() {
                       {isBlacklisted && (
                         <span
                           style={{
-                            background: "#dc2626",
-                            color: "#fff",
+                            background: "var(--theme-danger)",
+                            color: "var(--theme-button-text)",
                             padding: "4px 8px",
                             borderRadius: 4,
                             fontSize: 11,
@@ -1009,9 +1032,9 @@ export default function OrganizationDashboard() {
                     style={{
                       marginTop: 12,
                       paddingTop: 12,
-                      borderTop: "1px solid #1f2937",
+                      borderTop: "1px solid var(--theme-text)",
                       fontSize: 13,
-                      color: "#e5e7eb",
+                      color: "var(--theme-text)",
                     }}
                   >
                     <p style={{ margin: "0 0 6px 0" }}>
@@ -1034,7 +1057,9 @@ export default function OrganizationDashboard() {
                     </p>
                     <p style={{ margin: "0 0 6px 0" }}>
                       <strong>Services:</strong>{" "}
-                      {caregiver.servicesOffered?.join(", ") || "None"}
+                      {(caregiver.servicesOffered || [])
+                        .map(getServiceLabel)
+                        .join(", ") || "None"}
                     </p>
                     <p style={{ margin: "0 0 6px 0" }}>
                       <strong>Hourly Rate:</strong> {caregiver.hourlyRate}/hour
@@ -1060,7 +1085,7 @@ export default function OrganizationDashboard() {
                       style={{
                         marginTop: 8,
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         flexBasis: "100%",
                       }}
                     >
@@ -1068,7 +1093,7 @@ export default function OrganizationDashboard() {
                       <span
                         style={{
                           fontWeight: 600,
-                          color: caregiver.isApproved ? "#22c55e" : "#f59e0b",
+                          color: caregiver.isApproved ? "var(--theme-positive)" : "var(--theme-warning)",
                         }}
                       >
                         {caregiver.isApproved
@@ -1083,9 +1108,9 @@ export default function OrganizationDashboard() {
                         onClick={() => openBlacklistForm(caregiver)}
                         style={{
                           flex: 1,
-                          background: "#7f1d1d",
-                          color: "#fecaca",
-                          border: "1px solid #991b1b",
+                          background: "var(--theme-danger)",
+                          color: "var(--theme-button-text)",
+                          border: "1px solid var(--theme-danger-dark)",
                         }}
                       >
                         Blacklist
@@ -1102,9 +1127,9 @@ export default function OrganizationDashboard() {
                       }
                       style={{
                         flex: 1,
-                        background: "#7f1d1d",
-                        color: "#fecaca",
-                        border: "1px solid #991b1b",
+                        background: "var(--theme-danger)",
+                        color: "var(--theme-button-text)",
+                        border: "1px solid var(--theme-danger-dark)",
                       }}
                     >
                       Remove
@@ -1132,7 +1157,7 @@ export default function OrganizationDashboard() {
             >
               <div
                 style={{
-                  background: "#020617",
+                  background: "var(--theme-surface)",
                   borderRadius: 12,
                   padding: "20px 20px 16px",
                   width: "100%",
@@ -1140,7 +1165,7 @@ export default function OrganizationDashboard() {
                   maxHeight: "85vh",
                   overflowY: "auto",
                   boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
-                  border: "1px solid #1f2937",
+                  border: "1px solid var(--theme-text)",
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -1154,7 +1179,7 @@ export default function OrganizationDashboard() {
                 >
                   <h3
                     style={{
-                      color: "#e5e7eb",
+                      color: "var(--theme-text)",
                       margin: 0,
                       fontSize: 18,
                       fontWeight: 600,
@@ -1168,7 +1193,7 @@ export default function OrganizationDashboard() {
                     style={{
                       border: "none",
                       background: "transparent",
-                      color: "#9ca3af",
+                      color: "var(--theme-text-muted)",
                       fontSize: 20,
                       cursor: "pointer",
                       lineHeight: 1,
@@ -1184,7 +1209,7 @@ export default function OrganizationDashboard() {
                       style={{
                         display: "block",
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginBottom: 4,
                       }}
                     >
@@ -1199,9 +1224,9 @@ export default function OrganizationDashboard() {
                         width: "100%",
                         padding: "8px 10px",
                         borderRadius: 6,
-                        border: "1px solid #1f2937",
-                        background: "#020617",
-                        color: "#e5e7eb",
+                        border: "1px solid var(--theme-text)",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-button-text)",
                         fontSize: 13,
                       }}
                     />
@@ -1212,7 +1237,7 @@ export default function OrganizationDashboard() {
                       style={{
                         display: "block",
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginBottom: 4,
                       }}
                     >
@@ -1228,9 +1253,9 @@ export default function OrganizationDashboard() {
                         width: "100%",
                         padding: "8px 10px",
                         borderRadius: 6,
-                        border: "1px solid #1f2937",
-                        background: "#020617",
-                        color: "#e5e7eb",
+                        border: "1px solid var(--theme-text)",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-button-text)",
                         fontSize: 13,
                       }}
                     />
@@ -1241,7 +1266,7 @@ export default function OrganizationDashboard() {
                       style={{
                         display: "block",
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginBottom: 4,
                       }}
                     >
@@ -1258,9 +1283,9 @@ export default function OrganizationDashboard() {
                         width: "100%",
                         padding: "8px 10px",
                         borderRadius: 6,
-                        border: "1px solid #1f2937",
-                        background: "#020617",
-                        color: "#e5e7eb",
+                        border: "1px solid var(--theme-text)",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-button-text)",
                         fontSize: 13,
                       }}
                     />
@@ -1271,7 +1296,7 @@ export default function OrganizationDashboard() {
                       style={{
                         display: "block",
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginBottom: 4,
                       }}
                     >
@@ -1287,9 +1312,9 @@ export default function OrganizationDashboard() {
                         width: "100%",
                         padding: "8px 10px",
                         borderRadius: 6,
-                        border: "1px solid #1f2937",
-                        background: "#020617",
-                        color: "#e5e7eb",
+                        border: "1px solid var(--theme-text)",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-button-text)",
                         fontSize: 13,
                       }}
                     />
@@ -1300,7 +1325,7 @@ export default function OrganizationDashboard() {
                       style={{
                         display: "block",
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginBottom: 4,
                       }}
                     >
@@ -1315,9 +1340,9 @@ export default function OrganizationDashboard() {
                         width: "100%",
                         padding: "8px 10px",
                         borderRadius: 6,
-                        border: "1px solid #1f2937",
-                        background: "#020617",
-                        color: "#e5e7eb",
+                        border: "1px solid var(--theme-text)",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-button-text)",
                         fontSize: 13,
                       }}
                     />
@@ -1328,22 +1353,23 @@ export default function OrganizationDashboard() {
                       style={{
                         display: "block",
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginBottom: 4,
                       }}
                     >
                       Category
                     </label>
                     <select
+                      className="dropdown-select"
                       value={caregiverCategory}
                       onChange={(e) => setCaregiverCategory(e.target.value)}
                       style={{
                         width: "100%",
                         padding: "8px 10px",
                         borderRadius: 6,
-                        border: "1px solid #1f2937",
-                        background: "#020617",
-                        color: "#e5e7eb",
+                        border: "1px solid var(--theme-text)",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-button-text)",
                         fontSize: 13,
                       }}
                     >
@@ -1354,7 +1380,7 @@ export default function OrganizationDashboard() {
                     <p
                       style={{
                         fontSize: 11,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginTop: 4,
                       }}
                     >
@@ -1373,7 +1399,7 @@ export default function OrganizationDashboard() {
                       style={{
                         display: "block",
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginBottom: 4,
                       }}
                     >
@@ -1397,15 +1423,15 @@ export default function OrganizationDashboard() {
                           border:
                             caregiverWorkType === "fulltime"
                               ? "none"
-                              : "1px solid #1f2937",
+                              : "1px solid var(--theme-text)",
                           background:
                             caregiverWorkType === "fulltime"
-                              ? "#0ea5e9"
-                              : "#111827",
+                              ? "var(--theme-help)"
+                              : "var(--theme-surface)",
                           color:
                             caregiverWorkType === "fulltime"
-                              ? "#ffffff"
-                              : "#e5e7eb",
+                              ? "var(--theme-button-text)"
+                              : "var(--theme-text)",
                           cursor: "pointer",
                           fontWeight: 600,
                         }}
@@ -1421,15 +1447,15 @@ export default function OrganizationDashboard() {
                           border:
                             caregiverWorkType === "parttime"
                               ? "none"
-                              : "1px solid #1f2937",
+                              : "1px solid var(--theme-text)",
                           background:
                             caregiverWorkType === "parttime"
-                              ? "#fbbf24"
-                              : "#111827",
+                              ? "var(--theme-warning)"
+                              : "var(--theme-surface)",
                           color:
                             caregiverWorkType === "parttime"
-                              ? "#000000"
-                              : "#e5e7eb",
+                              ? "var(--theme-text)"
+                              : "var(--theme-text)",
                           cursor: "pointer",
                           fontWeight: 600,
                         }}
@@ -1445,7 +1471,7 @@ export default function OrganizationDashboard() {
                         style={{
                           display: "block",
                           fontSize: 12,
-                          color: "#9ca3af",
+                          color: "var(--theme-text-muted)",
                           marginBottom: 4,
                         }}
                       >
@@ -1469,13 +1495,13 @@ export default function OrganizationDashboard() {
                               borderRadius: 6,
                               border: caregiverShifts.includes(shift)
                                 ? "none"
-                                : "1px solid #1f2937",
+                                : "1px solid var(--theme-text)",
                               background: caregiverShifts.includes(shift)
-                                ? "#0ea5e9"
-                                : "#111827",
+                                ? "var(--theme-help)"
+                                : "var(--theme-surface)",
                               color: caregiverShifts.includes(shift)
-                                ? "#ffffff"
-                                : "#e5e7eb",
+                                ? "var(--theme-button-text)"
+                                : "var(--theme-text)",
                               cursor: "pointer",
                               fontSize: 12,
                               fontWeight: 600,
@@ -1496,7 +1522,7 @@ export default function OrganizationDashboard() {
                     style={{
                       display: "block",
                       fontSize: 12,
-                      color: "#9ca3af",
+                      color: "var(--theme-text-muted)",
                       marginBottom: 4,
                     }}
                   >
@@ -1514,7 +1540,7 @@ export default function OrganizationDashboard() {
                       <p
                         style={{
                           fontSize: 12,
-                          color: "#9ca3af",
+                          color: "var(--theme-text-muted)",
                         }}
                       >
                         No services available. Add services first in the
@@ -1544,13 +1570,13 @@ export default function OrganizationDashboard() {
                             borderRadius: 6,
                             border: caregiverServices.includes(service.id)
                               ? "none"
-                              : "1px solid #1f2937",
+                              : "1px solid var(--theme-text)",
                             background: caregiverServices.includes(service.id)
-                              ? "#10b981"
-                              : "#111827",
+                              ? "var(--theme-positive)"
+                              : "var(--theme-surface)",
                             color: caregiverServices.includes(service.id)
-                              ? "#ffffff"
-                              : "#e5e7eb",
+                              ? "var(--theme-button-text)"
+                              : "var(--theme-text)",
                             cursor: "pointer",
                             fontSize: 12,
                             fontWeight: 600,
@@ -1564,7 +1590,7 @@ export default function OrganizationDashboard() {
                     <p
                       style={{
                         fontSize: 11,
-                        color: "#0ea5e9",
+                        color: "var(--theme-help)",
                         marginTop: -8,
                       }}
                     >
@@ -1578,7 +1604,7 @@ export default function OrganizationDashboard() {
                       style={{
                         display: "block",
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginBottom: 4,
                       }}
                     >
@@ -1595,9 +1621,9 @@ export default function OrganizationDashboard() {
                         width: "100%",
                         padding: "8px 10px",
                         borderRadius: 6,
-                        border: "1px solid #1f2937",
-                        background: "#020617",
-                        color: "#e5e7eb",
+                        border: "1px solid var(--theme-text)",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-button-text)",
                         fontSize: 13,
                       }}
                     />
@@ -1608,7 +1634,7 @@ export default function OrganizationDashboard() {
                       style={{
                         display: "block",
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginBottom: 4,
                       }}
                     >
@@ -1626,9 +1652,9 @@ export default function OrganizationDashboard() {
                         width: "100%",
                         padding: "8px 10px",
                         borderRadius: 6,
-                        border: "1px solid #1f2937",
-                        background: "#020617",
-                        color: "#e5e7eb",
+                        border: "1px solid var(--theme-text)",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-button-text)",
                         fontSize: 13,
                       }}
                     />
@@ -1679,7 +1705,7 @@ export default function OrganizationDashboard() {
                   <div>
                     <strong
                       style={{
-                        color: "#e5e7eb",
+                        color: "var(--theme-button-text)",
                         fontSize: 16,
                       }}
                     >
@@ -1688,7 +1714,7 @@ export default function OrganizationDashboard() {
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginTop: 4,
                       }}
                     >
@@ -1700,20 +1726,20 @@ export default function OrganizationDashboard() {
                       style={{
                         background:
                           booking.status === "completed"
-                            ? "#dcfce7"
+                            ? "var(--theme-positive-soft)"
                             : booking.status === "accepted"
-                              ? "#dbeafe"
+                              ? "var(--theme-help-soft)"
                               : booking.status === "pending"
-                                ? "#fef3c7"
-                                : "#fee2e2",
+                                ? "var(--theme-warning-soft)"
+                                : "var(--theme-danger-soft)",
                         color:
                           booking.status === "completed"
-                            ? "#15803d"
+                            ? "var(--theme-positive)"
                             : booking.status === "accepted"
-                              ? "#0369a1"
+                              ? "var(--theme-help)"
                               : booking.status === "pending"
-                                ? "#92400e"
-                                : "#991b1b",
+                                ? "var(--theme-warning)"
+                                : "var(--theme-danger)",
                         padding: "4px 8px",
                         borderRadius: 4,
                         fontSize: 11,
@@ -1729,9 +1755,9 @@ export default function OrganizationDashboard() {
                   style={{
                     marginTop: 12,
                     paddingTop: 12,
-                    borderTop: "1px solid #1f2937",
+                    borderTop: "1px solid var(--theme-text)",
                     fontSize: 13,
-                    color: "#e5e7eb",
+                    color: "var(--theme-button-text)",
                   }}
                 >
                   <p style={{ margin: "0 0 6px 0" }}>
@@ -1747,7 +1773,7 @@ export default function OrganizationDashboard() {
                     <p
                       style={{
                         margin: 0,
-                        color: "#22c55e",
+                        color: "var(--theme-positive)",
                       }}
                     >
                       <strong>Earnings:</strong>{" "}
@@ -1792,7 +1818,7 @@ export default function OrganizationDashboard() {
             >
               <div
                 style={{
-                  background: "#020617",
+                  background: "var(--theme-surface)",
                   borderRadius: 12,
                   padding: "20px 20px 16px",
                   width: "100%",
@@ -1800,7 +1826,7 @@ export default function OrganizationDashboard() {
                   maxHeight: "85vh",
                   overflowY: "auto",
                   boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
-                  border: "1px solid #1f2937",
+                  border: "1px solid var(--theme-text)",
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -1814,7 +1840,7 @@ export default function OrganizationDashboard() {
                 >
                   <h3
                     style={{
-                      color: "#e5e7eb",
+                      color: "var(--theme-text)",
                       margin: 0,
                       fontSize: 18,
                       fontWeight: 600,
@@ -1828,7 +1854,7 @@ export default function OrganizationDashboard() {
                     style={{
                       border: "none",
                       background: "transparent",
-                      color: "#9ca3af",
+                      color: "var(--theme-text-muted)",
                       fontSize: 20,
                       cursor: "pointer",
                       lineHeight: 1,
@@ -1850,6 +1876,7 @@ export default function OrganizationDashboard() {
 
                   <label>Category</label>
                   <select
+                    className="dropdown-select"
                     value={newServiceCategory}
                     onChange={(e) => setNewServiceCategory(e.target.value)}
                   >
@@ -1860,7 +1887,7 @@ export default function OrganizationDashboard() {
                   <p
                     style={{
                       fontSize: 11,
-                      color: "#9ca3af",
+                      color: "var(--theme-text-muted)",
                       marginTop: 4,
                     }}
                   >
@@ -1881,7 +1908,7 @@ export default function OrganizationDashboard() {
             </div>
           )}
 
-          <h4 style={{ color: "#e5e7eb", marginBottom: 12 }}>
+          <h4 style={{ color: "var(--theme-text)", marginBottom: 12 }}>
             Your Services ({orgServices.length})
           </h4>
           {orgServices.length === 0 ? (
@@ -1911,6 +1938,7 @@ export default function OrganizationDashboard() {
                       />
                       <label>Category</label>
                       <select
+                        className="dropdown-select"
                         value={editServiceCategory}
                         onChange={(e) =>
                           setEditServiceCategory(e.target.value)
@@ -1945,9 +1973,9 @@ export default function OrganizationDashboard() {
                           }}
                           style={{
                             flex: 1,
-                            background: "#111827",
-                            color: "#e5e7eb",
-                            border: "1px solid #1f2937",
+                            background: "var(--theme-surface)",
+                            color: "var(--theme-text)",
+                            border: "1px solid var(--theme-text)",
                           }}
                         >
                           Cancel
@@ -1958,7 +1986,7 @@ export default function OrganizationDashboard() {
                     <>
                       <strong
                         style={{
-                          color: "#e5e7eb",
+                          color: "var(--theme-text)",
                           fontSize: 14,
                         }}
                       >
@@ -1967,7 +1995,7 @@ export default function OrganizationDashboard() {
                       <p
                         style={{
                           fontSize: 12,
-                          color: "#9ca3af",
+                          color: "var(--theme-text-muted)",
                           margin: "4px 0 0 0",
                         }}
                       >
@@ -1981,7 +2009,7 @@ export default function OrganizationDashboard() {
                       <p
                         style={{
                           fontSize: 11,
-                          color: "#6b7280",
+                          color: "var(--theme-text-muted)",
                           margin: "4px 0 12px 0",
                         }}
                       >
@@ -1993,9 +2021,9 @@ export default function OrganizationDashboard() {
                           onClick={() => startEditService(service)}
                           style={{
                             flex: 1,
-                            background: "#111827",
-                            color: "#e5e7eb",
-                            border: "1px solid #1f2937",
+                            background: "var(--theme-surface)",
+                            color: "var(--theme-text)",
+                            border: "1px solid var(--theme-text)",
                           }}
                         >
                           Edit
@@ -2007,9 +2035,9 @@ export default function OrganizationDashboard() {
                           }
                           style={{
                             flex: 1,
-                            background: "#7f1d1d",
-                            color: "#fecaca",
-                            border: "1px solid #991b1b",
+                            background: "var(--theme-danger)",
+                            color: "var(--theme-button-text)",
+                            border: "1px solid var(--theme-danger-dark)",
                           }}
                         >
                           Delete
@@ -2027,12 +2055,12 @@ export default function OrganizationDashboard() {
               style={{
                 marginTop: 40,
                 paddingTop: 24,
-                borderTop: "2px solid #1f2937",
+                borderTop: "2px solid var(--theme-text)",
               }}
             >
               <h4
                 style={{
-                  color: "#e5e7eb",
+                  color: "var(--theme-text)",
                   marginBottom: 12,
                 }}
               >
@@ -2041,7 +2069,7 @@ export default function OrganizationDashboard() {
               <p
                 style={{
                   fontSize: 12,
-                  color: "#9ca3af",
+                  color: "var(--theme-text-muted)",
                   marginBottom: 12,
                 }}
               >
@@ -2059,14 +2087,14 @@ export default function OrganizationDashboard() {
                     key={service.id}
                     style={{
                       padding: 12,
-                      background: "#020617",
-                      border: "1px solid #1f2937",
+                      background: "var(--theme-surface)",
+                      border: "1px solid var(--theme-text)",
                       borderRadius: 6,
                     }}
                   >
                     <strong
                       style={{
-                        color: "#e5e7eb",
+                        color: "var(--theme-text)",
                         fontSize: 13,
                       }}
                     >
@@ -2075,7 +2103,7 @@ export default function OrganizationDashboard() {
                     <p
                       style={{
                         fontSize: 11,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         margin: "4px 0 0 0",
                       }}
                     >
@@ -2094,7 +2122,7 @@ export default function OrganizationDashboard() {
       {/* BLACKLIST TAB */}
       {activeTab === "blacklist" && (
         <div>
-          <h3 style={{ color: "#e5e7eb", marginBottom: 12 }}>
+          <h3 style={{ color: "var(--theme-button-text)", marginBottom: 12 }}>
             Blacklisted Caregivers ({orgBlacklist.length})
           </h3>
           {orgBlacklist.length === 0 ? (
@@ -2125,7 +2153,7 @@ export default function OrganizationDashboard() {
                   <div>
                     <strong
                       style={{
-                        color: "#e5e7eb",
+                        color: "var(--theme-button-text)",
                         fontSize: 16,
                       }}
                     >
@@ -2134,7 +2162,7 @@ export default function OrganizationDashboard() {
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                         marginTop: 4,
                       }}
                     >
@@ -2143,7 +2171,7 @@ export default function OrganizationDashboard() {
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                       }}
                     >
                       Blacklisted by {blacklisted.blacklistedByName}
@@ -2151,7 +2179,7 @@ export default function OrganizationDashboard() {
                     <div
                       style={{
                         fontSize: 12,
-                        color: "#9ca3af",
+                        color: "var(--theme-text-muted)",
                       }}
                     >
                       {blacklisted.blacklistedAt
@@ -2162,8 +2190,8 @@ export default function OrganizationDashboard() {
                   <div>
                     <span
                       style={{
-                        background: "#dc2626",
-                        color: "#fff",
+                        background: "var(--theme-danger)",
+                        color: "var(--theme-button-text)",
                         padding: "4px 8px",
                         borderRadius: 4,
                         fontSize: 11,
@@ -2179,9 +2207,9 @@ export default function OrganizationDashboard() {
                   style={{
                     marginTop: 12,
                     paddingTop: 12,
-                    borderTop: "1px solid #1f2937",
+                    borderTop: "1px solid var(--theme-text)",
                     fontSize: 13,
-                    color: "#e5e7eb",
+                    color: "var(--theme-button-text)",
                   }}
                 >
                   <p style={{ margin: "0 0 6px 0" }}>
@@ -2191,9 +2219,9 @@ export default function OrganizationDashboard() {
                     style={{
                       margin: 0,
                       fontSize: 13,
-                      color: "#cbd5f5",
+                      color: "var(--theme-text-muted)",
                       fontStyle: "italic",
-                      borderLeft: "3px solid #dc2626",
+                      borderLeft: "3px solid var(--theme-danger)",
                       paddingLeft: 10,
                     }}
                   >
@@ -2211,9 +2239,9 @@ export default function OrganizationDashboard() {
                   }
                   style={{
                     marginTop: 12,
-                    background: "#111827",
-                    color: "#e5e7eb",
-                    border: "1px solid #1f2937",
+                    background: "var(--theme-surface)",
+                    color: "var(--theme-button-text)",
+                    border: "1px solid var(--theme-text)",
                   }}
                 >
                   Remove from Blacklist
@@ -2227,7 +2255,7 @@ export default function OrganizationDashboard() {
       {/* PROFILE TAB */}
       {activeTab === "profile" && (
         <div>
-          <div className="card" style={{ background: "#0b1120" }}>
+          <div className="card" style={{ background: "var(--theme-surface)" }}>
             <div
               style={{
                 display: "flex",
@@ -2238,7 +2266,7 @@ export default function OrganizationDashboard() {
             >
               <h3
                 style={{
-                  color: "#e5e7eb",
+                  color: "var(--theme-text)",
                   marginTop: 0,
                   marginBottom: 0,
                 }}
@@ -2256,7 +2284,7 @@ export default function OrganizationDashboard() {
             <p
               style={{
                 fontSize: 13,
-                color: "#e5e7eb",
+                color: "var(--theme-text)",
                 margin: "12px 0",
               }}
             >
@@ -2266,7 +2294,7 @@ export default function OrganizationDashboard() {
             <p
               style={{
                 fontSize: 13,
-                color: "#e5e7eb",
+                color: "var(--theme-text)",
                 margin: "12px 0",
               }}
             >
@@ -2275,7 +2303,7 @@ export default function OrganizationDashboard() {
             <p
               style={{
                 fontSize: 13,
-                color: "#e5e7eb",
+                color: "var(--theme-text)",
                 margin: "12px 0",
               }}
             >
@@ -2285,7 +2313,7 @@ export default function OrganizationDashboard() {
               <p
                 style={{
                   fontSize: 13,
-                  color: "#e5e7eb",
+                  color: "var(--theme-text)",
                   margin: "12px 0",
                 }}
               >
@@ -2296,7 +2324,7 @@ export default function OrganizationDashboard() {
               <p
                 style={{
                   fontSize: 13,
-                  color: "#e5e7eb",
+                  color: "var(--theme-text)",
                   margin: "12px 0",
                 }}
               >
@@ -2307,7 +2335,7 @@ export default function OrganizationDashboard() {
             <p
               style={{
                 fontSize: 13,
-                color: "#e5e7eb",
+                color: "var(--theme-text)",
                 margin: "12px 0",
               }}
             >
@@ -2317,7 +2345,7 @@ export default function OrganizationDashboard() {
             <p
               style={{
                 fontSize: 13,
-                color: "#e5e7eb",
+                color: "var(--theme-text)",
                 margin: "12px 0",
               }}
             >
@@ -2327,21 +2355,21 @@ export default function OrganizationDashboard() {
             <p
               style={{
                 fontSize: 13,
-                color: "#e5e7eb",
+                color: "var(--theme-text)",
                 margin: "12px 0",
               }}
             >
               <strong>Status:</strong>{" "}
               {organizationData?.isApproved ? (
-                <span style={{ color: "#22c55e" }}>Approved</span>
+                <span style={{ color: "var(--theme-positive)" }}>Approved</span>
               ) : (
-                <span style={{ color: "#fbbf24" }}>Pending Approval</span>
+                <span style={{ color: "var(--theme-warning)" }}>Pending Approval</span>
               )}
             </p>
             <p
               style={{
                 fontSize: 13,
-                color: "#e5e7eb",
+                color: "var(--theme-text)",
                 margin: "12px 0",
               }}
             >
@@ -2366,13 +2394,13 @@ export default function OrganizationDashboard() {
             >
               <div
                 style={{
-                  background: "#020617",
+                  background: "var(--theme-surface)",
                   borderRadius: 8,
                   padding: 24,
                   maxWidth: 500,
                   width: "90%",
                   boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
-                  border: "1px solid #1f2937",
+                  border: "1px solid var(--theme-text)",
                   maxHeight: "90vh",
                   overflowY: "auto",
                 }}
@@ -2381,7 +2409,7 @@ export default function OrganizationDashboard() {
                   style={{
                     marginTop: 0,
                     marginBottom: 16,
-                    color: "#e5e7eb",
+                    color: "var(--theme-text)",
                   }}
                 >
                   Edit organization profile
@@ -2506,7 +2534,7 @@ export default function OrganizationDashboard() {
                       style={{
                         marginTop: 8,
                         fontSize: 12,
-                        color: "#fca5a5",
+                        color: "var(--theme-danger-soft)",
                       }}
                     >
                       {error}
@@ -2532,9 +2560,9 @@ export default function OrganizationDashboard() {
                       onClick={() => setEditingProfile(false)}
                       style={{
                         flex: 1,
-                        background: "#111827",
-                        color: "#e5e7eb",
-                        border: "1px solid #1f2937",
+                        background: "var(--theme-surface)",
+                        color: "var(--theme-text)",
+                        border: "1px solid var(--theme-text)",
                       }}
                     >
                       Cancel
@@ -2562,13 +2590,13 @@ export default function OrganizationDashboard() {
         >
           <div
             style={{
-              background: "#020617",
+              background: "var(--theme-surface)",
               borderRadius: 8,
               padding: 24,
               maxWidth: 500,
               width: "90%",
               boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
-              border: "1px solid #1f2937",
+              border: "1px solid var(--theme-text)",
               maxHeight: "90vh",
               overflowY: "auto",
             }}
@@ -2577,7 +2605,7 @@ export default function OrganizationDashboard() {
               style={{
                 marginTop: 0,
                 marginBottom: 8,
-                color: "#fecaca",
+                color: "var(--theme-danger-soft)",
               }}
             >
               Blacklist Caregiver
@@ -2585,7 +2613,7 @@ export default function OrganizationDashboard() {
             <p
               style={{
                 fontSize: 14,
-                color: "#e5e7eb",
+                color: "var(--theme-button-text)",
                 marginBottom: 16,
               }}
             >
@@ -2593,13 +2621,13 @@ export default function OrganizationDashboard() {
             </p>
             <div
               style={{
-                background: "#fef3c7",
-                color: "#92400e",
+                background: "var(--theme-warning-soft)",
+                color: "var(--theme-warning)",
                 padding: 12,
                 borderRadius: 8,
                 fontSize: 12,
                 marginBottom: 16,
-                border: "1px solid #fcd34d",
+                border: "1px solid var(--theme-warning)",
               }}
             >
               <strong>Warning:</strong> This will suspend the caregiver and
@@ -2609,6 +2637,7 @@ export default function OrganizationDashboard() {
             <form onSubmit={handleBlacklistCaregiver} className="form">
               <label>Reason</label>
               <select
+                className="dropdown-select"
                 value={blacklistReason}
                 onChange={(e) => setBlacklistReason(e.target.value)}
                 required
@@ -2648,8 +2677,8 @@ export default function OrganizationDashboard() {
                   disabled={blacklisting}
                   style={{
                     flex: 1,
-                    background: "#dc2626",
-                    color: "#ffffff",
+                    background: "var(--theme-danger)",
+                    color: "var(--theme-button-text)",
                     border: "none",
                   }}
                 >
@@ -2667,9 +2696,9 @@ export default function OrganizationDashboard() {
                   }}
                   style={{
                     flex: 1,
-                    background: "#111827",
-                    color: "#e5e7eb",
-                    border: "1px solid #1f2937",
+                    background: "var(--theme-surface)",
+                    color: "var(--theme-button-text)",
+                    border: "1px solid var(--theme-text)",
                   }}
                 >
                   Cancel
@@ -2680,5 +2709,6 @@ export default function OrganizationDashboard() {
         </div>
       )}
     </div>
+  </div>
   );
 }

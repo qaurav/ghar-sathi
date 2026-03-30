@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   collection,
   getDocs,
@@ -19,6 +20,16 @@ import {
 import { db, auth } from "./firebaseConfig";
 import { saveOrganizationRecord } from "./saveOrganizationRecord";
 import "./OrganizationDashboard.css";
+
+const dashboardTabs = [
+  "organizations",
+  "caregivers",
+  "bookings",
+  "services",
+  "blacklist",
+  "admins",
+  "analytics",
+];
 
 export default function AdminDashboardPage() {
   // ============ AUTH STATE ============
@@ -125,6 +136,21 @@ export default function AdminDashboardPage() {
     totalRevenue: 0,
     platformEarnings: 0,
   });
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const parts = location.pathname.split("/").filter(Boolean);
+    const lastSegment = parts[parts.length - 1];
+    const newTab = dashboardTabs.includes(lastSegment)
+      ? lastSegment
+      : "organizations";
+
+    if (newTab !== activeTab) {
+      setActiveTab(newTab);
+    }
+  }, [location.pathname, activeTab]);
 
   // ============ LOAD ALL DATA ============
   const calculateAnalytics = useCallback(async () => {
@@ -1069,17 +1095,17 @@ export default function AdminDashboardPage() {
           padding: "40px",
           maxWidth: "600px",
           margin: "0 auto",
-          backgroundColor: "#fee",
-          border: "1px solid #fcc",
+          backgroundColor: "var(--theme-warning-soft)",
+          border: "1px solid var(--theme-danger-soft)",
           borderRadius: "8px",
-          color: "#c33",
+          color: "var(--theme-danger)",
         }}
       >
         <h1>⛔ Access Denied</h1>
         <p>
           <strong>{permissionsError}</strong>
         </p>
-        <hr style={{ borderColor: "#fcc" }} />
+        <hr style={{ borderColor: "var(--theme-danger-soft)" }} />
         <p>
           <strong>Why are you seeing this?</strong>
         </p>
@@ -1099,7 +1125,7 @@ export default function AdminDashboardPage() {
           </li>
           <li>Contact system administrator if you need access</li>
         </ol>
-        <p style={{ marginTop: "20px", fontSize: "12px", color: "#999" }}>
+        <p style={{ marginTop: "20px", fontSize: "12px", color: "var(--theme-text-muted)" }}>
           Current User: {currentUser?.email || "Not logged in"}
         </p>
         <button
@@ -1108,9 +1134,9 @@ export default function AdminDashboardPage() {
             padding: "8px 12px",
             cursor: "pointer",
             borderRadius: 4,
-            border: "1px solid #c33",
-            background: "#c33",
-            color: "#fff",
+            border: "1px solid var(--theme-danger)",
+            background: "var(--theme-danger)",
+            color: "var(--theme-button-text)",
           }}
           onClick={createFirstSuperAdminIfNeeded}
         >
@@ -1125,7 +1151,7 @@ export default function AdminDashboardPage() {
     <div
       style={{
         padding: "20px",
-        backgroundColor: "#f5f5f5",
+        backgroundColor: "var(--theme-surface)",
         minHeight: "100vh",
       }}
     >
@@ -1143,10 +1169,10 @@ export default function AdminDashboardPage() {
           style={{
             padding: "15px",
             marginBottom: "20px",
-            backgroundColor: "#fee",
-            border: "1px solid #fcc",
+            backgroundColor: "var(--theme-warning-soft)",
+            border: "1px solid var(--theme-danger-soft)",
             borderRadius: "4px",
-            color: "#c33",
+            color: "var(--theme-danger)",
           }}
         >
           ❌ {error}
@@ -1165,10 +1191,10 @@ export default function AdminDashboardPage() {
           style={{
             padding: "15px",
             marginBottom: "20px",
-            backgroundColor: "#efe",
-            border: "1px solid #cfc",
+            backgroundColor: "var(--theme-positive-soft)",
+            border: "1px solid var(--theme-positive-soft)",
             borderRadius: "4px",
-            color: "#3c3",
+            color: "var(--theme-positive)",
           }}
         >
           ✅ {successMessage}
@@ -1194,14 +1220,15 @@ export default function AdminDashboardPage() {
           "analytics",
         ].map((tab) => (
           <button
+            type="button"
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => navigate(`/superadmin/${tab}`)}
             style={{
               padding: "10px 20px",
               border: "none",
               borderRadius: "4px",
               cursor: "pointer",
-              backgroundColor: activeTab === tab ? "#007bff" : "#ddd",
+              backgroundColor: activeTab === tab ? "var(--theme-help)" : "var(--theme-border)",
               color: activeTab === tab ? "white" : "black",
               fontWeight: activeTab === tab ? "bold" : "normal",
             }}
@@ -1219,7 +1246,7 @@ export default function AdminDashboardPage() {
               onClick={() => setShowAddOrgForm(true)}
               style={{
                 padding: "10px 20px",
-                backgroundColor: "#28a745",
+                backgroundColor: "var(--theme-positive)",
                 color: "white",
                 border: "none",
                 borderRadius: "4px",
@@ -1250,17 +1277,18 @@ export default function AdminDashboardPage() {
                   style={{
                     padding: "8px",
                     borderRadius: "4px",
-                    border: "1px solid #ddd",
+                    border: "1px solid var(--theme-neutral-light)",
                     flex: 1,
                   }}
                 />
                 <select
+                  className="dropdown-select"
                   value={orgStatusFilter}
                   onChange={(e) => setOrgStatusFilter(e.target.value)}
                   style={{
                     padding: "8px",
                     borderRadius: "4px",
-                    border: "1px solid #ddd",
+                    border: "1px solid var(--theme-neutral-light)",
                   }}
                 >
                   <option value="all">All Status</option>
@@ -1300,8 +1328,8 @@ export default function AdminDashboardPage() {
                         cursor: "pointer",
                         border:
                           selectedOrg?.id === org.id
-                            ? "2px solid #007bff"
-                            : "1px solid #ddd",
+                            ? "2px solid var(--theme-help)"
+                            : "1px solid var(--theme-neutral-light)",
                       }}
                     >
                       <h4>{org.organizationName}</h4>
@@ -1336,7 +1364,7 @@ export default function AdminDashboardPage() {
                               }}
                               style={{
                                 padding: "6px 12px",
-                                backgroundColor: "#28a745",
+                                backgroundColor: "var(--theme-positive)",
                                 color: "white",
                                 border: "none",
                                 borderRadius: 4,
@@ -1353,7 +1381,7 @@ export default function AdminDashboardPage() {
                               }}
                               style={{
                                 padding: "6px 12px",
-                                backgroundColor: "#ffc107",
+                                backgroundColor: "var(--theme-warning)",
                                 color: "black",
                                 border: "none",
                                 borderRadius: 4,
@@ -1373,7 +1401,7 @@ export default function AdminDashboardPage() {
                           }}
                           style={{
                             padding: "6px 12px",
-                            backgroundColor: "#007bff",
+                            backgroundColor: "var(--theme-help)",
                             color: "white",
                             border: "none",
                             borderRadius: 4,
@@ -1391,7 +1419,7 @@ export default function AdminDashboardPage() {
                           }}
                           style={{
                             padding: "6px 12px",
-                            backgroundColor: "#17a2b8",
+                            backgroundColor: "var(--theme-help)",
                             color: "white",
                             border: "none",
                             borderRadius: 4,
@@ -1409,7 +1437,7 @@ export default function AdminDashboardPage() {
                           }}
                           style={{
                             padding: "6px 12px",
-                            backgroundColor: "#dc3545",
+                            backgroundColor: "var(--theme-danger)",
                             color: "white",
                             border: "none",
                             borderRadius: 4,
@@ -1488,7 +1516,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: "8px",
                         borderRadius: "4px",
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1506,7 +1534,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: "8px",
                         borderRadius: "4px",
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1524,7 +1552,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: "8px",
                         borderRadius: "4px",
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1542,7 +1570,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: "8px",
                         borderRadius: "4px",
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1559,7 +1587,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: "8px",
                         borderRadius: "4px",
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1576,7 +1604,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: "8px",
                         borderRadius: "4px",
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1593,7 +1621,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: "8px",
                         borderRadius: "4px",
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1613,7 +1641,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: "8px",
                         borderRadius: "4px",
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1622,7 +1650,7 @@ export default function AdminDashboardPage() {
                     disabled={addingOrg}
                     style={{
                       padding: "10px 20px",
-                      backgroundColor: addingOrg ? "#ccc" : "#007bff",
+                      backgroundColor: addingOrg ? "var(--theme-border)" : "var(--theme-help)",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -1698,7 +1726,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1716,7 +1744,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1734,7 +1762,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1751,7 +1779,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1768,7 +1796,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1785,7 +1813,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1805,7 +1833,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1815,7 +1843,7 @@ export default function AdminDashboardPage() {
                       type="submit"
                       style={{
                         padding: "10px 20px",
-                        backgroundColor: "#28a745",
+                        backgroundColor: "var(--theme-positive)",
                         color: "white",
                         border: "none",
                         borderRadius: 4,
@@ -1830,7 +1858,7 @@ export default function AdminDashboardPage() {
                       onClick={handleCancelEditOrg}
                       style={{
                         padding: "10px 20px",
-                        backgroundColor: "#999",
+                        backgroundColor: "var(--theme-text-muted)",
                         color: "white",
                         border: "none",
                         borderRadius: 4,
@@ -1915,7 +1943,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -1923,7 +1951,7 @@ export default function AdminDashboardPage() {
                     type="submit"
                     style={{
                       padding: "10px 20px",
-                      backgroundColor: "#17a2b8",
+                      backgroundColor: "var(--theme-help)",
                       color: "white",
                       border: "none",
                       borderRadius: 4,
@@ -2000,10 +2028,10 @@ export default function AdminDashboardPage() {
                       <div
                         key={caregiver.id}
                         style={{
-                          backgroundColor: "#f9f9f9",
+                          backgroundColor: "var(--theme-surface)",
                           padding: 15,
                           borderRadius: 8,
-                          border: "1px solid #eee",
+                          border: "1px solid var(--theme-neutral-lighter)",
                         }}
                       >
                         <h5>{caregiver.name}</h5>
@@ -2034,7 +2062,7 @@ export default function AdminDashboardPage() {
                                 }
                                 style={{
                                   padding: "8px 15px",
-                                  backgroundColor: "#28a745",
+                                  backgroundColor: "var(--theme-positive)",
                                   color: "white",
                                   border: "none",
                                   borderRadius: 4,
@@ -2050,7 +2078,7 @@ export default function AdminDashboardPage() {
                                 }
                                 style={{
                                   padding: "8px 15px",
-                                  backgroundColor: "#dc3545",
+                                  backgroundColor: "var(--theme-danger)",
                                   color: "white",
                                   border: "none",
                                   borderRadius: 4,
@@ -2066,7 +2094,7 @@ export default function AdminDashboardPage() {
                             onClick={() => handleDeleteCaregiver(caregiver.id)}
                             style={{
                               padding: "8px 15px",
-                              backgroundColor: "#999",
+                              backgroundColor: "var(--theme-text-muted)",
                               color: "white",
                               border: "none",
                               borderRadius: 4,
@@ -2155,7 +2183,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -2163,7 +2191,7 @@ export default function AdminDashboardPage() {
                     type="submit"
                     style={{
                       padding: "10px 20px",
-                      backgroundColor: "#17a2b8",
+                      backgroundColor: "var(--theme-help)",
                       color: "white",
                       border: "none",
                       borderRadius: 4,
@@ -2254,7 +2282,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -2263,7 +2291,7 @@ export default function AdminDashboardPage() {
                     type="submit"
                     style={{
                       padding: "10px 20px",
-                      backgroundColor: "#6c757d",
+                      backgroundColor: "var(--theme-text-muted)",
                       color: "white",
                       border: "none",
                       borderRadius: 4,
@@ -2353,7 +2381,7 @@ export default function AdminDashboardPage() {
                         width: "100%",
                         padding: 8,
                         borderRadius: 4,
-                        border: "1px solid #ddd",
+                        border: "1px solid var(--theme-neutral-light)",
                       }}
                     />
                   </div>
@@ -2361,7 +2389,7 @@ export default function AdminDashboardPage() {
                     type="submit"
                     style={{
                       padding: "10px 20px",
-                      backgroundColor: "#dc3545",
+                      backgroundColor: "var(--theme-danger)",
                       color: "white",
                       border: "none",
                       borderRadius: 4,
@@ -2396,17 +2424,18 @@ export default function AdminDashboardPage() {
                   style={{
                     padding: "8px",
                     borderRadius: "4px",
-                    border: "1px solid #ddd",
+                    border: "1px solid var(--theme-neutral-light)",
                     flex: 1,
                   }}
                 />
                 <select
+                  className="dropdown-select"
                   value={vendorStatusFilter}
                   onChange={(e) => setVendorStatusFilter(e.target.value)}
                   style={{
                     padding: "8px",
                     borderRadius: "4px",
-                    border: "1px solid #ddd",
+                    border: "1px solid var(--theme-neutral-light)",
                   }}
                 >
                   <option value="all">All Status</option>
@@ -2443,8 +2472,8 @@ export default function AdminDashboardPage() {
                         borderRadius: "8px",
                         boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                         border: vendor.isApproved
-                          ? "1px solid #28a745"
-                          : "1px solid #ffc107",
+                          ? "1px solid var(--theme-positive)"
+                          : "1px solid var(--theme-warning)",
                       }}
                     >
                       <h4>{vendor.name}</h4>
@@ -2479,7 +2508,7 @@ export default function AdminDashboardPage() {
                             }
                             style={{
                               padding: "8px 15px",
-                              backgroundColor: "#28a745",
+                              backgroundColor: "var(--theme-positive)",
                               color: "white",
                               border: "none",
                               borderRadius: 4,
@@ -2495,7 +2524,7 @@ export default function AdminDashboardPage() {
                           onClick={() => handleRejectCaregiverClick(vendor.id)}
                           style={{
                             padding: "8px 15px",
-                            backgroundColor: "#dc3545",
+                            backgroundColor: "var(--theme-danger)",
                             color: "white",
                             border: "none",
                             borderRadius: 4,
@@ -2510,7 +2539,7 @@ export default function AdminDashboardPage() {
                           onClick={() => handleDeleteCaregiver(vendor.id)}
                           style={{
                             padding: "8px 15px",
-                            backgroundColor: "#999",
+                            backgroundColor: "var(--theme-text-muted)",
                             color: "white",
                             border: "none",
                             borderRadius: 4,
@@ -2525,7 +2554,7 @@ export default function AdminDashboardPage() {
                           onClick={() => handleStartEditCaregiver(vendor)}
                           style={{
                             padding: "8px 15px",
-                            backgroundColor: "#007bff",
+                            backgroundColor: "var(--theme-help)",
                             color: "white",
                             border: "none",
                             borderRadius: 4,
@@ -2542,7 +2571,7 @@ export default function AdminDashboardPage() {
                           }
                           style={{
                             padding: "8px 15px",
-                            backgroundColor: "#17a2b8",
+                            backgroundColor: "var(--theme-help)",
                             color: "white",
                             border: "none",
                             borderRadius: 4,
@@ -2559,7 +2588,7 @@ export default function AdminDashboardPage() {
                           }
                           style={{
                             padding: "8px 15px",
-                            backgroundColor: "#6c757d",
+                            backgroundColor: "var(--theme-text-muted)",
                             color: "white",
                             border: "none",
                             borderRadius: 4,
@@ -2594,12 +2623,13 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <select
+                  className="dropdown-select"
                   value={bookingStatusFilter}
                   onChange={(e) => setBookingStatusFilter(e.target.value)}
                   style={{
                     padding: "8px",
                     borderRadius: "4px",
-                    border: "1px solid #ddd",
+                    border: "1px solid var(--theme-neutral-light)",
                   }}
                 >
                   <option value="">All Status</option>
@@ -2616,7 +2646,7 @@ export default function AdminDashboardPage() {
                   style={{
                     padding: "8px",
                     borderRadius: "4px",
-                    border: "1px solid #ddd",
+                    border: "1px solid var(--theme-neutral-light)",
                   }}
                 />
               </div>
@@ -2646,14 +2676,14 @@ export default function AdminDashboardPage() {
                         boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                         borderLeft: `4px solid ${
                           booking.status === "completed"
-                            ? "#28a745"
+                            ? "var(--theme-positive)"
                             : booking.status === "cancelled"
-                              ? "#dc3545"
+                              ? "var(--theme-danger)"
                               : booking.status === "in_progress"
-                                ? "#007bff"
+                                ? "var(--theme-help)"
                                 : booking.status === "confirmed"
-                                  ? "#ffc107"
-                                  : "#999"
+                                  ? "var(--theme-warning)"
+                                  : "var(--theme-text-muted)"
                         }`,
                       }}
                     >
@@ -2684,10 +2714,10 @@ export default function AdminDashboardPage() {
                           style={{
                             color:
                               booking.status === "completed"
-                                ? "#28a745"
+                                ? "var(--theme-positive)"
                                 : booking.status === "cancelled"
-                                  ? "#dc3545"
-                                  : "#ffc107",
+                                  ? "var(--theme-danger)"
+                                  : "var(--theme-warning)",
                           }}
                         >
                           {booking.status.toUpperCase()}
@@ -2733,16 +2763,17 @@ export default function AdminDashboardPage() {
                       flex: 1,
                       padding: "8px",
                       borderRadius: "4px",
-                      border: "1px solid #ddd",
+                      border: "1px solid var(--theme-neutral-light)",
                     }}
                   />
                   <select
+                    className="dropdown-select"
                     value={newServiceCategory}
                     onChange={(e) => setNewServiceCategory(e.target.value)}
                     style={{
                       padding: "8px",
                       borderRadius: "4px",
-                      border: "1px solid #ddd",
+                      border: "1px solid var(--theme-neutral-light)",
                     }}
                   >
                     <option value="caregiver">Caregiver</option>
@@ -2753,7 +2784,7 @@ export default function AdminDashboardPage() {
                     type="submit"
                     style={{
                       padding: "8px 20px",
-                      backgroundColor: "#28a745",
+                      backgroundColor: "var(--theme-positive)",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -2796,7 +2827,7 @@ export default function AdminDashboardPage() {
                           padding: "8px",
                           marginBottom: "10px",
                           borderRadius: "4px",
-                          border: "1px solid #ddd",
+                          border: "1px solid var(--theme-neutral-light)",
                         }}
                       />
                       <div style={{ display: "flex", gap: "10px" }}>
@@ -2807,7 +2838,7 @@ export default function AdminDashboardPage() {
                           style={{
                             flex: 1,
                             padding: "8px",
-                            backgroundColor: "#28a745",
+                            backgroundColor: "var(--theme-positive)",
                             color: "white",
                             border: "none",
                             borderRadius: "4px",
@@ -2822,7 +2853,7 @@ export default function AdminDashboardPage() {
                           style={{
                             flex: 1,
                             padding: "8px",
-                            backgroundColor: "#999",
+                            backgroundColor: "var(--theme-text-muted)",
                             color: "white",
                             border: "none",
                             borderRadius: "4px",
@@ -2855,7 +2886,7 @@ export default function AdminDashboardPage() {
                           style={{
                             flex: 1,
                             padding: "8px",
-                            backgroundColor: "#007bff",
+                            backgroundColor: "var(--theme-help)",
                             color: "white",
                             border: "none",
                             borderRadius: "4px",
@@ -2870,7 +2901,7 @@ export default function AdminDashboardPage() {
                           style={{
                             flex: 1,
                             padding: "8px",
-                            backgroundColor: "#dc3545",
+                            backgroundColor: "var(--theme-danger)",
                             color: "white",
                             border: "none",
                             borderRadius: "4px",
@@ -2898,7 +2929,7 @@ export default function AdminDashboardPage() {
               onClick={() => setShowAddSuperAdminForm(!showAddSuperAdminForm)}
               style={{
                 padding: "10px 20px",
-                backgroundColor: "#28a745",
+                backgroundColor: "var(--theme-positive)",
                 color: "white",
                 border: "none",
                 borderRadius: "4px",
@@ -2936,7 +2967,7 @@ export default function AdminDashboardPage() {
                       width: "100%",
                       padding: "8px",
                       borderRadius: "4px",
-                      border: "1px solid #ddd",
+                      border: "1px solid var(--theme-neutral-light)",
                     }}
                   />
                 </div>
@@ -2954,7 +2985,7 @@ export default function AdminDashboardPage() {
                       width: "100%",
                       padding: "8px",
                       borderRadius: "4px",
-                      border: "1px solid #ddd",
+                      border: "1px solid var(--theme-neutral-light)",
                     }}
                   />
                 </div>
@@ -2972,7 +3003,7 @@ export default function AdminDashboardPage() {
                       width: "100%",
                       padding: "8px",
                       borderRadius: "4px",
-                      border: "1px solid #ddd",
+                      border: "1px solid var(--theme-neutral-light)",
                     }}
                   />
                 </div>
@@ -2981,7 +3012,7 @@ export default function AdminDashboardPage() {
                   disabled={addingSuperAdmin}
                   style={{
                     padding: "10px 20px",
-                    backgroundColor: addingSuperAdmin ? "#ccc" : "#007bff",
+                    backgroundColor: addingSuperAdmin ? "var(--theme-border)" : "var(--theme-help)",
                     color: "white",
                     border: "none",
                     borderRadius: "4px",
@@ -3013,8 +3044,8 @@ export default function AdminDashboardPage() {
                   boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                   border:
                     admin.id === currentUser?.uid
-                      ? "2px solid #007bff"
-                      : "1px solid #ddd",
+                      ? "2px solid var(--theme-help)"
+                      : "1px solid var(--theme-neutral-light)",
                 }}
               >
                 <h5>{admin.name}</h5>
@@ -3032,7 +3063,7 @@ export default function AdminDashboardPage() {
                   {admin.isSuspended ? "🚫 Suspended" : "✅ Active"}
                 </p>
                 {admin.id === currentUser?.uid && (
-                  <p style={{ color: "#007bff", fontWeight: "bold" }}>
+                  <p style={{ color: "var(--theme-help)", fontWeight: "bold" }}>
                     👤 (You)
                   </p>
                 )}
@@ -3042,7 +3073,7 @@ export default function AdminDashboardPage() {
                     style={{
                       marginTop: "10px",
                       padding: "8px 15px",
-                      backgroundColor: "#dc3545",
+                      backgroundColor: "var(--theme-danger)",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -3064,12 +3095,13 @@ export default function AdminDashboardPage() {
         <div>
           <div style={{ marginBottom: "20px" }}>
             <select
+              className="dropdown-select"
               value={blacklistFilter}
               onChange={(e) => setBlacklistFilter(e.target.value)}
               style={{
                 padding: "8px",
                 borderRadius: "4px",
-                border: "1px solid #ddd",
+                border: "1px solid var(--theme-neutral-light)",
               }}
             >
               <option value="pending">Pending Reports</option>
@@ -3099,10 +3131,10 @@ export default function AdminDashboardPage() {
                       boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                       borderLeft: `4px solid ${
                         report.status === "approved"
-                          ? "#28a745"
+                          ? "var(--theme-positive)"
                           : report.status === "rejected"
-                            ? "#dc3545"
-                            : "#ffc107"
+                            ? "var(--theme-danger)"
+                            : "var(--theme-warning)"
                       }`,
                     }}
                   >
@@ -3134,7 +3166,7 @@ export default function AdminDashboardPage() {
                           style={{
                             flex: 1,
                             padding: "8px 15px",
-                            backgroundColor: "#28a745",
+                            backgroundColor: "var(--theme-positive)",
                             color: "white",
                             border: "none",
                             borderRadius: "4px",
@@ -3149,7 +3181,7 @@ export default function AdminDashboardPage() {
                           style={{
                             flex: 1,
                             padding: "8px 15px",
-                            backgroundColor: "#dc3545",
+                            backgroundColor: "var(--theme-danger)",
                             color: "white",
                             border: "none",
                             borderRadius: "4px",
@@ -3179,10 +3211,10 @@ export default function AdminDashboardPage() {
                 <div
                   key={entry.id}
                   style={{
-                    backgroundColor: "#fee",
+                    backgroundColor: "var(--theme-warning-soft)",
                     padding: "20px",
                     borderRadius: "8px",
-                    border: "1px solid #fcc",
+                    border: "1px solid var(--theme-danger-soft)",
                   }}
                 >
                   <h5>🚫 {entry.userId}</h5>
@@ -3203,7 +3235,7 @@ export default function AdminDashboardPage() {
                     style={{
                       marginTop: "10px",
                       padding: "8px 15px",
-                      backgroundColor: "#dc3545",
+                      backgroundColor: "var(--theme-danger)",
                       color: "white",
                       border: "none",
                       borderRadius: "4px",
@@ -3241,7 +3273,7 @@ export default function AdminDashboardPage() {
                 textAlign: "center",
               }}
             >
-              <h3 style={{ color: "#007bff" }}>
+              <h3 style={{ color: "var(--theme-help)" }}>
                 {analytics.totalOrganizations}
               </h3>
               <p>Total Organizations</p>
@@ -3255,7 +3287,7 @@ export default function AdminDashboardPage() {
                 textAlign: "center",
               }}
             >
-              <h3 style={{ color: "#28a745" }}>
+              <h3 style={{ color: "var(--theme-positive)" }}>
                 {analytics.approvedOrganizations}
               </h3>
               <p>Approved Organizations</p>
@@ -3269,7 +3301,7 @@ export default function AdminDashboardPage() {
                 textAlign: "center",
               }}
             >
-              <h3 style={{ color: "#007bff" }}>{analytics.totalCaregivers}</h3>
+              <h3 style={{ color: "var(--theme-help)" }}>{analytics.totalCaregivers}</h3>
               <p>Total Caregivers</p>
             </div>
             <div
@@ -3281,7 +3313,7 @@ export default function AdminDashboardPage() {
                 textAlign: "center",
               }}
             >
-              <h3 style={{ color: "#28a745" }}>
+              <h3 style={{ color: "var(--theme-positive)" }}>
                 {analytics.approvedCaregivers}
               </h3>
               <p>Approved Caregivers</p>
@@ -3295,7 +3327,7 @@ export default function AdminDashboardPage() {
                 textAlign: "center",
               }}
             >
-              <h3 style={{ color: "#ffc107" }}>{analytics.totalBookings}</h3>
+              <h3 style={{ color: "var(--theme-warning)" }}>{analytics.totalBookings}</h3>
               <p>Total Bookings</p>
             </div>
             <div
@@ -3307,7 +3339,7 @@ export default function AdminDashboardPage() {
                 textAlign: "center",
               }}
             >
-              <h3 style={{ color: "#28a745" }}>
+              <h3 style={{ color: "var(--theme-positive)" }}>
                 {analytics.completedBookings}
               </h3>
               <p>Completed Bookings</p>
@@ -3321,7 +3353,7 @@ export default function AdminDashboardPage() {
                 textAlign: "center",
               }}
             >
-              <h3 style={{ color: "#17a2b8" }}>
+              <h3 style={{ color: "var(--theme-help)" }}>
                 Rs. {analytics.totalRevenue.toFixed(2)}
               </h3>
               <p>Total Revenue</p>
@@ -3335,7 +3367,7 @@ export default function AdminDashboardPage() {
                 textAlign: "center",
               }}
             >
-              <h3 style={{ color: "#6c757d" }}>
+              <h3 style={{ color: "var(--theme-text-muted)" }}>
                 Rs. {analytics.platformEarnings.toFixed(2)}
               </h3>
               <p>Platform Earnings</p>
@@ -3367,7 +3399,7 @@ export default function AdminDashboardPage() {
                   style={{
                     padding: "8px",
                     borderRadius: "4px",
-                    border: "1px solid #ddd",
+                    border: "1px solid var(--theme-neutral-light)",
                     flex: 1,
                   }}
                 />
@@ -3377,7 +3409,7 @@ export default function AdminDashboardPage() {
                   }
                   style={{
                     padding: "8px 20px",
-                    backgroundColor: "#28a745",
+                    backgroundColor: "var(--theme-positive)",
                     color: "white",
                     border: "none",
                     borderRadius: "4px",
@@ -3390,7 +3422,7 @@ export default function AdminDashboardPage() {
                   onClick={() => setEditingCommission(false)}
                   style={{
                     padding: "8px 20px",
-                    backgroundColor: "#999",
+                    backgroundColor: "var(--theme-text-muted)",
                     color: "white",
                     border: "none",
                     borderRadius: "4px",
@@ -3406,7 +3438,7 @@ export default function AdminDashboardPage() {
                 style={{
                   marginTop: "10px",
                   padding: "8px 20px",
-                  backgroundColor: "#007bff",
+                  backgroundColor: "var(--theme-help)",
                   color: "white",
                   border: "none",
                   borderRadius: "4px",
