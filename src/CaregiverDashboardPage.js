@@ -809,7 +809,7 @@ export default function CaregiverDashboardPage() {
       {/* PROFILE TAB */}
       {activeTab === "profile" && (
         <div className="profile-section">
-          <h3 style={{ color: "var(--theme-button-text)", marginBottom: 12 }}>
+          <h3 style={{ color: "#000", marginBottom: 12 }}>
             Edit Your Profile
           </h3>
           <form onSubmit={handleSaveProfile} className="form">

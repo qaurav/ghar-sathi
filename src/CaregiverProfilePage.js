@@ -146,21 +146,21 @@ export default function CaregiverProfilePage() {
 
   if (loading)
     return (
-      <p style={{ color: "var(--theme-text-muted)", textAlign: "center", padding: 20 }}>
+      <p style={{ color: "black", textAlign: "center", padding: 20 }}>
         Loading profile...
       </p>
     );
 
   return (
     <div>
-      <h2 className="section-title">Your Profile</h2>
+      <h2 className="section-title section-title--caregiver">Your Profile</h2>
 
       {error && <div className="error-message">{error}</div>}
       {success && (
         <div
           style={{
             background: "var(--theme-positive-soft)",
-            color: "var(--theme-positive)",
+            color: "black",
             padding: 12,
             borderRadius: 8,
             fontSize: 13,
@@ -224,10 +224,19 @@ export default function CaregiverProfilePage() {
         />
 
         <label>Category</label>
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="caregiver">Care giver</option>
-          <option value="household">Household</option>
+        <select 
+          value={category} 
+          onChange={(e) => setCategory(e.target.value)}
+          style={{ color: "black" }}
+        >
+          <option value="caregiver" style={{ color: "black" }}>Care giver</option>
+          <option value="household" style={{ color: "black" }}>Household</option>
         </select>
+        {category === "household" && (
+          <p style={{ fontSize: 13, color: "var(--theme-warning)", marginTop: 8 }}>
+            You can provide both care giving and household services.
+          </p>
+        )}
 
         <label style={{ marginTop: 12 }}>Availability</label>
         <div style={{ display: "flex", gap: 8 }}>
@@ -239,7 +248,7 @@ export default function CaregiverProfilePage() {
               borderRadius: "6px",
               border: isAvailable ? "none" : "1px solid var(--theme-text)",
               background: isAvailable ? "var(--theme-positive)" : "var(--theme-surface)",
-              color: isAvailable ? "white" : "var(--theme-button-text)",
+              color: "white",
               cursor: "pointer",
               fontWeight: isAvailable ? "600" : "500",
             }}
@@ -254,7 +263,7 @@ export default function CaregiverProfilePage() {
               borderRadius: "6px",
               border: !isAvailable ? "none" : "1px solid var(--theme-text)",
               background: !isAvailable ? "var(--theme-danger)" : "var(--theme-surface)",
-              color: !isAvailable ? "white" : "var(--theme-button-text)",
+              color: "white",
               cursor: "pointer",
               fontWeight: !isAvailable ? "600" : "500",
             }}
@@ -276,7 +285,7 @@ export default function CaregiverProfilePage() {
               borderRadius: "6px",
               border: workType === "fulltime" ? "none" : "1px solid var(--theme-text)",
               background: workType === "fulltime" ? "var(--theme-help)" : "var(--theme-surface)",
-              color: workType === "fulltime" ? "white" : "var(--theme-button-text)",
+              color: "white",
               cursor: "pointer",
               fontWeight: workType === "fulltime" ? "600" : "500",
             }}
@@ -291,7 +300,7 @@ export default function CaregiverProfilePage() {
               borderRadius: "6px",
               border: workType === "parttime" ? "none" : "1px solid var(--theme-text)",
               background: workType === "parttime" ? "var(--theme-warning)" : "var(--theme-surface)",
-              color: workType === "parttime" ? "black" : "var(--theme-button-text)",
+              color: "white",
               cursor: "pointer",
               fontWeight: workType === "parttime" ? "600" : "500",
             }}
@@ -318,7 +327,7 @@ export default function CaregiverProfilePage() {
                     borderRadius: "999px",
                     background: shifts.includes(s) ? "var(--theme-help)" : "var(--theme-surface)",
                     border: "1px solid " + (shifts.includes(s) ? "var(--theme-help)" : "var(--theme-border)"),
-                    color: shifts.includes(s) ? "var(--theme-button-text)" : "var(--theme-button-text)",
+                    color: "black",
                   }}
                 >
                   <input
@@ -338,7 +347,7 @@ export default function CaregiverProfilePage() {
         <label style={{ marginTop: 12 }}>Services you offer</label>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           {availableServices.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--theme-text-muted)" }}>
+            <p style={{ fontSize: 12, color: "black" }}>
               No services available yet. Contact admin to add services.
             </p>
           ) : (
@@ -355,7 +364,7 @@ export default function CaregiverProfilePage() {
                   borderRadius: "999px",
                   background: servicesOffered.includes(s.id) ? "var(--theme-positive)" : "var(--theme-surface)",
                   border: "1px solid " + (servicesOffered.includes(s.id) ? "var(--theme-positive)" : "var(--theme-border)"),
-                  color: servicesOffered.includes(s.id) ? "var(--theme-button-text)" : "var(--theme-button-text)",
+                  color: "black",
                 }}
               >
                 <input
@@ -389,29 +398,29 @@ export default function CaregiverProfilePage() {
           borderRadius: 8,
         }}
       >
-        <h4 style={{ color: "var(--theme-button-text)", marginTop: 0, marginBottom: 8 }}>
+        <h4 style={{ color: "black", marginTop: 0, marginBottom: 8 }}>
           📝 Profile Completion
         </h4>
-        <p style={{ fontSize: 13, color: "var(--theme-text-muted)", margin: "0 0 8px 0" }}>
+        <p style={{ fontSize: 13, color: "black", margin: "0 0 8px 0" }}>
           Complete your profile to appear in caregiver listings:
         </p>
-        <ul style={{ fontSize: 12, color: "var(--theme-text-muted)", paddingLeft: 20, margin: 0 }}>
-          <li style={{ color: name ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
+        <ul style={{ fontSize: 12, color: "black", paddingLeft: 20, margin: 0 }}>
+          <li style={{ color: "black" }}>
             {name ? "✓" : "○"} Full name
           </li>
-          <li style={{ color: location ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
+          <li style={{ color: "black" }}>
             {location ? "✓" : "○"} Location
           </li>
-          <li style={{ color: phone ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
+          <li style={{ color: "black" }}>
             {phone ? "✓" : "○"} Phone number
           </li>
-          <li style={{ color: hourlyRate > 0 ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
+          <li style={{ color: "black" }}>
             {hourlyRate > 0 ? "✓" : "○"} Hourly rate
           </li>
-          <li style={{ color: servicesOffered.length > 0 ? "var(--theme-positive)" : "var(--theme-text-muted)" }}>
+          <li style={{ color: "black" }}>
             {servicesOffered.length > 0 ? "✓" : "○"} At least one service
           </li>
-          <li style={{ color: "var(--theme-warning)" }}>
+          <li style={{ color: "black" }}>
             ⏳ Admin verification required
           </li>
         </ul>

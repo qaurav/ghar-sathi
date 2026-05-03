@@ -194,11 +194,16 @@
 
 .dropdown-select {
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: var(--theme-surface);
   background-image: linear-gradient(45deg, transparent 50%, rgba(148, 163, 184, 0.75) 50%),
     linear-gradient(135deg, rgba(148, 163, 184, 0.75) 50%, transparent 50%);
   background-position: calc(100% - 14px) center, calc(100% - 8px) center;
   background-repeat: no-repeat;
   background-size: 6px 6px;
+  padding-right: 36px;
+  cursor: pointer;
 }
 
 .profile-section {
