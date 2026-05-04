@@ -306,7 +306,7 @@ export default function MyBookingsPage() {
                   )}
                 </>
               )}
-              {b.paymentMethod === "cash" && (
+              {b.paymentMethod === "cash" && b.status !== "completed" && (
                 <p style={{ fontSize: 12, color: "var(--theme-warning)" }}>
                   <strong>⚠️ Note:</strong> Please pay ₹{b.totalAmount} in cash to the caregiver
                 </p>
@@ -385,11 +385,6 @@ export default function MyBookingsPage() {
                   {b.paymentStatus === "paid" && b.paymentMethod === "fonepay" && (
                     <div style={{ fontSize: 12, color: "var(--theme-help)" }}>
                       ✓ Payment received
-                    </div>
-                  )}
-                  {b.paymentStatus === "pending" && b.paymentMethod === "cash" && (
-                    <div style={{ fontSize: 12, color: "var(--theme-warning)" }}>
-                      ⚠️ Cash payment pending
                     </div>
                   )}
                 </div>

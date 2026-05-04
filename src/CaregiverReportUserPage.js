@@ -61,6 +61,7 @@ export default function CaregiverReportUserPage() {
       await addDoc(collection(db, "blacklistReports"), {
         bookingId,
         userId,
+        userType: "user",
         userName,
         reportedBy: employeeId,
         reportedByName: "Caregiver",

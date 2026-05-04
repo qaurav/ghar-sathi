@@ -696,9 +696,10 @@ export default function AdminDashboardPage() {
   // ============ HANDLERS: CAREGIVERS ============
   const handleApproveCaregiverClick = async (caregiverId) => {
     try {
+      const now = serverTimestamp();
       await updateDoc(doc(db, "vendors", caregiverId), {
         isApproved: true,
-        approvedAt: serverTimestamp(),
+        approvedAt: now,
         approvedBy: currentUser?.email || "superadmin",
       });
       try {
@@ -706,6 +707,18 @@ export default function AdminDashboardPage() {
       } catch {
         // users doc may not exist
       }
+      setVendors((prev) =>
+        prev.map((vendor) =>
+          vendor.id === caregiverId
+            ? {
+                ...vendor,
+                isApproved: true,
+                approvedAt: now,
+                approvedBy: currentUser?.email || "superadmin",
+              }
+            : vendor,
+        ),
+      );
       setSuccessMessage("Caregiver approved successfully!");
       if (selectedOrg) await handleOrgClick(selectedOrg);
       setTimeout(() => setSuccessMessage(""), 3000);
@@ -720,12 +733,26 @@ export default function AdminDashboardPage() {
     if (!reason) return;
 
     try {
+      const now = serverTimestamp();
       await updateDoc(doc(db, "vendors", caregiverId), {
         isApproved: false,
         rejectionReason: reason,
-        rejectedAt: serverTimestamp(),
+        rejectedAt: now,
         rejectedBy: currentUser?.email || "superadmin",
       });
+      setVendors((prev) =>
+        prev.map((vendor) =>
+          vendor.id === caregiverId
+            ? {
+                ...vendor,
+                isApproved: false,
+                rejectionReason: reason,
+                rejectedAt: now,
+                rejectedBy: currentUser?.email || "superadmin",
+              }
+            : vendor,
+        ),
+      );
       setSuccessMessage("Caregiver rejected!");
       if (selectedOrg) await handleOrgClick(selectedOrg);
       setTimeout(() => setSuccessMessage(""), 3000);
@@ -1014,10 +1041,15 @@ export default function AdminDashboardPage() {
 
       await addDoc(collection(db, "blacklist"), {
         userId: reportData.userId,
-        userType: reportData.userType,
+        userName: reportData.userName || "",
+        userType: reportData.userType || "user",
+        reportedBy: reportData.reportedBy || "",
+        reportedByName: reportData.reportedByName || "Caregiver",
+        reportedByOrgId: reportData.reportedByOrgId || "",
         reason: reportData.reason,
         addedAt: serverTimestamp(),
         approvedBy: currentUser?.email || "system",
+        blacklistedBy: currentUser?.email || "system",
         originalReportId: reportId,
       });
 
@@ -1147,6 +1179,27 @@ export default function AdminDashboardPage() {
   }
 
   // ============ UI: MAIN DASHBOARD ============
+  const pendingOrgCount = organizations.filter((org) => !org.isApproved).length;
+  const approvedOrgCount = organizations.filter((org) => org.isApproved).length;
+  const pendingCaregiverCount = vendors.filter((vendor) => vendor.isApproved !== true).length;
+  const approvedCaregiverCount = vendors.filter((vendor) => vendor.isApproved === true).length;
+  const pendingBlacklistCount = blacklistReports.filter((report) => report.status === "pending").length;
+  const approvedBlacklistCount = blacklistReports.filter((report) => report.status === "approved").length;
+  const rejectedBlacklistCount = blacklistReports.filter((report) => report.status === "rejected").length;
+
+  const getTabLabel = (tab) => {
+    const count =
+      tab === "organizations"
+        ? pendingOrgCount
+        : tab === "caregivers"
+        ? pendingCaregiverCount
+        : tab === "blacklist"
+        ? pendingBlacklistCount
+        : 0;
+    const label = tab.charAt(0).toUpperCase() + tab.slice(1);
+    return count > 0 ? `${label} (${count})` : label;
+  };
+
   return (
     <div
       style={{
@@ -1231,9 +1284,12 @@ export default function AdminDashboardPage() {
               backgroundColor: activeTab === tab ? "var(--theme-help)" : "var(--theme-border)",
               color: activeTab === tab ? "white" : "black",
               fontWeight: activeTab === tab ? "bold" : "normal",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
             }}
           >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {getTabLabel(tab)}
           </button>
         ))}
       </div>
@@ -1291,9 +1347,9 @@ export default function AdminDashboardPage() {
                     border: "1px solid var(--theme-neutral-light)",
                   }}
                 >
-                  <option value="all">All Status</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
+                  <option value="all">All Status ({organizations.length})</option>
+                  <option value="approved">Approved ({approvedOrgCount})</option>
+                  <option value="pending">Pending ({pendingOrgCount})</option>
                 </select>
               </div>
 
@@ -2438,9 +2494,9 @@ export default function AdminDashboardPage() {
                     border: "1px solid var(--theme-neutral-light)",
                   }}
                 >
-                  <option value="all">All Status</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
+                  <option value="all">All Status ({vendors.length})</option>
+                  <option value="approved">Approved ({approvedCaregiverCount})</option>
+                  <option value="pending">Pending ({pendingCaregiverCount})</option>
                 </select>
               </div>
 
@@ -3096,25 +3152,38 @@ export default function AdminDashboardPage() {
       {/* ===== TAB: BLACKLIST ===== */}
       {activeTab === "blacklist" && (
         <div>
-          <div style={{ marginBottom: "20px" }}>
+          <div
+            style={{
+              marginBottom: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <h3 style={{ margin: 0 }}>Blacklist Reports</h3>
             <select
               className="dropdown-select"
               value={blacklistFilter}
               onChange={(e) => setBlacklistFilter(e.target.value)}
               style={{
-                padding: "8px",
+                minWidth: "180px",
+                maxWidth: "240px",
+                width: "auto",
+                padding: "8px 10px",
                 borderRadius: "4px",
                 border: "1px solid var(--theme-neutral-light)",
+                fontSize: "14px",
               }}
             >
-              <option value="pending">Pending Reports</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
+              <option value="pending">Pending Reports ({pendingBlacklistCount})</option>
+              <option value="approved">Approved ({approvedBlacklistCount})</option>
+              <option value="rejected">Rejected ({rejectedBlacklistCount})</option>
             </select>
           </div>
 
           <div style={{ marginBottom: "30px" }}>
-            <h3>Blacklist Reports</h3>
             <div
               style={{
                 display: "grid",
@@ -3237,7 +3306,29 @@ export default function AdminDashboardPage() {
                     border: "1px solid var(--theme-danger-soft)",
                   }}
                 >
-                  <h5>🚫 {entry.userId}</h5>
+                  <h5>🚫 {entry.userName || entry.userId}</h5>
+                  <p>
+                    <strong>User ID:</strong> {entry.userId}
+                  </p>
+                  <p>
+                    <strong>Reported by:</strong>{" "}
+                    {vendors.find((v) => v.id === entry.reportedBy)?.name ||
+                      entry.reportedByName ||
+                      entry.reportedBy ||
+                      "Caregiver"}
+                  </p>
+                  <p>
+                    <strong>Organization:</strong>{" "}
+                    {organizations.find((org) => org.id === entry.reportedByOrgId)
+                      ?.organizationName ||
+                      vendors.find((v) => v.id === entry.reportedBy)
+                        ?.organizationName ||
+                      "Unknown"}
+                  </p>
+                  <p>
+                    <strong>Blacklisted by:</strong>{" "}
+                    {entry.blacklistedBy || entry.approvedBy || "Unknown"}
+                  </p>
                   <p>
                     <strong>Type:</strong> {entry.userType}
                   </p>
