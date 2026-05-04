@@ -402,6 +402,10 @@
   font-weight: 700;
 }
 
+.stats-cell-value--muted {
+  color: var(--theme-text-muted);
+}
+
 .stats-cell-value--help {
   color: var(--theme-help);
 }

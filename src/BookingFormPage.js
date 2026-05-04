@@ -173,7 +173,11 @@ export default function BookingFormPage({ caregiver, onBooked }) {
       }
     } catch (err) {
       console.error("Error creating booking:", err);
-      setError("Could not create booking. Please try again.");
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Could not create booking. Please try again."
+      );
     }
   };
 
@@ -260,11 +264,11 @@ export default function BookingFormPage({ caregiver, onBooked }) {
         <div className="stats-grid">
           <div className="stats-cell">
             <p className="stats-cell-label">Rating</p>
-            <p className="stats-cell-value">⭐ {caregiver.rating || 5}/5</p>
+            <p className="stats-cell-value stats-cell-value--muted">⭐ {caregiver.rating || 5}/5</p>
           </div>
           <div className="stats-cell">
             <p className="stats-cell-label">Jobs Done</p>
-            <p className="stats-cell-value">{caregiver.jobsCompleted || 0}</p>
+            <p className="stats-cell-value stats-cell-value--muted">{caregiver.jobsCompleted || 0}</p>
           </div>
           <div className="stats-cell">
             <p className="stats-cell-label">Hourly Rate</p>
@@ -383,7 +387,7 @@ export default function BookingFormPage({ caregiver, onBooked }) {
                 paymentMethod === "fonepay"
                   ? "linear-gradient(135deg, var(--theme-help), var(--theme-help-accent))"
                   : "var(--theme-surface)",
-              color: paymentMethod === "fonepay" ? "white" : "var(--theme-button-text)",
+              color: paymentMethod === "fonepay" ? "white" : "var(--theme-text)",
               cursor: "pointer",
               fontWeight: "600",
             }}
@@ -402,7 +406,7 @@ export default function BookingFormPage({ caregiver, onBooked }) {
                 paymentMethod === "cash"
                   ? "linear-gradient(135deg, var(--theme-help), var(--theme-help-accent))"
                   : "var(--theme-surface)",
-              color: paymentMethod === "cash" ? "white" : "var(--theme-button-text)",
+              color: paymentMethod === "cash" ? "white" : "var(--theme-text)",
               cursor: "pointer",
               fontWeight: "600",
             }}
