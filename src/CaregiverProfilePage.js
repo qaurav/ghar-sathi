@@ -248,7 +248,7 @@ export default function CaregiverProfilePage() {
               borderRadius: "6px",
               border: isAvailable ? "none" : "1px solid var(--theme-text)",
               background: isAvailable ? "var(--theme-positive)" : "var(--theme-surface)",
-              color: "white",
+              color: isAvailable ? "white" : "var(--theme-text)",
               cursor: "pointer",
               fontWeight: isAvailable ? "600" : "500",
             }}
@@ -263,7 +263,7 @@ export default function CaregiverProfilePage() {
               borderRadius: "6px",
               border: !isAvailable ? "none" : "1px solid var(--theme-text)",
               background: !isAvailable ? "var(--theme-danger)" : "var(--theme-surface)",
-              color: "white",
+              color: !isAvailable ? "white" : "var(--theme-text)",
               cursor: "pointer",
               fontWeight: !isAvailable ? "600" : "500",
             }}
@@ -285,7 +285,7 @@ export default function CaregiverProfilePage() {
               borderRadius: "6px",
               border: workType === "fulltime" ? "none" : "1px solid var(--theme-text)",
               background: workType === "fulltime" ? "var(--theme-help)" : "var(--theme-surface)",
-              color: "white",
+              color: workType === "fulltime" ? "white" : "var(--theme-text)",
               cursor: "pointer",
               fontWeight: workType === "fulltime" ? "600" : "500",
             }}
@@ -300,7 +300,7 @@ export default function CaregiverProfilePage() {
               borderRadius: "6px",
               border: workType === "parttime" ? "none" : "1px solid var(--theme-text)",
               background: workType === "parttime" ? "var(--theme-warning)" : "var(--theme-surface)",
-              color: "white",
+              color: workType === "parttime" ? "white" : "var(--theme-text)",
               cursor: "pointer",
               fontWeight: workType === "parttime" ? "600" : "500",
             }}

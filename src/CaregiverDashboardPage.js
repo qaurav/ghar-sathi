@@ -384,7 +384,7 @@ export default function CaregiverDashboardPage() {
       <p
         style={{
           fontSize: 13,
-          color: "var(--theme-text-muted)",
+          color: "var(--theme-text)",
           marginTop: -4,
           marginBottom: 12,
         }}
@@ -903,7 +903,7 @@ export default function CaregiverDashboardPage() {
                   borderRadius: 6,
                   border: editAvailable ? "none" : "1px solid var(--theme-text)",
                   background: editAvailable ? "var(--theme-positive)" : "var(--theme-surface)",
-                  color: editAvailable ? "var(--theme-button-text)" : "var(--theme-button-text)",
+                  color: editAvailable ? "var(--theme-button-text)" : "var(--theme-text)",
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
@@ -920,7 +920,7 @@ export default function CaregiverDashboardPage() {
                     ? "none"
                     : "1px solid var(--theme-text)",
                   background: !editAvailable ? "var(--theme-danger)" : "var(--theme-surface)",
-                  color: !editAvailable ? "var(--theme-button-text)" : "var(--theme-button-text)",
+                  color: !editAvailable ? "var(--theme-button-text)" : "var(--theme-text)",
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
@@ -952,7 +952,7 @@ export default function CaregiverDashboardPage() {
                   color:
                     editWorkType === "fulltime"
                       ? "var(--theme-button-text)"
-                      : "var(--theme-button-text)",
+                      : "var(--theme-text)",
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
@@ -975,8 +975,8 @@ export default function CaregiverDashboardPage() {
                       : "var(--theme-surface)",
                   color:
                     editWorkType === "parttime"
-                      ? "var(--theme-text)"
-                      : "var(--theme-button-text)",
+                      ? "var(--theme-button-text)"
+                      : "var(--theme-text)",
                   cursor: "pointer",
                   fontWeight: 600,
                 }}
@@ -1013,7 +1013,7 @@ export default function CaregiverDashboardPage() {
                           : "var(--theme-surface)",
                         color: editShifts.includes(shift)
                           ? "var(--theme-button-text)"
-                          : "var(--theme-button-text)",
+                          : "var(--theme-text)",
                         cursor: "pointer",
                         fontSize: 12,
                         fontWeight: 600,
@@ -1077,7 +1077,7 @@ export default function CaregiverDashboardPage() {
                         : "var(--theme-surface)",
                       color: editServices.includes(service.id)
                         ? "var(--theme-button-text)"
-                        : "var(--theme-button-text)",
+                        : "var(--theme-text)",
                       cursor: "pointer",
                       fontSize: 12,
                       fontWeight: 600,
@@ -1123,7 +1123,7 @@ export default function CaregiverDashboardPage() {
           >
             <h3
               style={{
-                color: "var(--theme-button-text)",
+                color: "var(--theme-text)",
                 marginTop: 0,
                 marginBottom: 12,
               }}
@@ -1137,7 +1137,7 @@ export default function CaregiverDashboardPage() {
                 onClick={() => setShowPasswordSection(true)}
                 style={{
                   background: "var(--theme-surface)",
-                  color: "var(--theme-button-text)",
+                  color: "var(--theme-text)",
                   border: "1px solid var(--theme-text)",
                 }}
               >
@@ -1233,7 +1233,7 @@ export default function CaregiverDashboardPage() {
           >
             <h4
               style={{
-                color: "var(--theme-button-text)",
+                color: "var(--theme-text)",
                 marginTop: 0,
                 marginBottom: 12,
               }}
