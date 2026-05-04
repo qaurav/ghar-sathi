@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   collection,
   query,
@@ -17,6 +17,9 @@ export default function MyBookingsPage() {
   const [paymentFilter, setPaymentFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [completionNotification, setCompletionNotification] = useState(null);
+  const prevBookingsRef = useRef([]);
+  const initialLoadRef = useRef(true);
 
   useEffect(() => {
     if (!user) {
@@ -43,6 +46,24 @@ export default function MyBookingsPage() {
               const timeB = b.createdAt?.toDate?.() || new Date(0);
               return timeB - timeA;
             });
+
+          if (!initialLoadRef.current) {
+            const newlyCompleted = docs.filter((b) => {
+              const prev = prevBookingsRef.current.find((p) => p.id === b.id);
+              return b.status === "completed" && prev && prev.status !== "completed";
+            });
+
+            if (newlyCompleted.length > 0) {
+              const message = newlyCompleted.length === 1
+                ? `Your booking ${newlyCompleted[0].caregiverName || newlyCompleted[0].id.substring(0, 8)} has been marked completed.`
+                : `You have ${newlyCompleted.length} bookings marked completed.`;
+              setCompletionNotification(message);
+              window.setTimeout(() => setCompletionNotification(null), 7000);
+            }
+          }
+
+          prevBookingsRef.current = docs;
+          initialLoadRef.current = false;
 
           console.log("User bookings loaded:", docs);
           setBookings(docs);
@@ -110,6 +131,20 @@ export default function MyBookingsPage() {
   return (
     <div>
       <h2 className="section-title section-title--compact">My Bookings</h2>
+      {completionNotification && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: 12,
+            borderRadius: 8,
+            backgroundColor: "#e8f5e9",
+            border: "1px solid #c8e6c9",
+            color: "#256029",
+          }}
+        >
+          {completionNotification}
+        </div>
+      )}
       <p style={{ fontSize: 13, color: "var(--theme-text-muted)", marginTop: -4, marginBottom: 12 }}>
         Track your service bookings and payments
       </p>

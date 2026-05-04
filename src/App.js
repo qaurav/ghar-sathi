@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import AuthPage from "./AuthPage";
@@ -15,6 +15,8 @@ import CaregiverReportUserPage from "./CaregiverReportUserPage";
 import Header from "./components/Header";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebaseConfig";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "./firebaseConfig";
 import "./App.css";
 import logoSewak from "./logoSewak.jpeg";
 
@@ -25,7 +27,20 @@ function App() {
   const [userCategory, setUserCategory] = useState("");
   const [userWorkType, setUserWorkType] = useState("");
   const [userShift, setUserShift] = useState("");
+  const [notificationCount, setNotificationCount] = useState(0);
+  const bookingsSnapshotRef = useRef([]);
+  const bookingsInitialLoadRef = useRef(true);
+  const seenCompletedIdsRef = useRef([]);
   const navigate = useNavigate();
+
+  const parseSavedIds = (value) => {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -46,8 +61,67 @@ function App() {
   const handleMyBookings = () => {
     setSelectedCaregiver(null);
     setShowMyBookings(false);
+
+    const currentCompletedIds = bookingsSnapshotRef.current
+      .filter((booking) => booking.status === "completed")
+      .map((booking) => booking.id);
+
+    if (user?.uid) {
+      const storageKey = `seenCompletedBookings_${user.uid}`;
+      const stored = localStorage.getItem(storageKey);
+      const storedIds = parseSavedIds(stored);
+      const mergedIds = Array.from(new Set([...(storedIds || []), ...currentCompletedIds]));
+      localStorage.setItem(storageKey, JSON.stringify(mergedIds));
+      seenCompletedIdsRef.current = mergedIds;
+    }
+
+    setNotificationCount(0);
     navigate("/user/mybookings");
   };
+
+  useEffect(() => {
+    if (!user || userRole !== "user") return;
+
+    const storageKey = `seenCompletedBookings_${user.uid}`;
+    const stored = localStorage.getItem(storageKey);
+    seenCompletedIdsRef.current = parseSavedIds(stored);
+
+    const q = query(
+      collection(db, "bookings"),
+      where("userId", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const currentCompletedIds = docs
+        .filter((booking) => booking.status === "completed")
+        .map((booking) => booking.id);
+      const unseenCompleted = currentCompletedIds.filter(
+        (id) => !seenCompletedIdsRef.current.includes(id)
+      );
+
+      if (!bookingsInitialLoadRef.current) {
+        setNotificationCount(unseenCompleted.length);
+      } else {
+        if (stored) {
+          setNotificationCount(unseenCompleted.length);
+        } else {
+          setNotificationCount(0);
+          seenCompletedIdsRef.current = currentCompletedIds;
+          localStorage.setItem(storageKey, JSON.stringify(currentCompletedIds));
+        }
+      }
+
+      bookingsSnapshotRef.current = docs;
+      bookingsInitialLoadRef.current = false;
+    });
+
+    return () => {
+      unsubscribe();
+      bookingsSnapshotRef.current = [];
+      bookingsInitialLoadRef.current = true;
+    };
+  }, [user, userRole]);
 
   useEffect(() => {
     if (!user || !userRole) return;
@@ -244,6 +318,7 @@ function App() {
           userDoc={userDoc}
           onLogout={handleLogout}
           onBrowseCaregivers={handleBrowseCaregivers}
+          notificationCount={notificationCount}
         />
         <Routes>
           <Route path="/user/profile" element={<UserProfilePage />} />
@@ -263,6 +338,7 @@ function App() {
           userDoc={userDoc}
           onLogout={handleLogout}
           onBrowseCaregivers={handleBrowseCaregivers}
+          notificationCount={notificationCount}
         />
         <Routes>
           <Route path="/organization/profile" element={<OrganizationProfilePage />} />
@@ -282,6 +358,7 @@ function App() {
         onLogout={handleLogout}
         onBrowseCaregivers={handleBrowseCaregivers}
         onMyBookings={handleMyBookings}
+        notificationCount={notificationCount}
       />
       <Routes>
         {/* USER ROUTES */}

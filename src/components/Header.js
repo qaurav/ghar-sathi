@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import logoSvg from "../logoSewak.jpeg";
 import "./Header.css";
 
-export default function Header({ user, userRole, userDoc, onLogout, onBrowseCaregivers, onMyBookings }) {
+export default function Header({ user, userRole, userDoc, onLogout, onBrowseCaregivers, onMyBookings, notificationCount }) {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
@@ -96,6 +96,21 @@ export default function Header({ user, userRole, userDoc, onLogout, onBrowseCare
             <span className="header-user-avatar">{getRoleIcon(userRole)}</span>
             <span className="header-user-name">{userDoc?.name || user.email}</span>
             <span className="header-user-role">{getRoleLabel(userRole)}</span>
+            {notificationCount > 0 && (
+              <span
+                style={{
+                  marginLeft: 8,
+                  backgroundColor: "var(--theme-danger)",
+                  color: "white",
+                  borderRadius: 999,
+                  padding: "2px 8px",
+                  fontSize: 12,
+                  fontWeight: "bold",
+                }}
+              >
+                {notificationCount}
+              </span>
+            )}
             <span style={{ fontSize: 16, marginLeft: 4 }}>{showMenu ? "▲" : "▼"}</span>
           </button>
 
@@ -158,7 +173,7 @@ export default function Header({ user, userRole, userDoc, onLogout, onBrowseCare
                         }
                       }}
                     >
-                      📅 My Bookings
+                      📅 My Bookings{notificationCount > 0 ? ` (${notificationCount})` : ""}
                     </button>
                     <button
                       type="button"
