@@ -20,6 +20,7 @@ export default function CaregiverReportUserPage() {
   const [userId, setUserId] = useState("");
   const [userName, setUserName] = useState("");
   const [employeeId, setEmployeeId] = useState("");
+  const [organizationId, setOrganizationId] = useState("");
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -31,11 +32,13 @@ export default function CaregiverReportUserPage() {
     const userIdParam = searchParams.get("userId");
     const userNameParam = searchParams.get("userName");
     const employeeIdParam = searchParams.get("employeeId");
+    const organizationIdParam = searchParams.get("organizationId");
 
     if (bookingIdParam) setBookingId(bookingIdParam);
     if (userIdParam) setUserId(userIdParam);
     if (userNameParam) setUserName(userNameParam);
     if (employeeIdParam) setEmployeeId(employeeIdParam);
+    if (organizationIdParam) setOrganizationId(organizationIdParam);
   }, [searchParams]);
 
   const handleSubmit = async (e) => {
@@ -61,6 +64,7 @@ export default function CaregiverReportUserPage() {
         userName,
         reportedBy: employeeId,
         reportedByName: "Caregiver",
+        reportedByOrgId: organizationId,
         reason,
         description: description.trim(),
         status: "pending",

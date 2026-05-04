@@ -3146,7 +3146,24 @@ export default function AdminDashboardPage() {
                       <strong>User ID:</strong> {report.userId}
                     </p>
                     <p>
-                      <strong>User Type:</strong> {report.userType}
+                      <strong>Reported by:</strong>{" "}
+                      {vendors.find((v) => v.id === report.reportedBy)?.name ||
+                        report.reportedByName ||
+                        report.reportedBy ||
+                        "Caregiver"}
+                    </p>
+                    <p>
+                      <strong>Organization:</strong>{" "}
+                      {organizations.find(
+                        (org) =>
+                          org.id === report.reportedByOrgId ||
+                          org.id ===
+                            vendors.find((v) => v.id === report.reportedBy)
+                              ?.organizationId,
+                      )?.organizationName ||
+                        vendors.find((v) => v.id === report.reportedBy)
+                          ?.organizationName ||
+                        "Unknown"}
                     </p>
                     <p>
                       <strong>Reason:</strong> {report.reason}
