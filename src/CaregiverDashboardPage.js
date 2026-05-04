@@ -15,7 +15,7 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "./firebaseConfig";
 import { useAuth } from "./AuthContext";
 import "./OrganizationDashboard.css";
@@ -27,6 +27,7 @@ const COMMISSION_RATE = 15;
 export default function CaregiverDashboardPage() {
   const { user, userDoc } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [activeTab, setActiveTab] = useState("jobs");
 
@@ -66,6 +67,17 @@ export default function CaregiverDashboardPage() {
   const [editExperience, setEditExperience] = useState(0);
   const [editAvailable, setEditAvailable] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Sync active tab with URL query params
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab");
+    if (["jobs", "profile", "earnings"].includes(tab)) {
+      setActiveTab(tab);
+    } else {
+      setActiveTab("jobs");
+    }
+  }, [location.search]);
 
   // Load bookings & reports
   useEffect(() => {
@@ -1184,14 +1196,27 @@ export default function CaregiverDashboardPage() {
                   style={{
                     display: "flex",
                     gap: 8,
-                    marginTop: 12,
+                    marginTop: 0,
+                    alignItems: "stretch",
+                    flexWrap: "nowrap",
                   }}
                 >
                   <button
                     type="submit"
                     className="btn btn-primary"
                     disabled={changingPassword}
-                    style={{ flex: 1 }}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      height: 44,
+                      boxSizing: "border-box",
+                      marginTop: 0,
+                      padding: "0 14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "1px solid transparent",
+                    }}
                   >
                     {changingPassword
                       ? "Changing..."
@@ -1209,8 +1234,15 @@ export default function CaregiverDashboardPage() {
                     }}
                     style={{
                       flex: 1,
+                      minWidth: 0,
+                      height: 44,
+                      boxSizing: "border-box",
+                      padding: "0 14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       background: "var(--theme-surface)",
-                      color: "var(--theme-button-text)",
+                      color: "var(--theme-text)",
                       border: "1px solid var(--theme-text)",
                     }}
                   >

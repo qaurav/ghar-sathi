@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logoSvg from "../logoSewak.jpeg";
 import "./Header.css";
@@ -6,6 +6,29 @@ import "./Header.css";
 export default function Header({ user, userRole, userDoc, onLogout, onBrowseCaregivers, onMyBookings }) {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showMenu && menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showMenu]);
 
   if (!user) return null;
 
@@ -64,7 +87,7 @@ export default function Header({ user, userRole, userDoc, onLogout, onBrowseCare
             </div>
 
         {/* User Menu */}
-        <div className="header-menu">
+        <div className="header-menu" ref={menuRef}>
           <button
             type="button"
             className="header-user-button"
@@ -153,14 +176,21 @@ export default function Header({ user, userRole, userDoc, onLogout, onBrowseCare
                     <button
                       type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/caregiver")}
+                      onClick={() => handleNavigate("/caregiver?tab=jobs")}
                     >
                       📊 Job Dashboard
                     </button>
                     <button
                       type="button"
                       className="dropdown-item"
-                      onClick={() => handleNavigate("/caregiver")}
+                      onClick={() => handleNavigate("/caregiver?tab=profile")}
+                    >
+                      👤 My Profile
+                    </button>
+                    <button
+                      type="button"
+                      className="dropdown-item"
+                      onClick={() => handleNavigate("/caregiver?tab=earnings")}
                     >
                       💰 My Earnings
                     </button>
