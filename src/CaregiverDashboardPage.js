@@ -565,7 +565,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: "var(--theme-button-text)",
+                      color: "var(--theme-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -575,7 +575,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: "var(--theme-button-text)",
+                      color: "var(--theme-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -585,7 +585,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: "var(--theme-button-text)",
+                      color: "var(--theme-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -595,7 +595,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 13,
-                      color: "var(--theme-button-text)",
+                      color: "var(--theme-text-muted)",
                       marginBottom: 6,
                     }}
                   >
@@ -634,7 +634,7 @@ export default function CaregiverDashboardPage() {
                   <p
                     style={{
                       fontSize: 12,
-                      color: "var(--theme-button-text)",
+                      color: "var(--theme-text-muted)",
                       marginBottom: 4,
                     }}
                   >
@@ -724,7 +724,7 @@ export default function CaregiverDashboardPage() {
                         style={{
                           flex: 1,
                           background: "var(--theme-danger)",
-                          color: "var(--theme-danger-soft)",
+                          color: "var(--theme-button-text)",
                           borderColor: "var(--theme-danger)",
                         }}
                       >
@@ -752,7 +752,7 @@ export default function CaregiverDashboardPage() {
                         style={{
                           flex: 1,
                           background: "var(--theme-danger)",
-                          color: "var(--theme-danger-soft)",
+                          color: "var(--theme-button-text)",
                           borderColor: "var(--theme-danger)",
                         }}
                       >
@@ -803,7 +803,7 @@ export default function CaregiverDashboardPage() {
                         style={{
                           flex: 1,
                           background: "var(--theme-surface)",
-                          color: "var(--theme-danger-soft)",
+                          color: "var(--theme-danger)",
                           borderColor: "var(--theme-danger)",
                         }}
                       >

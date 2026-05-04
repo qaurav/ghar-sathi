@@ -457,7 +457,7 @@
 
 .btn-primary {
   background: var(--theme-primary-gradient);
-  color: var(--text);
+  color: var(--theme-button-text);
   border: none;
 }
 
