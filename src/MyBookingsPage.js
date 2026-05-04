@@ -204,7 +204,7 @@ export default function MyBookingsPage() {
               }}
             >
               <div>
-                <strong style={{ fontSize: 16, color: "var(--theme-button-text)" }}>
+                <strong style={{ fontSize: 16, color: "var(--theme-text)" }}>
                   {b.caregiverName || "Caregiver"}
                 </strong>
                 <div style={{ fontSize: 12, color: "var(--theme-text-muted)", marginTop: 4 }}>
@@ -257,16 +257,16 @@ export default function MyBookingsPage() {
 
             {/* Details */}
             <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--theme-text)" }}>
-              <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
+              <p style={{ fontSize: 13, color: "var(--theme-text)", marginBottom: 6 }}>
                 <strong>📅 Date:</strong> {b.date || "Not specified"}
               </p>
-              <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
+              <p style={{ fontSize: 13, color: "var(--theme-text)", marginBottom: 6 }}>
                 <strong>⏰ Time:</strong> {b.time || "Not specified"}
               </p>
-              <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
+              <p style={{ fontSize: 13, color: "var(--theme-text)", marginBottom: 6 }}>
                 <strong>⏱️ Duration:</strong> {b.durationHours || "N/A"} hours
               </p>
-              <p style={{ fontSize: 13, color: "var(--theme-button-text)" }}>
+              <p style={{ fontSize: 13, color: "var(--theme-text)" }}>
                 <strong>🏠 Address:</strong> {b.address || "Not specified"}
               </p>
             </div>
@@ -291,7 +291,7 @@ export default function MyBookingsPage() {
                 borderRadius: "8px",
               }}
             >
-              <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
+              <p style={{ fontSize: 13, color: "var(--theme-text)", marginBottom: 6 }}>
                 <strong>💰 Amount:</strong> ₹{b.totalAmount || b.amountDue || "N/A"}
               </p>
               {b.paymentMethod === "fonepay" && (
@@ -344,7 +344,7 @@ export default function MyBookingsPage() {
                     onClick={() => cancelBooking(b.id)}
                     style={{
                       background: "var(--theme-surface)",
-                      color: "var(--theme-button-text)",
+                      color: "var(--theme-text)",
                       border: "1px solid var(--theme-text)",
                       flex: 1,
                     }}
@@ -364,7 +364,7 @@ export default function MyBookingsPage() {
                     onClick={() => cancelBooking(b.id)}
                     style={{
                       background: "var(--theme-surface)",
-                      color: "var(--theme-button-text)",
+                      color: "var(--theme-text)",
                       border: "1px solid var(--theme-text)",
                       flex: 1,
                     }}
@@ -414,7 +414,7 @@ export default function MyBookingsPage() {
             paddingBottom: 14,
           }}
         >
-          <p style={{ fontSize: 14, color: "var(--theme-button-text)", marginBottom: 10 }}>
+          <p style={{ fontSize: 14, color: "var(--theme-text)", marginBottom: 10 }}>
             <strong>📊 Your Booking Summary</strong>
           </p>
           <div

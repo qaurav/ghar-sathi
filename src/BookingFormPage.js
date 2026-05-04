@@ -98,11 +98,6 @@ export default function BookingFormPage({ caregiver, onBooked }) {
         createdAt: serverTimestamp(),
       });
 
-      // Update vendor pending earnings
-      await updateDoc(doc(db, "vendors", caregiver.id), {
-        pendingEarnings: (caregiver.pendingEarnings || 0) + vendorReceives,
-      });
-
       alert(
         `Booking confirmed! Please pay ₹${totalAmount} in cash to the caregiver when they arrive.`
       );
@@ -130,9 +125,23 @@ export default function BookingFormPage({ caregiver, onBooked }) {
     }
 
     try {
-      // Check if user is blacklisted
+      // Debug: check blacklist read begins
+      console.log("BookingForm: checking blacklist for", user.uid);
       const blRef = doc(db, "blacklist", user.uid);
-      const blSnap = await getDoc(blRef);
+      let blSnap;
+
+      try {
+        blSnap = await getDoc(blRef);
+        console.log("BookingForm: blacklist read result exists=", blSnap.exists());
+      } catch (blacklistError) {
+        console.error("BookingForm: blacklist read failed", blacklistError);
+        setError(
+          blacklistError instanceof Error && blacklistError.message
+            ? `Blacklist read failed: ${blacklistError.message}`
+            : "Blacklist read failed. Please check permissions."
+        );
+        return;
+      }
 
       if (blSnap.exists()) {
         setIsBlacklistedModalOpen(true);
@@ -166,6 +175,7 @@ export default function BookingFormPage({ caregiver, onBooked }) {
         vendorEarnings: vendorReceives,
       };
 
+      console.log("BookingForm: paymentMethod=", paymentMethod);
       if (paymentMethod === "fonepay") {
         await handlePaymentWithFonepay(bookingData);
       } else {
