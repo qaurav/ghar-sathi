@@ -2452,17 +2452,20 @@ export default function AdminDashboardPage() {
                 }}
               >
                 {vendors
-                  .filter(
-                    (vendor) =>
-                      (searchVendor === "" ||
-                        vendor.name
-                          ?.toLowerCase()
-                          .includes(searchVendor.toLowerCase())) &&
-                      (vendorStatusFilter === "all" ||
-                        (vendorStatusFilter === "approved"
-                          ? vendor.isApproved
-                          : !vendor.isApproved)),
-                  )
+                  .filter((vendor) => {
+                    const matchesSearch =
+                      searchVendor === "" ||
+                      vendor.name
+                        ?.toLowerCase()
+                        .includes(searchVendor.toLowerCase());
+                    const matchesStatus =
+                      vendorStatusFilter === "all" ||
+                      (vendorStatusFilter === "approved"
+                        ? vendor.isApproved === true
+                        : vendor.isApproved !== true);
+
+                    return matchesSearch && matchesStatus;
+                  })
                   .map((vendor) => (
                     <div
                       key={vendor.id}

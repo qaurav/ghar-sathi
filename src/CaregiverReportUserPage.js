@@ -109,13 +109,13 @@ export default function CaregiverReportUserPage() {
 
         {/* User info */}
         <div className="card" style={{ marginBottom: 16, background: "var(--theme-surface)" }}>
-          <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
+          <p style={{ fontSize: 13, color: "var(--theme-text-muted)", marginBottom: 6 }}>
             <strong>User:</strong> {userName || "Unknown"}
           </p>
-          <p style={{ fontSize: 13, color: "var(--theme-button-text)", marginBottom: 6 }}>
+          <p style={{ fontSize: 13, color: "var(--theme-text-muted)", marginBottom: 6 }}>
             <strong>User ID:</strong> {userId || "N/A"}
           </p>
-          <p style={{ fontSize: 13, color: "var(--theme-button-text)", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "var(--theme-text-muted)", margin: 0 }}>
             <strong>Booking ID:</strong> {bookingId?.substring(0, 12)}...
           </p>
         </div>
@@ -162,7 +162,7 @@ export default function CaregiverReportUserPage() {
               style={{
                 flex: 1,
                 background: "var(--theme-surface)",
-                color: "var(--theme-button-text)",
+                color: "var(--theme-text)",
                 border: "1px solid var(--theme-text)",
               }}
             >

@@ -221,13 +221,13 @@ export default function CaregiverDashboardPage() {
     if (!confirmed) return;
 
     navigate(
-      `/caregiverreportuser?bookingId=${encodeURIComponent(
+      `/caregiver/reportuser?bookingId=${encodeURIComponent(
         b.id
       )}&userId=${encodeURIComponent(
         b.userId
       )}&userName=${encodeURIComponent(
         b.userName
-      )}&caregiverId=${encodeURIComponent(
+      )}&employeeId=${encodeURIComponent(
         user?.uid || ""
       )}&organizationId=${encodeURIComponent(
         userDoc?.organizationId || ""
